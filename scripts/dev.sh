@@ -198,7 +198,8 @@ start_backend() {
     #   新: API Server started on 0.0.0.0:29526
     started_line="$(grep -m1 -E 'API Server started on (port )?[0-9.:a-fA-F]+' "$BACKEND_LOG" 2>/dev/null || true)"
     if [[ -n "$started_line" ]]; then
-      BACKEND_PORT="$(printf '%s' "$started_line" | grep -oE '[0-9]+' | tail -n1)"
+      # 端口以 .env / API_PORT 为准，不能从带 timestamp 的 JSON 日志中取“最后一个数字”。
+      BACKEND_PORT="$EXPECTED_PORT"
       started=1
       echo "    检测到启动日志：$started_line"
       break
