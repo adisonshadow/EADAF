@@ -117,7 +117,14 @@ export default defineConfig({
     allowedHosts: true,
     cors: true,
     watch: {
-      ignored: ['!**/AIBase_with_example/package/ai-base/src/**'],
+      usePolling: false,
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/.cursor/**', // 排除Cursor AI缓存目录！非常关键
+        '**/*.log'
+      ]
     },
     proxy: {
       '/api/v1': {
