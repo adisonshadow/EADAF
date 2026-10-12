@@ -142,6 +142,13 @@ async function buildPlatformExport(rawOptions = {}) {
     storageFileEntries,
   } = await collectPlatformStorage(eadafApp, options, warnings);
 
+  if (!options.includeFiles && storageObjects.length) {
+    warnings.push(
+      `未勾选「携带存储文件」,已跳过 ${storageObjects.length} 个存储对象(桶元数据照常导出)。`
+      + '目标实例不会有这些对象记录,相关图片/附件不会被引用;需要文件请在导出时勾选。',
+    );
+  }
+
   const exportSummary = {
     platformCode: SYSTEM_APPLICATION_CODE,
     includeFiles: options.includeFiles,
@@ -157,7 +164,8 @@ async function buildPlatformExport(rawOptions = {}) {
       dataStandards: dataStandards.length,
       uacPermissions: uacPermissions.length,
       storageBuckets: storageBuckets.length,
-      storageObjects: storageObjects.length,
+      // 与 payload 保持一致:未携带文件时导出 0 个对象记录
+      storageObjects: options.includeFiles ? storageObjects.length : 0,
     },
     secretsInPlaintext: true,
     warnings,
@@ -181,7 +189,8 @@ async function buildPlatformExport(rawOptions = {}) {
     systemFeatures,
     uacPermissions,
     storageBuckets,
-    storageObjects,
+    // 同 app 导出:未携带文件时不导出会悬空的对象记录(见 #20)
+    storageObjects: options.includeFiles ? storageObjects : [],
     exportSummary,
     _storageFileEntries: storageFileEntries,
   };
