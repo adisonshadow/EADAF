@@ -506,6 +506,13 @@ async function buildExportContext(app, options) {
     storageFileEntries,
   } = await collectAppStorage(app, options, warnings);
 
+  if (!options.includeFiles && storageObjects.length) {
+    warnings.push(
+      `未勾选「携带存储文件」,已跳过 ${storageObjects.length} 个存储对象(桶元数据照常导出)。`
+      + '目标实例不会有这些对象记录,相关图片/附件不会被引用;需要文件请在导出时勾选。',
+    );
+  }
+
   // ---- UAC(不勾选仅导出被引用 roles/permissions) ----
   const bucketRoleIds = [];
   for (const bucket of storageBuckets) {
@@ -705,7 +712,9 @@ async function buildExportContext(app, options) {
     metadataSection,
     uacSection,
     storageBuckets,
-    storageObjects,
+    // 未携带文件时不导出对象记录：记录一旦落到目标库就会指向不存在的对象，
+    // 图片/附件接口随即 404，而导入报告看不出任何异常（见 #20）。
+    storageObjects: options.includeFiles ? storageObjects : [],
     storageFileEntries,
     entityDataItems,
     sourceApplicationId: app.application_id,

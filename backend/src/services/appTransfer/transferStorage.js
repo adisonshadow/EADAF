@@ -290,6 +290,8 @@ async function importStorageObjectsSection(ctx, opts = {}) {
     || ctx.defaultStorageApplicationId
     || ctx.targetAppId
     || null;
+  // 记录已写入但对象存储里没有文件的对象（写库成功、文件拿不到 → 读图 404）
+  const missingBinaries = [];
 
   try {
     for (const obj of objects) {
@@ -333,7 +335,44 @@ async function importStorageObjectsSection(ctx, opts = {}) {
         };
 
         const existing = await models.StorageObject.findByPk(obj.object_id);
-        let servedRelative = destRelative;
+        const existingRelative = existing && existing.relative_path
+          ? assertSafeRelativePath(String(existing.relative_path).replace(/\\/g, '/'))
+          : null;
+        // skip 策略下已存在的对象以目标现有路径为准
+        const servedRelative = (existing && ctx.strategy !== 'overwrite' && existingRelative)
+          ? existingRelative
+          : destRelative;
+
+        // 先确认文件能不能拿到，再决定要不要写记录。
+        // 以前是先写记录、后判文件，于是「未携带文件」的包会在目标库留下
+        // 指向不存在对象的行 → 图片/附件接口 404，且导入报告看不出异常（见 #20）。
+        const srcAbs = resolvePackageFile(filesDir, obj.relative_path || destRelative);
+        const stored = await objectStore.stat(assertSafeRelativePath(servedRelative));
+        const objectMissing = !stored;
+        const willCopy = objectStore.shouldCopyStoredObject({
+          existing: Boolean(existing),
+          strategy: ctx.strategy,
+          objectMissing,
+          hasPackageFile: Boolean(srcAbs),
+        });
+
+        if (objectMissing && !willCopy) {
+          // 对象存储里没有文件，包内也没有可写的二进制：
+          //   - 新建记录：直接跳过，绝不制造悬空记录
+          //   - 已存在记录：保留目标现有记录与文件，不改动
+          const reason = srcAbs ? '包内有对应文件但拷贝失败' : '包内无对应二进制';
+          missingBinaries.push({
+            objectId: obj.object_id,
+            label: obj.name || '',
+            path: servedRelative,
+            reason,
+            existing: Boolean(existing),
+          });
+          section.counts.skipped += 1;
+          ctx.itemFailed(section, `${label}(${reason})`, new Error('对象文件不可访问，未写入该记录'));
+          continue;
+        }
+
         if (existing) {
           if (ctx.strategy === 'overwrite') {
             await existing.update({
@@ -349,33 +388,42 @@ async function importStorageObjectsSection(ctx, opts = {}) {
             section.counts.updated += 1;
           } else {
             section.counts.skipped += 1;
-            servedRelative = existing.relative_path
-              ? assertSafeRelativePath(String(existing.relative_path).replace(/\\/g, '/'))
-              : destRelative;
           }
         } else {
           await models.StorageObject.create(payload);
           section.counts.created += 1;
         }
 
-        const srcAbs = resolvePackageFile(filesDir, obj.relative_path || destRelative);
-        const stored = await objectStore.stat(assertSafeRelativePath(servedRelative));
-        const objectMissing = !stored;
-        if (objectStore.shouldCopyStoredObject({
-          existing: Boolean(existing),
-          strategy: ctx.strategy,
-          objectMissing,
-          hasPackageFile: Boolean(srcAbs),
-        })) {
+        if (willCopy) {
           await copyObjectFile(srcAbs, servedRelative);
           section.counts.copied += 1;
-        } else if (includeFiles && objectMissing && !srcAbs) {
-          ctx.itemFailed(section, label, new Error('包内无对应二进制,记录已写入但文件无法访问'));
         }
       } catch (e) {
         ctx.itemFailed(section, label, e);
       }
     }
+
+    // 缺失二进制必须显式报告，不能只靠 includeFiles 分支（见 #20）
+    if (missingBinaries.length) {
+      const skippedNew = missingBinaries.filter((m) => !m.existing).length;
+      const keptExisting = missingBinaries.length - skippedNew;
+      const preview = missingBinaries
+        .slice(0, 8)
+        .map((m) => `${m.objectId}(${m.path})`)
+        .join(', ');
+      section.notes.push(
+        `${missingBinaries.length} 个对象的文件不在包内、也不在对象存储里: `
+        + `未写入的新记录 ${skippedNew} 个`
+        + `${keptExisting ? `;目标已有记录保留(未改动) ${keptExisting} 个` : ''}。`
+        + `明细: ${preview}${missingBinaries.length > 8 ? '…' : ''}`,
+      );
+      section.notes.push(
+        '这些文件的下载/预览/裁剪在目标实例不可用。导出时请勾选「携带存储文件」;'
+        + '只带元数据的包不会迁移原始文件。',
+      );
+      section.status = 'failed';
+    }
+
     if (section.counts.failed > 0 && section.counts.created === 0 && section.counts.updated === 0 && section.counts.copied === 0) {
       section.status = 'failed';
     }

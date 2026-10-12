@@ -259,13 +259,25 @@ class StorageController {
         objectId: objectRow.object_id,
         sourceKey: objectRow.relative_path,
         query: ctx.query,
+        mimeType: mime,
       });
 
       const baseName = path.basename(objectRow.name || 'image', path.extname(objectRow.name || ''));
-      ctx.set('Content-Type', 'image/webp');
-      ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(baseName)}.webp"`);
-      ctx.set('Cache-Control', 'public, max-age=31536000, immutable');
-      ctx.body = cropped;
+      const outType = cropped.contentType || 'image/webp';
+      const outExt = outType === 'image/png' ? 'png'
+        : outType === 'image/jpeg' ? 'jpg'
+          : outType === 'image/svg+xml' ? 'svg'
+            : 'webp';
+      ctx.set('Content-Type', outType);
+      ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(baseName)}.${outExt}"`);
+      if (cropped.fallback) {
+        // 源文件/裁剪不可用时的兜底：短缓存，等对象补齐后能自动恢复真实图片
+        ctx.set('Cache-Control', 'public, max-age=60');
+        ctx.set('X-Crop-Fallback', cropped.fallback);
+      } else {
+        ctx.set('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+      ctx.body = cropped.stream;
     } catch (error) {
       StorageController.sendError(ctx, error, error.status || 500);
     }
