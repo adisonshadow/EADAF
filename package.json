@@ -3,15 +3,18 @@
   "version": "1.2.6",
   "private": true,
   "scripts": {
-    "dev": "bash scripts/dev.sh",
-    "killdev": "bash scripts/killdev.sh",
-    "start": "bash scripts/preview.sh",
+    "dev": "node scripts/dev.cjs",
+    "dev:check": "node scripts/dev.cjs --check",
+    "killdev": "node scripts/killdev.cjs",
+    "killdev:yes": "node scripts/killdev.cjs --yes",
+    "test:scripts": "node scripts/test-killdev-matcher.cjs",
+    "start": "node scripts/preview.cjs",
     "pm2dev": "pnpm --filter ./backend pm2dev && pnpm --filter ./frontend pm2dev",
     "pm2prod": "pnpm --filter ./backend pm2prod && pnpm --filter ./frontend pm2prod",
-    "offline:deploy": "bash scripts/offline-deploy.sh",
-    "offline:patch": "bash scripts/offline-patch.sh",
-    "pack:eadaf": "bash scripts/deploy/pack-eadaf.sh",
-    "pack:app": "bash scripts/deploy/pack-app.sh"
+    "offline:deploy": "node scripts/run-sh.cjs scripts/offline-deploy.sh",
+    "offline:patch": "node scripts/run-sh.cjs scripts/offline-patch.sh",
+    "pack:eadaf": "node scripts/run-sh.cjs scripts/deploy/pack-eadaf.sh",
+    "pack:app": "node scripts/run-sh.cjs scripts/deploy/pack-app.sh"
   },
   "devDependencies": {
     "tsx": "^4.23.12"
