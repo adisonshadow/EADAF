@@ -1,15 +1,21 @@
 const path = require('path');
 const fs = require('fs');
 const dotenv = require('dotenv');
+const { envFileCandidates } = require('./envFiles');
 
 const env = process.env.NODE_ENV || 'development';
-const envFile = path.join(__dirname, '../../', `.env.${env}`);
 
-if (fs.existsSync(envFile)) {
-  dotenv.config({ path: envFile });
-} else {
-  dotenv.config({ path: path.join(__dirname, '../../', '.env.development') });
+// 按优先级从低到高加载 .env → .env.{NODE_ENV} → .env.{NODE_ENV}.local。
+//
+// dotenv 默认不覆盖已存在的 process.env，那样先加载的文件会"锁死"后面的覆盖，
+// 所以这里用 override:true 让文件之间能相互覆盖；同时先把进程里已有的真实
+// 环境变量（CI / pm2 / docker -e / 命令行）快照下来，加载完再恢复，
+// 保证"真实环境变量 > .env.{NODE_ENV}.local > .env.{NODE_ENV} > .env"。
+const externalEnv = { ...process.env };
+for (const file of envFileCandidates({ backendRoot: path.join(__dirname, '../..'), nodeEnv: env })) {
+  if (fs.existsSync(file)) dotenv.config({ path: file, override: true });
 }
+Object.assign(process.env, externalEnv);
 
 function parseBool(value, defaultValue = false) {
   if (value === undefined || value === null || value === '') {

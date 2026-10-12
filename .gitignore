@@ -7,10 +7,12 @@ node_modules/
 .pnpm-store/
 
 # --- Environment & secrets ---
+# .env.development 入库：值就是本机 Docker 的默认值（与 backend/docker-compose.yml
+# 的默认值一致），pnpm dev 开箱可用，不必每台机器再 cp 一次。
+# 真实/个人密钥请写进 .env.local 或 .env.development.local（下面两行仍然忽略它们）。
 .env
 .env.local
 .env.*.local
-.env.development
 .env.production
 .env.test
 !.env.example
