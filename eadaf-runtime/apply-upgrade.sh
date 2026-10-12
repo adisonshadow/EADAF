@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 把本升级包应用到已安装的 deploy-offline。保留 .env 与数据卷，不重装 Docker / 集群。
+# 把本升级包应用到已安装的 eadaf-runtime。保留 .env 与数据卷，不重装 Docker / 集群。
 # 升级包暂时只有程序，不覆盖、不执行 init-db 表结构。
 set -euo pipefail
 
@@ -12,7 +12,7 @@ if [[ -n "${DEPLOY_ROOT:-}" ]]; then
 elif [[ -f "$PATCH_ROOT/docker-compose.yml" && -f "$PATCH_ROOT/.env" ]]; then
   DEPLOY_ROOT="$PATCH_ROOT"
 else
-  die "请设置 DEPLOY_ROOT=/path/to/deploy-offline"
+  die "请设置 DEPLOY_ROOT=/path/to/eadaf-runtime"
 fi
 DEPLOY_ROOT="$(cd "$DEPLOY_ROOT" && pwd)"
 echo "DEPLOY_ROOT=$DEPLOY_ROOT"

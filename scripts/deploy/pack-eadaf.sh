@@ -36,7 +36,7 @@ usage() {
   --web-port N                  仅安装包，默认 9527
   --api-port N                  仅安装包，默认 9526
   --version VER                 默认 package.json
-  --out DIR                     默认 <仓库>/deploy/EADAF
+  --out DIR                     默认 <仓库>/packages/EADAF
   --non-interactive             缺参即失败，不再提问
   --yes                         跳过确认
 EOF
@@ -163,7 +163,7 @@ if [[ "$NONINT" != "1" && -t 0 ]]; then
     API_PORT="$(ask "后端宿主机端口" "${API_PORT:-9526}")"
   fi
   VERSION="$(ask "版本" "${VERSION:-$(package_version)}")"
-  OUT_DIR="$(ask "输出目录" "${OUT_DIR:-$REPO_ROOT/deploy/EADAF}")"
+  OUT_DIR="$(ask "输出目录" "${OUT_DIR:-$REPO_ROOT/packages/EADAF}")"
 else
   [[ -n "$NETWORK" && -n "$RUNTIME" && -n "$KIND" && -n "$ARCH" ]] || die "非交互模式需要 --network、--runtime、--kind、--arch"
   [[ "$KIND" != "patch" || -n "$PATCH_PARTS" ]] || die "补丁需要 --patch web,api"
@@ -171,7 +171,7 @@ else
   WEB_PORT="${WEB_PORT:-9527}"
   API_PORT="${API_PORT:-9526}"
   VERSION="${VERSION:-$(package_version)}"
-  OUT_DIR="${OUT_DIR:-$REPO_ROOT/deploy/EADAF}"
+  OUT_DIR="${OUT_DIR:-$REPO_ROOT/packages/EADAF}"
   ASSUME_YES=1
 fi
 
@@ -249,7 +249,9 @@ confirm_or_die "$ASSUME_YES"
 
 if [[ "$NEED_API" == "1" || "$NEED_BASE" == "1" || "$NEED_WEB" == "1" ]]; then
   need_cmd docker
-  docker info >/dev/null 2>&1 || die "Docker 未运行"
+  if ! docker_err="$(docker info 2>&1 >/dev/null)"; then
+    die "Docker 没有启动。请先打开 Docker Desktop，等引擎起来后再打包。${docker_err:+ 详情: ${docker_err}}"
+  fi
 fi
 if [[ "$NEED_WEB" == "1" || "$NEED_SQL" == "1" ]]; then
   need_cmd pnpm
@@ -257,9 +259,9 @@ fi
 need_cmd tar
 need_cmd curl
 
-STAGE="$(mktemp -d "$REPO_ROOT/deploy/.staging.XXXXXX")"
+STAGE="$(mktemp -d "$REPO_ROOT/packages/.staging.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
-INNER="deploy-offline"
+INNER="eadaf-runtime"
 if [[ "$KIND" != "install" ]]; then
   INNER="${ARCHIVE%.tar.gz}"
 fi

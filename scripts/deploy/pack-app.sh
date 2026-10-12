@@ -28,7 +28,7 @@ usage() {
   --web-port N                  仅安装包
   --api-port N                  仅安装包
   --version VER
-  --out DIR                     默认 <仓库>/deploy/APP
+  --out DIR                     默认 <仓库>/packages/APP
   --non-interactive --yes
 EOF
 }
@@ -142,11 +142,11 @@ if [[ "$NONINT" != "1" && -t 0 ]]; then
     API_PORT="$(ask "应用后端宿主机端口" "${API_PORT:-$API_DEFAULT}")"
   fi
   VERSION="$(ask "版本" "$VERSION")"
-  OUT_DIR="$(ask "输出目录" "${OUT_DIR:-$REPO_ROOT/deploy/APP}")"
+  OUT_DIR="$(ask "输出目录" "${OUT_DIR:-$REPO_ROOT/packages/APP}")"
 else
   WEB_PORT="${WEB_PORT:-$WEB_DEFAULT}"
   API_PORT="${API_PORT:-$API_DEFAULT}"
-  OUT_DIR="${OUT_DIR:-$REPO_ROOT/deploy/APP}"
+  OUT_DIR="${OUT_DIR:-$REPO_ROOT/packages/APP}"
 fi
 
 NEED_WEB=0; NEED_API=0; NEED_BIZ=0; PATCH_SLUG=""
@@ -200,10 +200,12 @@ confirm_or_die "$ASSUME_YES"
 
 if [[ "$NEED_WEB" == "1" || "$NEED_API" == "1" ]]; then
   need_cmd docker
-  docker info >/dev/null 2>&1 || die "Docker 未运行"
+  if ! docker_err="$(docker info 2>&1 >/dev/null)"; then
+    die "Docker 没有启动。请先打开 Docker Desktop，等引擎起来后再打包。${docker_err:+ 详情: ${docker_err}}"
+  fi
 fi
 
-STAGE="$(mktemp -d "$REPO_ROOT/deploy/.staging.XXXXXX")"
+STAGE="$(mktemp -d "$REPO_ROOT/packages/.staging.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
 INNER="${ARCHIVE%.tar.gz}"
 DEST="$STAGE/$INNER"
@@ -429,7 +431,7 @@ set -euo pipefail
 PATCH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 die() { printf '[ERR] %s\n' "$*" >&2; exit 1; }
 if [[ -z "${DEPLOY_ROOT:-}" ]]; then
-  die "请设置 DEPLOY_ROOT=/path/to/deploy-offline（已安装的 EADAF 平台目录）"
+  die "请设置 DEPLOY_ROOT=/path/to/eadaf-runtime（已安装的 EADAF 平台目录）"
 fi
 DEPLOY_ROOT="$(cd "$DEPLOY_ROOT" && pwd)"
 [[ -f "$DEPLOY_ROOT/docker-compose.yml" || -d "$DEPLOY_ROOT/k8s" ]] || die "$DEPLOY_ROOT 不是 EADAF 平台目录"

@@ -1,6 +1,6 @@
 {
   "name": "EADAF-monorepo",
-  "version": "1.2.4",
+  "version": "1.2.6",
   "private": true,
   "scripts": {
     "dev": "bash scripts/dev.sh",

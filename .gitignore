@@ -23,50 +23,50 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-# deploy-offline 日志目录占位需入库
-!deploy-offline/logs/
-!deploy-offline/logs/**/
-!deploy-offline/logs/**/.gitkeep
+# eadaf-runtime 日志目录占位需入库
+!eadaf-runtime/logs/
+!eadaf-runtime/logs/**/
+!eadaf-runtime/logs/**/.gitkeep
 
 # --- Build output ---
 dist/
 dist-ssr/
 build/
 out/
-/deploy/*
-!/deploy/EADAF/
-!/deploy/APP/
-/deploy/EADAF/**
-!/deploy/EADAF/.gitkeep
-/deploy/APP/**
-!/deploy/APP/.gitkeep
-/deploy/.staging*/
+/packages/*
+!/packages/EADAF/
+!/packages/APP/
+/packages/EADAF/**
+!/packages/EADAF/.gitkeep
+/packages/APP/**
+!/packages/APP/.gitkeep
+/packages/.staging*/
 *.tsbuildinfo
 
 # --- Offline deploy: 跟踪脚本/配置，忽略大产物 ---
 # 运行时 .env（模板用 env.template）
-deploy-offline/.env
+eadaf-runtime/.env
 # 镜像 / 静态资源 / 下载的 Docker 二进制
-deploy-offline/docker-images/**
-!deploy-offline/docker-images/.gitkeep
-deploy-offline/frontend/dist/
-deploy-offline/centos-docker-static/docker-24.0.9.tgz
-deploy-offline/centos-docker-static/docker-compose
-deploy-offline/centos-docker-static/docker/
+eadaf-runtime/docker-images/**
+!eadaf-runtime/docker-images/.gitkeep
+eadaf-runtime/frontend/dist/
+eadaf-runtime/centos-docker-static/docker-24.0.9.tgz
+eadaf-runtime/centos-docker-static/docker-compose
+eadaf-runtime/centos-docker-static/docker/
 # 打包时从 backend / FPCU2 拷贝的 SQL 与 seed（可再生成）
-deploy-offline/init-sql/
-deploy-offline/init/fpcu-seed/
+eadaf-runtime/init-sql/
+eadaf-runtime/init/fpcu-seed/
 # 运行日志与标记
-deploy-offline/logs/**/*.log
-deploy-offline/data/.initialized
-deploy-offline/data/.fpcu-seeded
+eadaf-runtime/logs/**/*.log
+eadaf-runtime/data/.initialized
+eadaf-runtime/data/.fpcu-seeded
 # 发给客户的压缩包放在 releases/ 子目录
-deploy-offline/releases/**
-!deploy-offline/releases/.gitkeep
+eadaf-runtime/releases/**
+!eadaf-runtime/releases/.gitkeep
 # 补丁解压临时目录（若落在仓库根）
-deploy-offline-patch-*/
+eadaf-runtime-patch-*/
 # 兼容旧路径：根目录曾放过整包 tar
-/deploy-offline-*.tar.gz
+/eadaf-runtime-*.tar.gz
 
 # --- Test & coverage ---
 coverage/

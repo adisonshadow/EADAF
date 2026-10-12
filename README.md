@@ -10,9 +10,9 @@
 | `backend`                   | Koa + Sequelize REST API                |
 | `frontend`                  | React + Vite 管理端                        |
 | `AIBase_with_example`       | AI Base 演示与 `@eadaf/ai-base` 源码包        |
-| `deploy-offline`            | 平台运行时骨架（在线 / 离线 × Compose / K8s，不含业务应用） |
+| `eadaf-runtime`            | 平台运行时骨架（在线 / 离线 × Compose / K8s，不含业务应用） |
 | `scripts/deploy`            | 开发机打包脚本（平台包、应用包）                        |
-| `deploy/EADAF`、`deploy/APP` | 打包产物目录（不入库）                             |
+| `packages/EADAF`、`packages/APP` | 打包产物目录（不入库）                             |
 
 
 
@@ -195,8 +195,8 @@ pm2 kill                       # 关闭 pm2 守护进程
 升级包和补丁包暂时只有程序（镜像 / 前端 dist），不带表结构、不带业务数据。表结构只在 EADAF 安装包里。~~数据补丁（~~`bizdata`~~）~~ 已暂时停用。
 
 ```bash
-pnpm pack:eadaf    # 平台安装 / 升级 / 补丁 → deploy/EADAF/
-pnpm pack:app      # 业务应用包 → deploy/APP/
+pnpm pack:eadaf    # 平台安装 / 升级 / 补丁 → packages/EADAF/
+pnpm pack:app      # 业务应用包 → packages/APP/
 ```
 
 上传的文件放在 **MinIO** 独立卷 `eadaf_minio_data`，不在 API 容器磁盘里。安装包和升级包带 MinIO 镜像；升级会先启动 MinIO，再重建 API。只打前端补丁不动 MinIO。已经写在旧容器磁盘里的文件不会自动搬进 MinIO。

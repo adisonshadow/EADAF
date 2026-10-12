@@ -4,7 +4,7 @@
 
 服务器上用 Node 直接跑开发环境见 [dev-server-deploy.md](./dev-server-deploy.md)。
 
-> 本节说的是 **运行时安装包 / 升级包 / 补丁包**（`deploy/EADAF`、`deploy/APP` 下的 `.tar.gz`）。  
+> 本节说的是 **运行时安装包 / 升级包 / 补丁包**（`packages/EADAF`、`packages/APP` 下的 `.tar.gz`）。  
 > 管理端「系统设置」里按实例迁配置与业务数据的 ZIP，见 [data-transfer.md](./data-transfer.md)，二者不要混用。
 >
 > **数据包补丁已暂时停用。** 升级包、补丁包只含程序（镜像 / 前端 dist），不带表结构，也不带业务数据。表结构只在 **EADAF 安装包** 的 init-db SQL 里。已运行实例之间同步配置与业务数据，用系统设置里的 EADAF / 应用数据包导出、导入。
@@ -36,7 +36,7 @@ pnpm pack:eadaf
 bash scripts/deploy/pack-eadaf.sh --network offline --runtime compose --os centos --arch amd64 --kind install --non-interactive --yes
 ```
 
-默认写到 `deploy/EADAF/`。文件名：
+默认写到 `packages/EADAF/`。文件名：
 
 | 种类 | 文件名 |
 |------|--------|
@@ -75,7 +75,7 @@ pnpm pack:app
 
 应用仓库根目录需要 `eadaf.app.yaml`。FPCU2 使用 `preset: fpcu2`，示例见 `scripts/deploy/app-presets/fpcu2/eadaf.app.yaml.example`。
 
-默认写到 `deploy/APP/`。文件名不含网络和运行方式：
+默认写到 `packages/APP/`。文件名不含网络和运行方式：
 
 | 种类 | 文件名 |
 |------|--------|
@@ -88,7 +88,7 @@ pnpm pack:app
 
 ## 4. 导入 EADAF 包
 
-把对应 `.tar.gz` 拷到目标机后解压。安装包解压出来的目录名是 `deploy-offline`。升级包和补丁包的目录名与压缩包文件名相同，不要直接盖到正在运行的目录上。
+把对应 `.tar.gz` 拷到目标机后解压。安装包解压出来的目录名是 `eadaf-runtime`。升级包和补丁包的目录名与压缩包文件名相同，不要直接盖到正在运行的目录上。
 
 ### 4.1 导入安装包
 
@@ -96,7 +96,7 @@ Compose（离线或在线）：
 
 ```bash
 tar -zxf eadaf-offline-compose-install-amd64-v1.2.0-20261007-1430.tar.gz
-cd deploy-offline
+cd eadaf-runtime
 # 编辑 .env：PUBLIC_HOST、JWT_SECRET、ENCRYPTION_KEY、数据库口令
 chmod +x start.sh up.sh status.sh ctl.sh init-db.sh
 ./start.sh
@@ -123,7 +123,7 @@ K8s（在线或离线）在同一目录执行 `./k8s/install.sh`。集群需要�
 ```bash
 tar -zxf eadaf-offline-compose-upgrade-amd64-v1.2.0-20261007-1430.tar.gz
 cd eadaf-offline-compose-upgrade-amd64-v1.2.0-20261007-1430
-DEPLOY_ROOT=/path/to/deploy-offline ./apply.sh
+DEPLOY_ROOT=/path/to/eadaf-runtime ./apply.sh
 ```
 
 补丁包同样是解压后执行 `./apply.sh`。~~升级用 `uac.schema_migrations` 记账；旧库第一次升级只把 `schema-baseline.txt` 里已发布过的 SQL 记为已执行，不重放。~~ 升级暂时不跑表结构迁移。表结构只在 EADAF 安装包的 init-db 里。
@@ -139,7 +139,7 @@ DEPLOY_ROOT=/path/to/deploy-offline ./apply.sh
 ```bash
 tar -zxf fpcu2-install-amd64-v0.1.3-20261007-1430.tar.gz
 cd fpcu2-install-amd64-v0.1.3-20261007-1430
-DEPLOY_ROOT=/path/to/deploy-offline ./apply.sh
+DEPLOY_ROOT=/path/to/eadaf-runtime ./apply.sh
 ```
 
 应用的升级包、补丁包用同一条命令。应用包不负责安装 Docker 或创建集群。

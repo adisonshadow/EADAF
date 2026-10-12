@@ -13,7 +13,7 @@ if [[ -n "${DEPLOY_ROOT:-}" ]]; then
 elif [[ -f "$PATCH_ROOT/../docker-compose.yml" ]]; then
   DEPLOY_ROOT="$(cd "$PATCH_ROOT/.." && pwd)"
 else
-  die "请设置 DEPLOY_ROOT=/path/to/deploy-offline"
+  die "请设置 DEPLOY_ROOT=/path/to/eadaf-runtime"
 fi
 DEPLOY_ROOT="$(cd "$DEPLOY_ROOT" && pwd)"
 echo "DEPLOY_ROOT=$DEPLOY_ROOT"

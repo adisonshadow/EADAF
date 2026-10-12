@@ -67,7 +67,9 @@ load_deploy_choice() {
 
 require_docker() {
   command -v docker >/dev/null 2>&1 || die "未找到 docker。请先执行 ./start.sh 选择 OS/架构后安装静态 Docker"
-  docker info >/dev/null 2>&1 || die "Docker 未运行或当前用户无权限"
+  if ! docker_err="$(docker info 2>&1 >/dev/null)"; then
+    die "Docker 没有启动，或当前用户无权访问。请先打开 Docker Desktop。${docker_err:+ 详情: ${docker_err}}"
+  fi
 }
 
 init_compose() {
