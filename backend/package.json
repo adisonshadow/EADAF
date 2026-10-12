@@ -7,8 +7,8 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "NODE_ENV=development nodemon src/app.js",
-    "dev:watch": "NODE_ENV=development nodemon src/app.js",
+    "dev": "cross-env NODE_ENV=development nodemon src/app.js",
+    "dev:watch": "cross-env NODE_ENV=development nodemon src/app.js",
     "pm2dev": "pm2 startOrReload ecosystem.config.cjs --only uac-api-dev",
     "pm2prod": "pm2 startOrReload ecosystem.config.cjs --only uac-api",
     "test": "jest",

@@ -85,13 +85,19 @@ pnpm install
 
 ### 3.3 初始化数据库
 
+后端读取 `backend/.env.development`（或 `backend/.env.development.local`，后者优先，见 `backend/src/config/index.js`）。仓库里只有 `.env.example`，第一次要自己复制一份：
+
 ```bash
 cd backend
-cp .env.development .env.development.local   # 按需修改连接信息
-pnpm init-db                                 # 结构 + 超管 + EADAF 全局/专用 Skill/Tool
-# pnpm init-db-with-mock                     # 另含 Mock 用户/部门与销售示例实体
-# pnpm init-db-with-aibase-seed              # 另含 Demo 全量 AI 种子（会 TRUNCATE Skill/Tool）
+cp .env.example .env.development              # 默认值即可连本机 Docker 起的 PostgreSQL / Redis
+# 或只做本地覆盖，保持 .env.development 干净：
+cp .env.example .env.development.local        # 按需修改连接信息
+pnpm init-db                                  # 结构 + 超管 + EADAF 全局/专用 Skill/Tool
+# pnpm init-db-with-mock                      # 另含 Mock 用户/部门与销售示例实体
+# pnpm init-db-with-aibase-seed               # 另含 Demo 全量 AI 种子（会 TRUNCATE Skill/Tool）
 ```
+
+`pnpm dev` 在后端启动前也会检查这两个文件；缺失时只打印告警（用内置默认值继续），不会阻断启动。
 
 默认 `init-db` 会 **DROP 并重建** `uac` **schema**，只用于本机或空库。它不会写入销售域测试实体。EADAF 系统 Skill（如 `bizdata-model-design`）由 `scripts/migrate-eadaf-ai-skills.sql` 幂等写入。
 
@@ -111,11 +117,12 @@ pnpm migrate-eadaf-ai-skills
 
 ### 3.5 启动服务
 
-仓库根目录一条命令会先等 API 监听成功，再起前端：
+仓库根目录一条命令会先等 API 监听成功，再起前端（**Windows / macOS / Linux 同一条命令**）：
 
 ```bash
 pnpm dev          # API 29526 + 管理端 29527
-pnpm killdev      # 停掉本次 dev 拉起的进程
+pnpm killdev      # 停掉本次 dev 拉起的进程（会先列进程并要一次确认）
+pnpm killdev:yes  # 同上，跳过确认（CI / 脚本里用）
 ```
 
 也可以分两个终端：
@@ -136,6 +143,50 @@ docker compose -f docker-compose.yml up -d minio
 - 管理端：[http://localhost:29527](http://localhost:29527)
 - API 文档：[http://localhost:29526/swagger](http://localhost:29526/swagger)
 - 健康检查：`curl http://localhost:29526/api/v1/health`
+
+
+
+### 3.5.1 跨平台运行方式（Windows 不用装 WSL 也能 `pnpm dev`）
+
+`pnpm dev` 的入口是 **Node**（[scripts/dev.cjs](./scripts/dev.cjs)），不是 shell 脚本，所以 cmd / PowerShell / Git Bash / WSL 里表现一致。它会先探环境、再选 runner：
+
+```bash
+pnpm dev:check    # 只打印判别矩阵（平台、可用 shell、换行符、.env、端口），不启动服务
+```
+
+| 平台 | runner | 说明 |
+| --- | --- | --- |
+| Windows | `native` | 纯 Node 引擎。不依赖 bash / lsof / nc / curl / netstat |
+| macOS / Linux | `native` | 同一份引擎，行为与原 `dev.sh` 一致 |
+| Windows（需要时） | `git-bash` / `wsl` | `DEV_RUNNER=git-bash` 走 `scripts/dev.sh`；`DEV_RUNNER=wsl` 走 `wsl.exe` |
+
+实现拆成三层，互不重复：
+
+| 文件 | 作用 |
+| --- | --- |
+| [scripts/lib/dev-core.cjs](./scripts/lib/dev-core.cjs) | 跨平台引擎：进程树、端口/健康检查、`API Server started` 日志判定、Ctrl+C 清理 |
+| [scripts/dev.cjs](./scripts/dev.cjs) / [scripts/preview.cjs](./scripts/preview.cjs) | 环境判别 + runner 选择（`--check` 打印判别矩阵） |
+| [scripts/dev.cmd](./scripts/dev.cmd) / [scripts/killdev.cmd](./scripts/killdev.cmd) | Windows 双击 / cmd 入口，只是转调上面的 Node 脚本 |
+
+`pnpm killdev` 同样是 Node 实现（[scripts/killdev.cjs](./scripts/killdev.cjs)）：先找 dev 入口进程（`node scripts/dev.cjs`、`pnpm --filter ./backend dev`），再做**进程树闭包**，最后用 `taskkill /T /F` 结束。根进程判定是锚定匹配，不会误伤 IDE / 别的项目的 `node.exe`；改动用 `node scripts/test-killdev-matcher.cjs` 自测（29 项）。
+
+Windows 上如果 `scripts/dev.sh` 报这个错，是**换行符**问题而不是命令写错：
+
+```
+scripts/dev.sh: line 13: $'\r': command not found
+: invalid option name14: set: pipefail
+```
+
+因为 `core.autocrlf=true` 会把 LF 检出成 CRLF，bash 把 `\r` 当成命令的一部分。仓库根的 [.gitattributes](./.gitattributes) 已把 `*.sh` 固定为 `eol=lf`；旧工作区刷新一次即可：
+
+```powershell
+git config core.autocrlf true
+git ls-files '*.sh' | ForEach-Object { Remove-Item $_; git checkout -- $_ }
+# 或整体重规范化（会改动索引）
+git add --renormalize .
+```
+
+其它仍是 Unix-only 的脚本（`offline-deploy.sh`、`pack-*.sh`、`initdb.sh` 等）通过 [scripts/run-sh.cjs](./scripts/run-sh.cjs) 调用：有 Git Bash 就用 Git Bash；没有就明确报错并给出选项，**不会静默走 WSL 转发器**。需要走 WSL 时设 `ALLOW_WSL=1`。
 
 
 

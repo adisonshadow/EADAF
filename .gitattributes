@@ -1,0 +1,48 @@
+# 统一换行符：Windows 检出时必须给 shell 脚本 LF，否则 bash 会报
+#   scripts/dev.sh: line 13: $'\r': command not found
+#   : invalid option name14: set: pipefail
+# 原因就是 CRLF 被当成命令的一部分。core.autocrlf=true 下必须显式声明 text eol=lf。
+* text=auto
+
+# shell / 容器入口脚本：任何平台都检出为 LF
+*.sh            text eol=lf
+*.bash          text eol=lf
+*.bats          text eol=lf
+# Node 入口脚本（scripts/*.cjs）直接被 node 执行，固定 LF，避免 Windows 检出成 CRLF
+*.cjs           text eol=lf
+Dockerfile      text eol=lf
+*.dockerfile    text eol=lf
+docker-entrypoint*  text eol=lf
+*.sql           text eol=lf
+*.template      text eol=lf
+*.conf          text eol=lf
+*.service       text eol=lf
+
+# Windows 脚本：CRLF（cmd 对 LF 的兼容性不可靠）
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+# PowerShell 两种换行都能跑，统一 CRLF 便于记事本编辑
+*.ps1           text eol=crlf
+*.psm1          text eol=crlf
+
+# 二进制：禁止任何换行/编码转换
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.webp          binary
+*.ico           binary
+*.pdf           binary
+*.zip           binary
+*.gz            binary
+*.tgz           binary
+*.tar           binary
+*.jar           binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.eot           binary
+*.xlsx          binary
+*.docx          binary
+*.pptx          binary
