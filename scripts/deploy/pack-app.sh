@@ -226,6 +226,8 @@ build_fpcu2() {
   cp "$SCRIPT_DIR/app-presets/fpcu2/web/nginx.conf.template" "$staging/docker/fpcu2-web/nginx.conf.template"
   cp "$SCRIPT_DIR/app-presets/fpcu2/web/docker-entrypoint.sh" "$staging/docker/fpcu2-web/docker-entrypoint.sh"
   chmod +x "$staging/docker/fpcu2-web/docker-entrypoint.sh"
+  # 容器内 pnpm install 的 registry：注入主机当前生效的源，避免直连 npmjs 被 TLS 重置
+  prepare_container_registry "$staging/fpcu2"
   if [[ "$NEED_API" == "1" ]]; then
     pull_platform_image "node:22-bookworm" "$PLATFORM" "$ARCH"
     docker build --platform "$PLATFORM" -f "$staging/fpcu2/Dockerfile.bff" -t "$bff_image" "$staging/fpcu2"
@@ -261,6 +263,8 @@ build_generic() {
     if [[ "$role" == "api" && "$NEED_API" != "1" ]]; then continue; fi
     if [[ "$role" == "web" && "$NEED_WEB" != "1" ]]; then continue; fi
     local ctx="$APP_DIR/$context"
+    # 通用流程同理：把 registry 落到该服务的构建上下文
+    prepare_container_registry "$ctx"
     docker build --platform "$PLATFORM" -f "$APP_DIR/$dockerfile" -t "$image" "$ctx"
     save_image "$image" "$DEST/docker-images" "$ARCH"
     if [[ "$role" == "api" ]]; then

@@ -50,6 +50,76 @@ platform_of_arch() {
   esac
 }
 
+# ---------------------------------------------------------------------------
+# 容器内 pnpm install 的 registry 注入
+#
+# 构建镜像时容器里会跑 pnpm install，直连 registry.npmjs.org 在国内网络经常被
+# TLS 重置（FetchError: Client network socket disconnected before secure TLS
+# connection was established）。开发机上的 pnpm 通常已经配好镜像源（全局 .npmrc
+# 或 pnpm config），但那套配置不会进容器，于是“主机能装、容器装不上”。
+#
+# 做法：把主机当前生效的 registry 写进构建上下文的 .npmrc，Dockerfile 在
+# pnpm install 之前 COPY 它。优先级：
+#   EADAF_NPM_REGISTRY 环境变量 > 主机 `pnpm config get registry` > 不注入
+# ---------------------------------------------------------------------------
+
+resolve_npm_registry() {
+  if [[ -n "${EADAF_NPM_REGISTRY:-}" ]]; then
+    printf '%s\n' "$EADAF_NPM_REGISTRY"
+    return 0
+  fi
+  local reg=""
+  if command -v pnpm >/dev/null 2>&1; then
+    reg="$(pnpm config get registry 2>/dev/null | tr -d '\r' | head -n1)"
+  fi
+  if [[ -z "$reg" ]] && command -v npm >/dev/null 2>&1; then
+    reg="$(npm config get registry 2>/dev/null | tr -d '\r' | head -n1)"
+  fi
+  # pnpm/npm 拿不到时会打印 undefined/null
+  case "$reg" in
+    ""|undefined|null) return 1 ;;
+  esac
+  printf '%s\n' "$reg"
+}
+
+# 把 registry 写进目录下的 .npmrc（保留原有其它配置，并避免覆盖已配置的源）
+write_npmrc_registry() {
+  local dir="$1"
+  local registry="$2"
+  local target="$dir/.npmrc"
+  [[ -d "$dir" ]] || return 0
+  if [[ -f "$target" ]] && grep -qE '^[[:space:]]*registry[[:space:]]*=' "$target" 2>/dev/null; then
+    local pinned
+    pinned="$(grep -E '^[[:space:]]*registry[[:space:]]*=' "$target" 2>/dev/null | tail -n1 | cut -d= -f2-)"
+    log "容器 npm registry 用项目自带的 .npmrc: ${pinned:-<空>}（如拉包失败，用 EADAF_NPM_REGISTRY=... pnpm pack:app 覆盖）"
+    return 0
+  fi
+  {
+    printf '# 由 pnpm pack 自动生成：容器内 pnpm install 走的 registry\n'
+    printf '# 覆盖方式：EADAF_NPM_REGISTRY=https://your-mirror/ pnpm pack:app\n'
+    printf 'registry=%s\n' "$registry"
+    if [[ -f "$target" ]]; then
+      printf '\n# ---- 以下为项目原有 .npmrc 内容 ----\n'
+      cat "$target"
+    fi
+  } >"$target.tmp.$$"
+  mv "$target.tmp.$$" "$target"
+  log "已注入容器 npm registry: $registry"
+}
+
+# 构建某个上下文前调用：确认 registry 并落到上下文里的 .npmrc
+prepare_container_registry() {
+  local dir="$1"
+  local registry
+  if ! registry="$(resolve_npm_registry)"; then
+    printf '[WARN] 未取到 npm registry（pnpm/npm config 为空）。容器内 pnpm install 将直连\n' >&2
+    printf '       registry.npmjs.org；若打包在拉包阶段失败，请设置：\n' >&2
+    printf '       EADAF_NPM_REGISTRY=https://registry.npmmirror.com pnpm pack:app\n' >&2
+    return 0
+  fi
+  write_npmrc_registry "$dir" "$registry"
+}
+
 docker_static_arch() {
   case "$1" in
     amd64) echo x86_64 ;;

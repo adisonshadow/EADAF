@@ -14,6 +14,11 @@ COPY packages/shared/package.json ./packages/shared/
 COPY backend/package.json ./backend/
 COPY frontend/package.json ./frontend/
 
+# 构建上下文里的 .npmrc（由 pnpm pack:app 注入主机当前生效的 registry）。
+# 容器直连 registry.npmjs.org 在国内网络常被 TLS 重置；没有匹配文件时 Docker 会跳过，
+# 此时退回 pnpm 默认源。覆盖方式：EADAF_NPM_REGISTRY=https://your-mirror/ pnpm pack:app
+COPY .npmrc* ./
+
 RUN pnpm install --frozen-lockfile --filter @fpcu2/backend...
 
 COPY packages/shared ./packages/shared
