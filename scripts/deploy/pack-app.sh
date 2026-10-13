@@ -211,9 +211,15 @@ INNER="${ARCHIVE%.tar.gz}"
 DEST="$STAGE/$INNER"
 mkdir -p "$DEST/docker-images" "$DEST/k8s"
 
+# 容器内 pnpm install / corepack 的 registry（取主机当前生效的源）。
+# 不取到时不传 --build-arg，Dockerfile 里 ARG 为空即退回默认 npmjs。
+CONTAINER_NPM_REGISTRY="$(resolve_npm_registry || true)"
+
 build_fpcu2() {
   local bff_image="fpcu2-bff:v1" web_image="fpcu2-web:v1"
   local staging="$REPO_ROOT/.pack-fpcu2-staging"
+  local reg_args=()
+  [[ -n "$CONTAINER_NPM_REGISTRY" ]] && reg_args=(--build-arg "NPM_REGISTRY=$CONTAINER_NPM_REGISTRY")
   rm -rf "$staging"
   mkdir -p "$staging/fpcu2" "$staging/docker/fpcu2-web"
   need_cmd rsync
@@ -230,13 +236,15 @@ build_fpcu2() {
   prepare_container_registry "$staging/fpcu2"
   if [[ "$NEED_API" == "1" ]]; then
     pull_platform_image "node:22-bookworm" "$PLATFORM" "$ARCH"
-    docker build --platform "$PLATFORM" -f "$staging/fpcu2/Dockerfile.bff" -t "$bff_image" "$staging/fpcu2"
+    docker build --platform "$PLATFORM" -f "$staging/fpcu2/Dockerfile.bff" -t "$bff_image" \
+      ${reg_args[@]+"${reg_args[@]}"} "$staging/fpcu2"
     save_image "$bff_image" "$DEST/docker-images" "$ARCH"
   fi
   if [[ "$NEED_WEB" == "1" ]]; then
     pull_platform_image "node:22-bookworm" "$PLATFORM" "$ARCH"
     pull_platform_image "nginx:1.25-alpine" "$PLATFORM" "$ARCH"
-    docker build --platform "$PLATFORM" -f "$staging/docker/fpcu2-web/Dockerfile" -t "$web_image" "$staging"
+    docker build --platform "$PLATFORM" -f "$staging/docker/fpcu2-web/Dockerfile" -t "$web_image" \
+      ${reg_args[@]+"${reg_args[@]}"} "$staging"
     save_image "$web_image" "$DEST/docker-images" "$ARCH"
   fi
   rm -rf "$staging"
@@ -263,9 +271,12 @@ build_generic() {
     if [[ "$role" == "api" && "$NEED_API" != "1" ]]; then continue; fi
     if [[ "$role" == "web" && "$NEED_WEB" != "1" ]]; then continue; fi
     local ctx="$APP_DIR/$context"
-    # 通用流程同理：把 registry 落到该服务的构建上下文
+    # 通用流程同理：registry 既落到上下文 .npmrc，也通过 build-arg 传给 Dockerfile
     prepare_container_registry "$ctx"
-    docker build --platform "$PLATFORM" -f "$APP_DIR/$dockerfile" -t "$image" "$ctx"
+    local reg_args=()
+    [[ -n "$CONTAINER_NPM_REGISTRY" ]] && reg_args=(--build-arg "NPM_REGISTRY=$CONTAINER_NPM_REGISTRY")
+    docker build --platform "$PLATFORM" -f "$APP_DIR/$dockerfile" -t "$image" \
+      ${reg_args[@]+"${reg_args[@]}"} "$ctx"
     save_image "$image" "$DEST/docker-images" "$ARCH"
     if [[ "$role" == "api" ]]; then
       BFF_IMAGE="$image"; BFF_CONTAINER_PORT="${port:-8081}"
