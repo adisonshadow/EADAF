@@ -146,23 +146,23 @@ DEPLOY_ROOT=/path/to/eadaf-runtime ./apply.sh
 
 **对外地址跟随浏览器 Host**：SSO 回调、FPCU 二次跳转、前端拼 EADAF 地址都用「当前访问的 hostname + 端口」，不把客户 IP/域名写进包。换服务器或改域名一般只需 DNS/访问方式变化，不必改 `.env`。`.env` 里主要是容器内互调（如 `EADAF_API_BASE_URL=http://eadaf-api:9526`）和端口（`FPCU2_WEB_HOST_PORT` / `FPCU2_API_HOST_PORT`）。管理端注册应用时默认勾选「自动跟随本系统域名/IP」，`redirect_uri` 形如 `:13303/auth/callback`。
 
-### 5.1 应用包会跑 FPCU seed（模型 / 物化 / 数据 API）
+### 5.1 应用包不含数据结构与数据
 
-`apply.sh` 在写完 `application.sql.template`（注册应用与 `fpcu` 桶）之后，会执行包内的 `run-fpcu-seed.sh`，在**运行中的 `${name}-bff` 容器里**依次跑：
+应用包（安装 / 升级 / 补丁）**只含程序**：镜像与前端 `dist`。包内**不跑**任何建模型、物化表或写业务数据的脚本，`apply.sh` 只做两件事——注册应用到 EADAF（`application.sql.template`，写 `uac.applications` 一行）与拉起容器。
 
-| 顺序 | 脚本 | 作用 |
-|------|------|------|
-| 1 | `seed-fpcu-bizdata.mjs` | 写入 FPCU 的 bizdata 实体、枚举、关系、scope 文档 |
-| 2 | `materialize-fpcu.mjs` | 物化到 `bizdata_mat`（数据 API 实际读写的表） |
-| 3 | `seed-fpcu-api-services.mjs` | 发布一服务一 operation 的数据 API |
+**模型、表结构、数据 API 与业务数据一律走管理端「系统设置 → 应用导出/导入」**，见 [data-transfer.md](./data-transfer.md)：
 
-要点：
+| 内容 | 走哪里 |
+|------|--------|
+| 实体 / 字段 / 枚举 / 关系 / scope 文档 | 应用导出包的 `entities` 节 |
+| 数据 API 服务与 operation | 应用导出包的 `apiServices` 节 |
+| 物化表（`bizdata_mat.…`） | 导入链的 `materialization` 步骤自动完成 |
+| 业务数据 | 应用导出包的 `entityData` 节 |
+| 存储对象与文件 | 应用导出包的 `storageBuckets` / `storageObjects` + `files/` |
 
-- **漏跑等于装了个空壳**：管理端看不到实体，设备接口没有数据面。第 2 步尤其容易被忽略——模型和服务都在，但表不存在，运行期才报错。
-- 脚本随镜像发布（`COPY backend ./backend`），所以不在包里再放副本，避免与 `backend/scripts/` 双份走版。
-- 幂等：完成后写 `data/.<应用名>-seeded`；要重跑就删掉这个标记再执行 `apply.sh`。
-- 需要平台 `.env` 里有 `FPCU2_APP_SECRET`；缺了会直接报错停下。
-- 设备演示/联调数据（`seed-fpcu-device-mock.mjs`）默认不跑，需要时设 `FPCU2_SEED_DEVICE_MOCK=true`。
+原因：包内 seed 会绕过平台导入的事务与记录（导入结果里有逐节计数与告警），且与「数据结构只在 EADAF 安装包的 init-db SQL、运行期数据走应用导入」这条约定冲突。此前 `07dc330` 曾让应用包自动跑 FPCU seed（`seed-fpcu-bizdata.mjs` / `materialize-fpcu.mjs` / `seed-fpcu-api-services.mjs`），已移除。
+
+> FPCU2 仓库里那几个 seed 脚本仍然保留，作为**开发/演示**用途手工执行（`cd backend && node --env-file=.env.development scripts/seed-fpcu-*.mjs`），只是不再由应用包自动触发。
 
 ### 5.2 排障：登录成功后却跳到 localhost
 
