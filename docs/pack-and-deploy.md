@@ -145,3 +145,48 @@ DEPLOY_ROOT=/path/to/eadaf-runtime ./apply.sh
 应用的升级包、补丁包用同一条命令。应用包不负责安装 Docker 或创建集群。
 
 **对外地址跟随浏览器 Host**：SSO 回调、FPCU 二次跳转、前端拼 EADAF 地址都用「当前访问的 hostname + 端口」，不把客户 IP/域名写进包。换服务器或改域名一般只需 DNS/访问方式变化，不必改 `.env`。`.env` 里主要是容器内互调（如 `EADAF_API_BASE_URL=http://eadaf-api:9526`）和端口（`FPCU2_WEB_HOST_PORT` / `FPCU2_API_HOST_PORT`）。管理端注册应用时默认勾选「自动跟随本系统域名/IP」，`redirect_uri` 形如 `:13303/auth/callback`。
+
+### 5.1 应用包会跑 FPCU seed（模型 / 物化 / 数据 API）
+
+`apply.sh` 在写完 `application.sql.template`（注册应用与 `fpcu` 桶）之后，会执行包内的 `run-fpcu-seed.sh`，在**运行中的 `${name}-bff` 容器里**依次跑：
+
+| 顺序 | 脚本 | 作用 |
+|------|------|------|
+| 1 | `seed-fpcu-bizdata.mjs` | 写入 FPCU 的 bizdata 实体、枚举、关系、scope 文档 |
+| 2 | `materialize-fpcu.mjs` | 物化到 `bizdata_mat`（数据 API 实际读写的表） |
+| 3 | `seed-fpcu-api-services.mjs` | 发布一服务一 operation 的数据 API |
+
+要点：
+
+- **漏跑等于装了个空壳**：管理端看不到实体，设备接口没有数据面。第 2 步尤其容易被忽略——模型和服务都在，但表不存在，运行期才报错。
+- 脚本随镜像发布（`COPY backend ./backend`），所以不在包里再放副本，避免与 `backend/scripts/` 双份走版。
+- 幂等：完成后写 `data/.<应用名>-seeded`；要重跑就删掉这个标记再执行 `apply.sh`。
+- 需要平台 `.env` 里有 `FPCU2_APP_SECRET`；缺了会直接报错停下。
+- 设备演示/联调数据（`seed-fpcu-device-mock.mjs`）默认不跑，需要时设 `FPCU2_SEED_DEVICE_MOCK=true`。
+
+### 5.2 排障：登录成功后却跳到 localhost
+
+链路是两跳，**两跳都要查**；成因都是「地址按请求 Host 推导，而那一跳的 Host 是 localhost」。
+
+**第一跳：EADAF → BFF（回调地址里的 localhost）**
+
+若应用注册用的是「跟随本系统域名/IP」（`redirect_uri` 存 `:13303/auth/callback` 这类后缀），EADAF 是按**登录请求**的 Host 拼完整地址的——不是按浏览器地址栏，也不是按回调请求。所以只要登录请求的 Host 是 `localhost`，或中途有反向代理/开发代理改写了 Host，回调就会变成 localhost。
+
+```bash
+# 两种 Host 的返回应当一致；不一致说明仍按 Host 推导，去找是谁改了 Host
+curl -s -H 'Host: localhost:9526'    http://127.0.0.1:9526/api/v1/applications-sso/<application_id> | grep -o '"redirect_uri":"[^"]*"'
+curl -s -H 'Host: 192.168.1.10:9526' http://127.0.0.1:9526/api/v1/applications-sso/<application_id> | grep -o '"redirect_uri":"[^"]*"'
+```
+
+**第二跳：BFF → 管理端（302 目标里的 localhost）**
+
+BFF 的 `/auth/callback` 默认按**那一跳请求的 Host** 拼管理端地址。回调若是 EADAF 服务端发起的（Host 可能是 localhost），浏览器就会被转到 `http://localhost:<FPCU2_WEB_HOST_PORT>/auth/callback`。对策是在平台 `.env` 显式固定管理端地址（两个 `_FORCE` 必须为 `1` 才生效）：
+
+```bash
+FPCU2_FRONTEND_URL=http://192.168.1.10:13308
+FRONTEND_URL_FORCE=1
+FPCU2_PUBLIC_API_BASE_URL=http://192.168.1.10:13303
+FPCU2_PUBLIC_API_BASE_URL_FORCE=1
+```
+
+> 注意：`pack-app.sh` 会主动删掉 `.env` 里的 `SSO_CALLBACK_URL` / `FPCU2_PUBLIC_URL` / `FPCU2_PUBLIC_API_BASE_URL` 等绝对 URL（见脚本里「清掉易误导的绝对对外 URL」那段），目的是避免旧包残留的 localhost 盖过 Host 跟随。真要固定成绝对地址，就得在应用安装**之后**再写回 `.env` 并重启 BFF。

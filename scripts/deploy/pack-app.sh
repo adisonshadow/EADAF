@@ -439,6 +439,88 @@ EOF
   fi
 fi
 
+cat >"$DEST/run-fpcu-seed.sh" <<'SEED'
+#!/usr/bin/env bash
+# FPCU 业务模型与 API 服务 seed（幂等）。
+#
+# 为什么必须跑：EADAF 平台自带的是平台表结构与系统应用；FPCU 的 bizdata 实体、
+# 枚举、关系与数据 API 服务都由应用自己的 seed 脚本写进 EADAF。不跑这一
+# 步，应用装完是"空壳"——管理端看不到任何实体，设备接口也没有数据面。
+#
+# seed 脚本随 BFF 镜像一起发布（Dockerfile 里 COPY backend ./backend），
+# 因此直接从运行中的容器里执行，不依赖宿主机装 Node，也不在包里再放一份副本
+# （副本会与 backend/scripts/ 双份维护、容易走版）。
+set -euo pipefail
+PATCH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+die() { printf '[ERR] %s\n' "$*" >&2; exit 1; }
+
+[[ -n "${DEPLOY_ROOT:-}" ]] || die "请设置 DEPLOY_ROOT=/path/to/eadaf-runtime"
+DEPLOY_ROOT="$(cd "$DEPLOY_ROOT" && pwd)"
+APP_NAME="$(awk -F= '/^name=/{print $2}' "$PATCH_ROOT/app.meta")"
+APP_NAME="${APP_NAME:-fpcu2}"
+MARKER="$DEPLOY_ROOT/data/.${APP_NAME}-seeded"
+CONTAINER="${APP_NAME}-bff"
+
+if [[ -f "$MARKER" ]]; then
+  echo "[seed] 已初始化（$MARKER），跳过"
+  exit 0
+fi
+
+[[ -f "$DEPLOY_ROOT/.env" ]] || die "缺少 $DEPLOY_ROOT/.env"
+set -a
+# shellcheck disable=SC2046
+export $(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$DEPLOY_ROOT/.env" | sed 's/#.*//' | xargs)
+set +a
+export DEPLOY_ROOT
+
+SEED_URL="${EADAF_API_BASE_URL:-http://eadaf-api:9526}"
+SEED_DIR="/repo/backend/scripts"
+SEED_APP_ID="${FPCU2_APPLICATION_ID:-10000000-0001-4000-8000-000000006666}"
+SEED_DB_CONN="${FPCU2_DB_CONNECTION_ID:-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa}"
+: "${FPCU2_APP_SECRET:?平台 .env 缺少 FPCU2_APP_SECRET，无法 seed}"
+
+# 显式传全 seed 需要的四个变量：镜像里没有 .env.development（打包时已排除），
+# 脚本 loadEnv() 落空，只能靠环境变量。
+seed_exec() {
+  docker exec \
+    -e EADAF_API_BASE_URL="$SEED_URL" \
+    -e FPCU2_APPLICATION_ID="$SEED_APP_ID" \
+    -e FPCU2_APP_SECRET="$FPCU2_APP_SECRET" \
+    -e FPCU2_DB_CONNECTION_ID="$SEED_DB_CONN" \
+    -w /repo/backend "$CONTAINER" "$@"
+}
+
+run_seed_in_container() {
+  local fn="$1"
+  for i in $(seq 1 "${SEED_WAIT_RETRIES:-30}"); do
+    if seed_exec node "scripts/$fn" >/dev/null 2>&1; then
+      echo "[seed] $fn 完成"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "[seed] $fn 重试 ${SEED_WAIT_RETRIES:-30} 次仍失败，最近一次输出：" >&2
+  seed_exec node "scripts/$fn" 2>&1 | tail -20 >&2 || true
+  return 1
+}
+
+echo "[seed] 目标 EADAF: $SEED_URL  容器: $CONTAINER  脚本目录: $SEED_DIR"
+# 顺序固定：建模型 → 物化表（bizdata_mat.…，数据 API 实际读写的表）→ 发布数据 API 服务。
+# 漏掉 materialize 的话，模型和服务都在，但数据面查不到表，设备接口会在运行时报错。
+for f in seed-fpcu-bizdata.mjs materialize-fpcu.mjs seed-fpcu-api-services.mjs; do
+  run_seed_in_container "$f" || die "$f 失败；修好后删除 $MARKER 重跑本脚本"
+done
+
+if [[ "${FPCU2_SEED_DEVICE_MOCK:-false}" == "true" ]]; then
+  run_seed_in_container seed-fpcu-device-mock.mjs || die "seed-fpcu-device-mock.mjs 失败"
+fi
+
+mkdir -p "$DEPLOY_ROOT/data"
+touch "$MARKER"
+echo "[seed] FPCU seed 完成（标记 $MARKER）"
+SEED
+chmod +x "$DEST/run-fpcu-seed.sh"
+
 cat >"$DEST/apply.sh" <<'APPLY'
 #!/usr/bin/env bash
 # 把应用包装进已经装好的 EADAF 平台。模式读取平台目录的 .deploy-mode。
@@ -590,6 +672,13 @@ if [[ -f "$PATCH_ROOT/application.sql.template" && -f "$DEPLOY_ROOT/.env" ]]; th
   fi
   rm -f "$tmp"
 fi
+
+# FPCU 业务模型与数据 API 服务 seed：应用注册之后、对外可用之前。
+# 不跑的话应用是空壳（管理端无实体、设备接口无数据面）。
+if [[ -x "$PATCH_ROOT/run-fpcu-seed.sh" ]]; then
+  DEPLOY_ROOT="$DEPLOY_ROOT" "$PATCH_ROOT/run-fpcu-seed.sh"
+fi
+
 echo "应用 ${APP_NAME} 已应用到 ${DEPLOY_ROOT} （网络 ${DEPLOY_NETWORK}，运行方式 ${DEPLOY_RUNTIME}）"
 echo "对外地址跟随浏览器 Host；仅端口 FPCU2_WEB_HOST_PORT=${APP_WEB_PORT} / FPCU2_API_HOST_PORT=${APP_API_PORT}"
 APPLY
