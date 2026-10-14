@@ -67,6 +67,7 @@ const SCOPE_WRAPPERS: Record<
   ai_management: AIManagementAI,
   service_provider: null,
   file_storage: null,
+  app_deployment: null,
   system: null,
 };
 

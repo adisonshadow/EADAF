@@ -23,6 +23,7 @@ export type RouteScopeGroup =
   | 'bizdata_metadata'
   | 'system'
   | 'api_services'
+  | 'app_deployment'
   | 'ai_management';
 
 /** 页面模式：派生 FormPage/Test 等 element props，并帮助 AI 理解页面形态 */
@@ -643,6 +644,53 @@ export const EADAF_SEMANTIC_ROUTES: AppSemanticEntry[] = [
     keywords: ['钩子运行', '运行历史'],
     params: { id: { type: 'string', description: '钩子 id' } },
   },
+  /* ----------------------------- app_deployment ----------------------------- */
+  { path: '/app_deployment', to: '/app_deployment/app-data', scopeGroup: 'app_deployment' },
+  {
+    path: '/app_deployment/app-data',
+    mode: 'data',
+    pageKey: 'appDataTransfer',
+    title: '应用数据导出/导入',
+    description: '按业务应用导出/导入 zip 迁移包（配置、模型、API、可选行数据/UAC/文件）',
+    domain: 'app_deployment',
+    scopeGroup: 'app_deployment',
+    actions: ['export', 'import'],
+    keywords: ['应用数据', '导出', '导入', '迁移', '应用包'],
+  },
+  {
+    path: '/app_deployment/platform-data',
+    mode: 'data',
+    pageKey: 'platformDataTransfer',
+    title: 'EADAF数据导出/导入',
+    description: 'EADAF 平台能力（Skill/Tool、AI 目录、数据标准、系统开关、UAC 权限目录）导出/导入',
+    domain: 'app_deployment',
+    scopeGroup: 'app_deployment',
+    actions: ['export', 'import'],
+    keywords: ['EADAF 平台', '平台数据', '导出', '导入', '迁移'],
+  },
+  {
+    path: '/app_deployment/publish-platform',
+    mode: 'execute',
+    pageKey: 'publishPlatform',
+    title: '发布平台',
+    description: '在 DEV 模式开发机上打包 EADAF 平台（等价 pnpm pack:eadaf），控制台实时输出并给出产物目录',
+    domain: 'app_deployment',
+    scopeGroup: 'app_deployment',
+    actions: ['execute'],
+    keywords: ['发布平台', '打包', 'pack:eadaf', '安装包', '升级包', '补丁包'],
+  },
+  {
+    path: '/app_deployment/publish-app',
+    mode: 'execute',
+    pageKey: 'publishApp',
+    title: '发布应用',
+    description: '在 DEV 模式开发机上打包业务应用（等价 pnpm pack:app），控制台实时输出并给出产物目录',
+    domain: 'app_deployment',
+    scopeGroup: 'app_deployment',
+    actions: ['execute'],
+    keywords: ['发布应用', '打包', 'pack:app', '应用安装包'],
+  },
+
   /* ----------------------------- ai_management ----------------------------- */
   { path: '/ai_management', to: '/ai_management/providers', scopeGroup: 'ai_management' },
   {

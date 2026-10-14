@@ -1,8 +1,6 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { Tabs } from 'antd';
 import React from 'react';
-import AppTransferTab from './AppTransferTab';
-import PlatformTransferTab from './PlatformTransferTab';
 import {
   ApiServiceSettingsTab,
   BackupSettingsTab,
@@ -10,6 +8,11 @@ import {
   MetadataSettingsTab,
 } from './tabs';
 
+/**
+ * 系统设置。
+ * 注意：「应用数据导出/导入」「EADAF数据导出/导入」已迁到导航「应用部署」下，
+ * 不再作为系统设置 Tab；设置里只保留通用 / 元数据 / API 服务 / 备份。
+ */
 const SystemSettingsPage: React.FC = () => {
   return (
     <PageContainer title={<></>}>
@@ -31,16 +34,6 @@ const SystemSettingsPage: React.FC = () => {
             children: <ApiServiceSettingsTab />,
           },
           { key: 'backup', label: '备份', children: <BackupSettingsTab /> },
-          {
-            key: 'app-transfer',
-            label: '应用导出/导入',
-            children: <AppTransferTab />,
-          },
-          {
-            key: 'platform-transfer',
-            label: 'EADAF 平台导出/导入',
-            children: <PlatformTransferTab />,
-          },
         ]}
       />
     </PageContainer>

@@ -116,7 +116,7 @@ EOF
   exit 1
 fi
 
-META="$(node "$SCRIPT_DIR/read-app-manifest.cjs" "$MANIFEST_FILE")"
+META="$(node "$(to_native_path "$SCRIPT_DIR")/read-app-manifest.cjs" "$(to_native_path "$MANIFEST_FILE")")"
 meta_get() {
   node -e 'const m=JSON.parse(process.argv[1]); const k=process.argv[2]; process.stdout.write(m[k]==null?"":String(m[k]))' "$META" "$1"
 }
@@ -124,8 +124,21 @@ meta_get() {
 APP_NAME="$(meta_get name)"
 PRESET="$(meta_get preset)"
 APP_CODE="$(meta_get applicationCode)"
-VERSION="${VERSION:-$(meta_get version)}"
-[[ -n "$VERSION" ]] || VERSION="0.0.0"
+# 默认版本以应用仓库的 package.json 为准（历史实现只读 eadaf.app.yaml，容易与 package.json 漂移）；
+# yaml 的 version 仅作为回退。来源标注在交互问答之后再定，避免用户改了版本却仍标着旧来源。
+EXPLICIT_VERSION="$VERSION"
+APP_PACKAGE_VERSION="$(package_version_at "$APP_DIR")"
+MANIFEST_VERSION="$(meta_get version)"
+if [[ -n "$VERSION" ]]; then
+  : # 命令行 --version，保持原值
+elif [[ -n "$APP_PACKAGE_VERSION" ]]; then
+  VERSION="$APP_PACKAGE_VERSION"
+elif [[ -n "$MANIFEST_VERSION" ]]; then
+  VERSION="$MANIFEST_VERSION"
+else
+  VERSION="0.0.0"
+fi
+VERSION_SOURCE=""
 WEB_DEFAULT="$(meta_get webPort)"
 API_DEFAULT="$(meta_get apiPort)"
 WEB_DEFAULT="${WEB_DEFAULT:-8080}"
@@ -147,6 +160,28 @@ else
   WEB_PORT="${WEB_PORT:-$WEB_DEFAULT}"
   API_PORT="${API_PORT:-$API_DEFAULT}"
   OUT_DIR="${OUT_DIR:-$REPO_ROOT/packages/APP}"
+fi
+
+# 版本来源标注（在交互问答之后判定，用户改了版本就如实标出来）
+if [[ -n "$EXPLICIT_VERSION" ]]; then
+  # 显式传入的版本若与 package.json / yaml 一致，就按该来源标注（管理端控制台就是这样传的）
+  if [[ -n "$APP_PACKAGE_VERSION" && "$VERSION" == "$APP_PACKAGE_VERSION" ]]; then
+    VERSION_SOURCE="package.json（应用仓库根）"
+  elif [[ -n "$MANIFEST_VERSION" && "$VERSION" == "$MANIFEST_VERSION" ]]; then
+    VERSION_SOURCE="eadaf.app.yaml（回退，package.json 无 version）"
+  else
+    VERSION_SOURCE="命令行 --version"
+  fi
+elif [[ -n "$APP_PACKAGE_VERSION" && "$VERSION" == "$APP_PACKAGE_VERSION" ]]; then
+  VERSION_SOURCE="package.json（应用仓库根）"
+elif [[ -n "$MANIFEST_VERSION" && "$VERSION" == "$MANIFEST_VERSION" ]]; then
+  VERSION_SOURCE="eadaf.app.yaml（回退，package.json 无 version）"
+elif [[ -n "$APP_PACKAGE_VERSION" ]]; then
+  VERSION_SOURCE="手动输入（默认来自 package.json $APP_PACKAGE_VERSION）"
+elif [[ -n "$MANIFEST_VERSION" ]]; then
+  VERSION_SOURCE="手动输入（默认来自 eadaf.app.yaml $MANIFEST_VERSION）"
+else
+  VERSION_SOURCE="手动输入（package.json 与 eadaf.app.yaml 都没有 version）"
 fi
 
 NEED_WEB=0; NEED_API=0; NEED_BIZ=0; PATCH_SLUG=""
@@ -181,6 +216,7 @@ echo "摘要"
 echo "  应用: $APP_NAME ($APP_CODE) preset=${PRESET:-无}"
 echo "  种类: $KIND ${PATCH_SLUG:+($PATCH_SLUG)}"
 echo "  架构: $ARCH"
+echo "  版本: $VERSION（来源: ${VERSION_SOURCE:-未识别}）"
 if [[ "$KIND" == "install" ]]; then
   echo "  端口: web=$WEB_PORT api=$API_PORT"
 fi
@@ -222,10 +258,10 @@ build_fpcu2() {
   [[ -n "$CONTAINER_NPM_REGISTRY" ]] && reg_args=(--build-arg "NPM_REGISTRY=$CONTAINER_NPM_REGISTRY")
   rm -rf "$staging"
   mkdir -p "$staging/fpcu2" "$staging/docker/fpcu2-web"
-  need_cmd rsync
-  rsync -a --exclude node_modules --exclude .git --exclude EADAF-Deploy \
-    --exclude .build-staging --exclude .DS_Store --exclude '**/dist' \
-    "$APP_DIR/" "$staging/fpcu2/"
+  need_cmd node
+  # rsync 不可用时（Git for Windows 不自带）自动回退到 Node 复制器，见 lib-pack.sh
+  copy_dir_filtered "$APP_DIR" "$staging/fpcu2" \
+    node_modules .git EADAF-Deploy .build-staging .DS_Store '**/dist'
   cp "$SCRIPT_DIR/app-presets/fpcu2/bff/Dockerfile" "$staging/fpcu2/Dockerfile.bff"
   cp "$SCRIPT_DIR/app-presets/fpcu2/bff/dockerignore" "$staging/fpcu2/.dockerignore"
   cp "$SCRIPT_DIR/app-presets/fpcu2/web/Dockerfile" "$staging/docker/fpcu2-web/Dockerfile"
