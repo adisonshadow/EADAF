@@ -97,6 +97,7 @@ PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-eadaf-ai-skills.sql" || 
 PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/20260710_add_model_rate_limit.sql" || { echo "模型 rate_limit 迁移失败"; exit 1; }
 PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-app-transfer-permissions.sql" || { echo "应用导出导入权限种子失败"; exit 1; }
 PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-platform-transfer-permissions.sql" || { echo "EADAF 平台导出导入权限种子失败"; exit 1; }
+PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-app-deployment-permissions.sql" || { echo "应用部署打包权限种子失败"; exit 1; }
 
 echo "结构对齐增量迁移完成"
 

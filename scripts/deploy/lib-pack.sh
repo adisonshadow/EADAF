@@ -7,14 +7,44 @@ REPO_ROOT="$(cd "$PACK_LIB_DIR/../.." && pwd)"
 SKELETON="$REPO_ROOT/eadaf-runtime"
 
 log() { printf '\n==== %s ====\n' "$*"; }
+log_warn() { printf '[WARN] %s\n' "$*" >&2; }
 die() { printf '[ERR] %s\n' "$*" >&2; exit 1; }
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "缺少命令: $1"
 }
 
+# MSYS（Git Bash）下 $REPO_ROOT 形如 /d/DEV/UAC2，Windows 版 node 无法 require 这种路径，
+# 于是 `package_version` 会取不到版本（旧行为：默认版本为空或与 package.json 不一致）。
+# cygpath 存在时统一转成 D:\DEV\UAC2 形态；Linux/macOS 上原样返回。
+to_native_path() {
+  local p="$1"
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "$p" 2>/dev/null || printf '%s' "$p"
+  else
+    printf '%s' "$p"
+  fi
+}
+
+# 读取某个目录 package.json 的 version（空字符串表示读不到，不报错；容忍 UTF-8 BOM）
+package_version_at() {
+  local dir="${1:-$REPO_ROOT}"
+  node -e '
+    const fs = require("fs");
+    const path = require("path");
+    try {
+      const raw = fs.readFileSync(path.join(process.argv[1], "package.json"), "utf8").replace(/^\uFEFF/, "");
+      const json = JSON.parse(raw);
+      process.stdout.write(typeof json.version === "string" ? json.version.trim() : "");
+    } catch {
+      process.stdout.write("");
+    }
+  ' "$(to_native_path "$dir")"
+}
+
+# 平台（EADAF）默认版本 = 仓库根 package.json
 package_version() {
-  node -p "require('$REPO_ROOT/package.json').version"
+  package_version_at "$REPO_ROOT"
 }
 
 git_sha() {
@@ -186,6 +216,29 @@ save_image() {
   docker save -o "$dest_dir/$filename" "$image"
   arch="$(docker image inspect "$image" --format '{{.Architecture}}')"
   [[ "$arch" == "$want_arch" ]] || die "${image} 架构为 ${arch}，期望 ${want_arch}"
+}
+
+# 复制目录树并排除若干模式（rsync 语义）。
+# Git for Windows 不自带 rsync，因此 rsync 不可用时回退到 Node 版复制器，
+# 否则 Windows 上 `pnpm pack:app` 会以「缺少命令: rsync」直接失败。
+copy_dir_filtered() {
+  local src="$1" dest="$2"
+  shift 2
+  local excludes=("$@")
+  local args=() item
+  if command -v rsync >/dev/null 2>&1; then
+    for item in ${excludes[@]+"${excludes[@]}"}; do
+      args+=(--exclude "$item")
+    done
+    rsync -a ${args[@]+"${args[@]}"} "$src/" "$dest/"
+    return 0
+  fi
+  log_warn "未检测到 rsync（Git for Windows 不自带），改用 Node 复制器 scripts/deploy/copy-tree.cjs"
+  local node_args=()
+  for item in ${excludes[@]+"${excludes[@]}"}; do
+    node_args+=(--exclude "$item")
+  done
+  node "$PACK_LIB_DIR/copy-tree.cjs" --src "$src" --dest "$dest" ${node_args[@]+"${node_args[@]}"}
 }
 
 build_eadaf_web() {

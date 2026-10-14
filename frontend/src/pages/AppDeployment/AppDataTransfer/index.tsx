@@ -15,6 +15,7 @@ import {
   ExportOutlined,
   InboxOutlined,
 } from '@ant-design/icons';
+import { PageContainer } from '@ant-design/pro-components';
 import type { UploadFile } from 'antd';
 import {
   Alert,
@@ -111,14 +112,12 @@ const SUB_LABELS: Record<string, string> = {
   totalRows: '总行数',
 };
 
-const CONNECTION_STATUS_META: Record<
-  string,
-  { color: string; text: string }
-> = {
-  matched: { color: 'success', text: '已匹配' },
-  willCreate: { color: 'processing', text: '将创建' },
-  unmatched: { color: 'error', text: '无法创建' },
-};
+const CONNECTION_STATUS_META: Record<string, { color: string; text: string }> =
+  {
+    matched: { color: 'success', text: '已匹配' },
+    willCreate: { color: 'processing', text: '将创建' },
+    unmatched: { color: 'error', text: '无法创建' },
+  };
 
 /** request 封装只返回 body,附件文件名在前端按同一规则构造 */
 function buildExportFileName(appCode: string) {
@@ -222,8 +221,18 @@ const SECTION_STATUS_META: Record<string, { color: string; text: string }> = {
   skipped: { color: 'default', text: '跳过' },
 };
 
-/** 应用导出/导入 Tab(系统设置;与整库备份互为补充,按应用维度迁移 zip) */
-const AppTransferTab: React.FC = () => {
+/** 导入预览/结果的错误、警告明细可能上百条：限高 200px 内滚动,避免把整页撑长 */
+const MESSAGE_SCROLL_STYLE: React.CSSProperties = {
+  maxHeight: 200,
+  overflowY: 'auto',
+};
+
+/** 应用数据导出/导入面板（与整库备份互为补充，按应用维度迁移 zip） */
+/**
+ * 应用数据导出/导入面板（原系统设置 Tab 内容）。
+ * 支持按应用导出 zip 包与导入预览/落库；页面外壳见下方 AppDataTransferPage。
+ */
+const AppTransferPanel: React.FC = () => {
   // ---------- 导出 ----------
   const [exportForm] = Form.useForm();
   const [appOptions, setAppOptions] = useState<
@@ -280,7 +289,10 @@ const AppTransferTab: React.FC = () => {
       if (blob.type?.includes('application/json')) {
         const text = await blob.text();
         try {
-          const parsed = JSON.parse(text) as { message?: string; format?: string };
+          const parsed = JSON.parse(text) as {
+            message?: string;
+            format?: string;
+          };
           if (parsed.format === 'eadaf-app-export') {
             triggerBlobDownload(
               new Blob([text], { type: 'application/json' }),
@@ -568,7 +580,7 @@ const AppTransferTab: React.FC = () => {
             </p>
             <p className="ant-upload-hint">
               支持 format 为 eadaf-app-export 的 zip 包(仍接受旧版单
-              .json);平台包请到「EADAF 平台导出/导入」页。选择后自动预览,不会写入数据
+              .json);平台包请到「EADAF数据导出/导入」页。选择后自动预览,不会写入数据
             </p>
           </Upload.Dragger>
 
@@ -664,8 +676,8 @@ const AppTransferTab: React.FC = () => {
                         const key = row.matched
                           ? 'matched'
                           : row.willCreate
-                            ? 'willCreate'
-                            : 'unmatched';
+                          ? 'willCreate'
+                          : 'unmatched';
                         const meta = CONNECTION_STATUS_META[key];
                         return <Tag color={meta.color}>{meta.text}</Tag>;
                       },
@@ -678,7 +690,9 @@ const AppTransferTab: React.FC = () => {
                           return row.targetName || row.targetId || '-';
                         }
                         if (row.willCreate) {
-                          return `将用「${row.createFromName || '目标同类型连接'}」凭证创建`;
+                          return `将用「${
+                            row.createFromName || '目标同类型连接'
+                          }」凭证创建`;
                         }
                         return '无可用凭证模板';
                       },
@@ -691,7 +705,9 @@ const AppTransferTab: React.FC = () => {
                   size="small"
                   style={{ marginTop: 12 }}
                   pagination={{ pageSize: 8, size: 'small' }}
-                  rowKey={(r) => r.entityCode || r.tableName || String(Math.random())}
+                  rowKey={(r) =>
+                    r.entityCode || r.tableName || String(Math.random())
+                  }
                   title={() => '物化库表摘要'}
                   dataSource={preview.physicalTables}
                   columns={[
@@ -730,7 +746,13 @@ const AppTransferTab: React.FC = () => {
                   style={{ marginTop: 12 }}
                   message={`发现 ${conflictCount} 处冲突`}
                   description={
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 18,
+                        ...MESSAGE_SCROLL_STYLE,
+                      }}
+                    >
                       {(preview.conflicts || []).map((c, i) => (
                         <li key={`c-${i}`}>
                           {SECTION_LABELS[c.section || ''] || c.section}:
@@ -757,7 +779,13 @@ const AppTransferTab: React.FC = () => {
                   style={{ marginTop: 12 }}
                   message={`${unwritableCount} 个实体的行数据不可写`}
                   description={
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 18,
+                        ...MESSAGE_SCROLL_STYLE,
+                      }}
+                    >
                       {(preview.entityData || [])
                         .filter((e) => e.writable === false)
                         .map((e, i) => (
@@ -776,7 +804,13 @@ const AppTransferTab: React.FC = () => {
                   style={{ marginTop: 12 }}
                   message={`${preview.missingReferences?.length} 条缺失引用(相应关联导入时会跳过)`}
                   description={
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 18,
+                        ...MESSAGE_SCROLL_STYLE,
+                      }}
+                    >
                       {preview.missingReferences?.map((r, i) => (
                         <li key={i}>{r}</li>
                       ))}
@@ -791,7 +825,13 @@ const AppTransferTab: React.FC = () => {
                   style={{ marginTop: 12 }}
                   message="其他提示"
                   description={
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 18,
+                        ...MESSAGE_SCROLL_STYLE,
+                      }}
+                    >
                       {preview.warnings?.map((w, i) => (
                         <li key={i}>{w}</li>
                       ))}
@@ -865,7 +905,16 @@ const AppTransferTab: React.FC = () => {
                     SECTION_LABELS[importResult.chainStoppedAt] ||
                     importResult.chainStoppedAt
                   }」节失败,后续节已终止`}
-                  description={importResult.chainError}
+                  description={
+                    <div
+                      style={{
+                        whiteSpace: 'pre-wrap',
+                        ...MESSAGE_SCROLL_STYLE,
+                      }}
+                    >
+                      {importResult.chainError}
+                    </div>
+                  }
                 />
               )}
               <Table<SectionRow>
@@ -967,7 +1016,13 @@ const AppTransferTab: React.FC = () => {
                   style={{ marginTop: 12 }}
                   message="导入提示"
                   description={
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 18,
+                        ...MESSAGE_SCROLL_STYLE,
+                      }}
+                    >
                       {importResult.warnings?.map((w, i) => (
                         <li key={i}>{w}</li>
                       ))}
@@ -990,4 +1045,14 @@ const AppTransferTab: React.FC = () => {
   );
 };
 
-export default AppTransferTab;
+/**
+ * 「应用部署 → 应用数据导出/导入」页。
+ * 该功能已从「系统设置」迁到这里（设置里不再展示），路由 /app_deployment/app-data。
+ */
+const AppDataTransferPage: React.FC = () => (
+  <PageContainer title="应用数据导出/导入">
+    <AppTransferPanel />
+  </PageContainer>
+);
+
+export default AppDataTransferPage;

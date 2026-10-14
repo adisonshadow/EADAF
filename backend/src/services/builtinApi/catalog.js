@@ -15,7 +15,7 @@
  *   bizdata:metrics   业务数据 - 指标
  *   bizdata:collection 业务数据 - 采集管道
  *   ai                AI 能力（服务商 / 模型 / Scope / Tool / Skill / 请求日志 / 运行时）
- *   system            系统设置（功能开关 / 备份）
+ *   system            系统设置（功能开关 / 备份 / 数据导出导入 / 应用部署打包）
  *   automation        钩子管理（Hook Center：事件 / 动作 / 运行历史）
  *
  * 【不纳入清单的端点】
@@ -1155,6 +1155,89 @@ const BUILTIN_API_CATALOG = [
     httpMethods: ['POST'],
     actions: ['create'],
     description: '按策略导入 EADAF 平台导出文件(覆盖更新/跳过/中止,不可自动撤销)',
+  },
+
+  // ===== system 域：应用部署（DEV 模式下的打包控制台） =====
+  {
+    code: 'system:app_deployment:status',
+    domain: 'system',
+    label: '应用部署状态',
+    routePath: '/api/v1/admin/app-deployment/status',
+    httpMethods: ['GET'],
+    actions: ['read'],
+    description: '读取应用部署状态(DEV 模式、默认版本、bash/pnpm、脚本与输出目录)',
+  },
+  {
+    code: 'system:app_deployment:app_inspect',
+    domain: 'system',
+    label: '应用目录校验',
+    routePath: '/api/v1/admin/app-deployment/app/inspect',
+    httpMethods: ['POST'],
+    actions: ['read'],
+    description: '校验应用目录并回读 eadaf.app.yaml 与应用 package.json 版本',
+  },
+  {
+    code: 'system:app_deployment:platform_pack',
+    domain: 'system',
+    label: '发布平台（打包 EADAF）',
+    routePath: '/api/v1/admin/app-deployment/platform/pack',
+    httpMethods: ['POST'],
+    actions: ['create'],
+    description: '在 DEV 模式开发机上执行 pnpm pack:eadaf(构建并导出平台安装/升级/补丁包)',
+  },
+  {
+    code: 'system:app_deployment:app_pack',
+    domain: 'system',
+    label: '发布应用（打包业务应用）',
+    routePath: '/api/v1/admin/app-deployment/app/pack',
+    httpMethods: ['POST'],
+    actions: ['create'],
+    description: '在 DEV 模式开发机上执行 pnpm pack:app(构建并导出业务应用安装/升级/补丁包)',
+  },
+  {
+    code: 'system:app_deployment:job_list',
+    domain: 'system',
+    label: '打包任务列表',
+    routePath: '/api/v1/admin/app-deployment/jobs',
+    httpMethods: ['GET'],
+    actions: ['read'],
+    description: '最近的打包任务(含产物目录)',
+  },
+  {
+    code: 'system:app_deployment:job_get',
+    domain: 'system',
+    label: '打包任务详情',
+    routePath: '/api/v1/admin/app-deployment/jobs/:jobId',
+    httpMethods: ['GET'],
+    actions: ['read'],
+    description: '单个打包任务的状态/产物/退出码',
+  },
+  {
+    code: 'system:app_deployment:job_log',
+    domain: 'system',
+    label: '打包任务日志',
+    routePath: '/api/v1/admin/app-deployment/jobs/:jobId/log',
+    httpMethods: ['GET'],
+    actions: ['read'],
+    description: '打包任务日志轮询(SSE 兜底)',
+  },
+  {
+    code: 'system:app_deployment:job_stream',
+    domain: 'system',
+    label: '打包任务实时日志',
+    routePath: '/api/v1/admin/app-deployment/jobs/:jobId/stream',
+    httpMethods: ['GET'],
+    actions: ['read'],
+    description: '打包任务 SSE 实时日志',
+  },
+  {
+    code: 'system:app_deployment:job_cancel',
+    domain: 'system',
+    label: '取消打包任务',
+    routePath: '/api/v1/admin/app-deployment/jobs/:jobId/cancel',
+    httpMethods: ['POST'],
+    actions: ['update'],
+    description: '取消正在运行的打包任务(结束构建进程树)',
   },
 
   // ===== automation 域：钩子管理（Hook Center） =====

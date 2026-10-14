@@ -29,6 +29,7 @@ const exceptionResponseRoutes = require('./exceptionResponseRoutes');
 const systemRoutes = require('./systemRoutes');
 const appTransferRoutes = require('./appTransferRoutes');
 const platformTransferRoutes = require('./platformTransferRoutes');
+const appDeploymentRoutes = require('./appDeploymentRoutes');
 const automationHookRoutes = require('./automationHookRoutes');
 
 const router = new Router();
@@ -437,6 +438,7 @@ router.use(exceptionResponseRoutes.routes());
 router.use(systemRoutes.routes());
 router.use(appTransferRoutes.routes());
 router.use(platformTransferRoutes.routes());
+router.use(appDeploymentRoutes.routes());
 router.use(automationHookRoutes.routes());
 
 module.exports = router; 

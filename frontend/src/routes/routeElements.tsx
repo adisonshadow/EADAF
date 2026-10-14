@@ -77,6 +77,10 @@ const SystemSettings = lazy(() => import('@/pages/System/Settings'));
 const OperationLogs = lazy(() => import('@/pages/System/OperationLogs'));
 const DataStandards = lazy(() => import('@/pages/BusinessData/DataStandards'));
 const MetadataCatalog = lazy(() => import('@/pages/BusinessData/Metadata'));
+const AppDataTransferPage = lazy(() => import('@/pages/AppDeployment/AppDataTransfer'));
+const PlatformDataTransferPage = lazy(() => import('@/pages/AppDeployment/PlatformDataTransfer'));
+const PublishPlatformPage = lazy(() => import('@/pages/AppDeployment/PublishPlatform'));
+const PublishAppPage = lazy(() => import('@/pages/AppDeployment/PublishApp'));
 
 /**
  * pageKey → 无 mode 的页面，或 (mode) => element。
@@ -124,6 +128,12 @@ export const PAGE_ELEMENTS: Record<string, ReactNode | ((mode: string) => ReactN
   /* system */
   systemSettings: <SystemSettings />,
   operationLogs: <OperationLogs />,
+
+  /* app_deployment */
+  appDataTransfer: <AppDataTransferPage />,
+  platformDataTransfer: <PlatformDataTransferPage />,
+  publishPlatform: <PublishPlatformPage />,
+  publishApp: <PublishAppPage />,
 
   /* api_services */
   apiServiceCreate: <ApiServiceCreate />,

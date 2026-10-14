@@ -254,20 +254,22 @@ pnpm pack:app      # 业务应用包 → packages/APP/
 
 完整说明（网络与运行方式、包内容、导入步骤）见 [docs/pack-and-deploy.md](./docs/pack-and-deploy.md)。服务器上用 Node 直接跑开发环境见 [docs/dev-server-deploy.md](./docs/dev-server-deploy.md)。
 
-## 6. 数据包导出 / 导入（系统设置）
+## 6. 数据包导出 / 导入（应用部署）
 
-两套**已运行**的 EADAF 之间同步配置与业务数据，只用管理端设置页。第 5 节的升级包、补丁包不含这些数据；安装包里的 init-db 只建表结构。
+两套**已运行**的 EADAF 之间同步配置与业务数据，只用管理端。第 5 节的升级包、补丁包不含这些数据；安装包里的 init-db 只建表结构。
 
 
-| Tab               | 文件名示例                           | 迁什么                               |
+| 菜单项               | 文件名示例                           | 迁什么                               |
 | ----------------- | ------------------------------- | --------------------------------- |
-| **EADAF 平台导出/导入** | `eadaf-platform-export-*.zip`   | 平台 Skill、AI 目录、数据标准、系统开关、UAC 权限码等 |
-| **应用导出/导入**       | `eadaf-app-export-<应用编码>-*.zip` | 单个业务应用的配置、模型、API、可选行数据 / UAC / 文件 |
+| **EADAF数据导出/导入** | `eadaf-platform-export-*.zip`   | 平台 Skill、AI 目录、数据标准、系统开关、UAC 权限码等 |
+| **应用数据导出/导入**   | `eadaf-app-export-<应用编码>-*.zip` | 单个业务应用的配置、模型、API、可选行数据 / UAC / 文件 |
 
 
-路径：管理端 → **系统设置** → 对应 Tab。内置应用 `EADAF` 不可走「应用导出/导入」（平台能力用平台 Tab）。导出可能含明文密钥，请妥善保管。
+路径：管理端导航 → **应用部署** → 对应菜单项（这两项已从「系统设置」迁出，设置页不再展示）。内置应用 `EADAF` 不可走「应用数据导出/导入」（平台能力用平台菜单项）。导出可能含明文密钥，请妥善保管。
 
-选项、冲突策略与和运行时包的区别见 [docs/data-transfer.md](./docs/data-transfer.md)。
+同一「应用部署」分组下的 **发布平台**（`pnpm pack:eadaf`）与 **发布应用**（`pnpm pack:app`）是第 5 节那两个打包脚本的 Web 控制台：**仅 DEV 模式可用**，表单填参数、实时看日志，结束后给出产物 `.tar.gz` 的目标目录与完整路径。默认版本分别取仓库根 / 应用仓库的 `package.json`。
+
+选项、冲突策略与和运行时包的区别见 [docs/data-transfer.md](./docs/data-transfer.md)；控制台与 Windows 打包说明见 [docs/pack-and-deploy.md](./docs/pack-and-deploy.md)。
 
 ## 7. 注意事项
 

@@ -31,6 +31,7 @@ export const ROUTE_UI_BY_PATH: Record<string, Partial<AppRouteMeta>> = {
   '/file_storage': { name: '文件', icon: 'FolderOutlined' },
   '/business_data': { name: '业务数据', icon: 'DatabaseOutlined' },
   '/api_services': { name: 'API', icon: 'ApiOutlined' },
+  '/app_deployment': { name: '应用部署', icon: 'DeploymentUnitOutlined' },
   '/ai_management': { name: 'AI管理', icon: 'RobotOutlined' },
   '/system': { name: '系统', icon: 'SettingOutlined', hideInMenu: true },
 

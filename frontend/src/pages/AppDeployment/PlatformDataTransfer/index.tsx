@@ -5,10 +5,8 @@ import {
 } from '@/services/UAC/api/system';
 import { message, modal } from '@/utils/antdAppApis';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
-import {
-  DownloadOutlined,
-  InboxOutlined,
-} from '@ant-design/icons';
+import { DownloadOutlined, InboxOutlined } from '@ant-design/icons';
+import { PageContainer } from '@ant-design/pro-components';
 import type { UploadFile } from 'antd';
 import {
   Alert,
@@ -159,15 +157,20 @@ function flattenSectionCounts(
   });
 }
 
-/** EADAF 平台导出/导入 Tab(与业务应用包分开) */
-const PlatformTransferTab: React.FC = () => {
+/** 导入预览/结果的错误、警告明细可能上百条：限高 200px 内滚动,避免把整页撑长 */
+const MESSAGE_SCROLL_STYLE: React.CSSProperties = {
+  maxHeight: 200,
+  overflowY: 'auto',
+};
+
+/** EADAF数据导出/导入 Tab(与业务应用包分开) */
+const PlatformTransferPanel: React.FC = () => {
   const [includeFiles, setIncludeFiles] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [preview, setPreview] = useState<API.PlatformTransferPreviewResult | null>(
-    null,
-  );
+  const [preview, setPreview] =
+    useState<API.PlatformTransferPreviewResult | null>(null);
   const [strategy, setStrategy] = useState('overwrite');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] =
@@ -180,7 +183,10 @@ const PlatformTransferTab: React.FC = () => {
       if (blob.type?.includes('application/json')) {
         const text = await blob.text();
         try {
-          const parsed = JSON.parse(text) as { message?: string; format?: string };
+          const parsed = JSON.parse(text) as {
+            message?: string;
+            format?: string;
+          };
           if (parsed.format === 'eadaf-platform-export') {
             triggerBlobDownload(
               new Blob([text], { type: 'application/json' }),
@@ -259,7 +265,8 @@ const PlatformTransferTab: React.FC = () => {
         try {
           const res = await postPlatformTransferImport(importFile, strategy);
           if (isApiSuccess(res)) {
-            const data = getApiData<API.PlatformTransferImportResult>(res) || null;
+            const data =
+              getApiData<API.PlatformTransferImportResult>(res) || null;
             setImportResult(data);
             if (data?.aborted) {
               message.warning('存在冲突,已按 abort 策略中止,未写入任何数据');
@@ -299,12 +306,11 @@ const PlatformTransferTab: React.FC = () => {
               checked={includeFiles}
               onChange={setIncludeFiles}
             />
-            <span>
-              导出桶和文件(EADAF / 系统桶及其对象;不含业务应用桶)
-            </span>
+            <span>导出桶和文件(EADAF / 系统桶及其对象;不含业务应用桶)</span>
           </Space>
           <Typography.Paragraph type="secondary">
-            用于把本实例的平台能力同步到另一套 EADAF,与「应用导出/导入」互斥。
+            用于把本实例的平台能力同步到另一套
+            EADAF,与「应用数据导出/导入」互斥。
           </Typography.Paragraph>
           <ul style={{ margin: '0 0 16px', paddingLeft: 18, lineHeight: 1.9 }}>
             {EXPORT_CONTENT_ITEMS.map((item) => (
@@ -373,7 +379,8 @@ const PlatformTransferTab: React.FC = () => {
               点击或拖拽 eadaf-platform-export 的 .zip 文件到此处
             </p>
             <p className="ant-upload-hint">
-              支持平台 zip 包(仍接受旧版单 .json);应用包请到「应用导出/导入」页
+              支持平台 zip 包(仍接受旧版单
+              .json);应用包请到「应用数据导出/导入」页
             </p>
           </Upload.Dragger>
 
@@ -420,7 +427,13 @@ const PlatformTransferTab: React.FC = () => {
                   style={{ marginTop: 12 }}
                   message={`发现 ${conflictCount} 处将覆盖或冲突的记录`}
                   description={
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 18,
+                        ...MESSAGE_SCROLL_STYLE,
+                      }}
+                    >
                       {(preview.conflicts || []).map((c, i) => (
                         <li key={`c-${i}`}>
                           {SECTION_LABELS[c.section || ''] || c.section}:
@@ -441,7 +454,13 @@ const PlatformTransferTab: React.FC = () => {
                   style={{ marginTop: 12 }}
                   message="其他提示"
                   description={
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 18,
+                        ...MESSAGE_SCROLL_STYLE,
+                      }}
+                    >
                       {preview.warnings?.map((w, i) => (
                         <li key={i}>{w}</li>
                       ))}
@@ -548,7 +567,13 @@ const PlatformTransferTab: React.FC = () => {
                   style={{ marginTop: 12 }}
                   message="导入提示"
                   description={
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 18,
+                        ...MESSAGE_SCROLL_STYLE,
+                      }}
+                    >
                       {importResult.warnings?.map((w, i) => (
                         <li key={i}>{w}</li>
                       ))}
@@ -570,4 +595,14 @@ const PlatformTransferTab: React.FC = () => {
   );
 };
 
-export default PlatformTransferTab;
+/**
+ * 「应用部署 → EADAF数据导出/导入」页。
+ * 该功能已从「系统设置」迁到这里（设置里不再展示），路由 /app_deployment/platform-data。
+ */
+const PlatformDataTransferPage: React.FC = () => (
+  <PageContainer title="EADAF数据导出/导入">
+    <PlatformTransferPanel />
+  </PageContainer>
+);
+
+export default PlatformDataTransferPage;

@@ -189,6 +189,8 @@ const CRITICAL_PATHS = [
   '/api_services/:id/test', '/api_services/exception-responses', '/api_services/outbound-webhooks',
   '/api_services/collection-pipelines', '/api_services/collection-pipelines/create',
   '/api_services/collection-pipelines/:id/edit', '/api_services/collection-pipelines/:id/test',
+  '/app_deployment', '/app_deployment/app-data', '/app_deployment/platform-data',
+  '/app_deployment/publish-platform', '/app_deployment/publish-app',
   '/ai_management', '/ai_management/providers', '/ai_management/models', '/ai_management/scopes',
   '/ai_management/tools', '/ai_management/skills', '/ai_management/chat-demo',
   '/ai_management/request-logs', '/system', '/system/operation-logs', '/system/settings', '/account/center',
@@ -201,6 +203,8 @@ for (const p of CRITICAL_PATHS) {
 assert.equal(metaByPath.get('/member_org')?.icon, 'TeamOutlined');
 assert.equal(metaByPath.get('/permissions')?.icon, 'AuditOutlined');
 assert.equal(metaByPath.get('/business_data')?.icon, 'DatabaseOutlined');
+assert.equal(metaByPath.get('/app_deployment')?.name, '应用部署');
+assert.equal(metaByPath.get('/app_deployment')?.icon, 'DeploymentUnitOutlined');
 assert.equal(metaByPath.get('/business_data/model-design')?.name, '数据模型');
 assert.equal(metaByPath.get('/business_data/model-design')?.noContentPadding, true);
 assert.equal(metaByPath.get('/business_data/model-design/relations-graph')?.hideInMenu, true);
@@ -230,8 +234,25 @@ assert.deepEqual(rootPaths, [
   '/file_storage',
   '/business_data',
   '/api_services',
+  '/app_deployment',
   '/ai_management',
 ]);
+
+// 应用部署子菜单：4 项，顺序与需求一致（发布平台 / 发布应用 仅 DEV 模式可用，菜单仍展示）
+const appDeploymentRoot = menu.find((m) => m.path === '/app_deployment');
+assert.deepEqual(
+  (appDeploymentRoot?.children ?? []).map((c) => c.path),
+  [
+    '/app_deployment/app-data',
+    '/app_deployment/platform-data',
+    '/app_deployment/publish-platform',
+    '/app_deployment/publish-app',
+  ],
+);
+assert.deepEqual(
+  (appDeploymentRoot?.children ?? []).map((c) => c.name),
+  ['应用数据导出/导入', 'EADAF数据导出/导入', '发布平台', '发布应用'],
+);
 
 // 抽样：member_org 子菜单
 const memberRoot = menu.find((m) => m.path === '/member_org');

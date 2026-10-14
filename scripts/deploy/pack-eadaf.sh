@@ -62,6 +62,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# 平台默认版本 = 仓库根 package.json（Git Bash 下路径经 cygpath 转换，见 lib-pack.sh）。
+# 取一次并复用，避免交互提示里的默认值与最终写进包名的版本不一致。
+EXPLICIT_VERSION="$VERSION"
+PLATFORM_DEFAULT_VERSION="$(package_version 2>/dev/null || true)"
+VERSION_SOURCE=""
+
 ask() {
   local prompt="$1" default="${2:-}" answer
   if [[ -n "$default" ]]; then
@@ -162,7 +168,7 @@ if [[ "$NONINT" != "1" && -t 0 ]]; then
     WEB_PORT="$(ask "前端宿主机端口" "${WEB_PORT:-9527}")"
     API_PORT="$(ask "后端宿主机端口" "${API_PORT:-9526}")"
   fi
-  VERSION="$(ask "版本" "${VERSION:-$(package_version)}")"
+  VERSION="$(ask "版本" "${VERSION:-$PLATFORM_DEFAULT_VERSION}")"
   OUT_DIR="$(ask "输出目录" "${OUT_DIR:-$REPO_ROOT/packages/EADAF}")"
 else
   [[ -n "$NETWORK" && -n "$RUNTIME" && -n "$KIND" && -n "$ARCH" ]] || die "非交互模式需要 --network、--runtime、--kind、--arch"
@@ -170,9 +176,26 @@ else
   OS_NAME="${OS_NAME:-centos}"
   WEB_PORT="${WEB_PORT:-9527}"
   API_PORT="${API_PORT:-9526}"
-  VERSION="${VERSION:-$(package_version)}"
+  VERSION="${VERSION:-$PLATFORM_DEFAULT_VERSION}"
   OUT_DIR="${OUT_DIR:-$REPO_ROOT/packages/EADAF}"
   ASSUME_YES=1
+fi
+
+if [[ -n "$EXPLICIT_VERSION" ]]; then
+  # 显式传入的版本若与 package.json 一致，就按 package.json 标注来源（管理端控制台就是这样传的）
+  if [[ -n "$PLATFORM_DEFAULT_VERSION" && "$VERSION" == "$PLATFORM_DEFAULT_VERSION" ]]; then
+    VERSION_SOURCE="package.json（仓库根）"
+  else
+    VERSION_SOURCE="命令行 --version"
+  fi
+elif [[ -n "$PLATFORM_DEFAULT_VERSION" && "$VERSION" == "$PLATFORM_DEFAULT_VERSION" ]]; then
+  VERSION_SOURCE="package.json（仓库根）"
+else
+  VERSION_SOURCE="手动指定"
+fi
+if [[ -z "$VERSION" ]]; then
+  VERSION="${PLATFORM_DEFAULT_VERSION:-0.0.0}"
+  VERSION_SOURCE="${VERSION_SOURCE:-默认 0.0.0（未取到仓库根 package.json version）}"
 fi
 
 NETWORK="$(printf '%s' "$NETWORK" | tr '[:upper:]' '[:lower:]')"
@@ -243,7 +266,7 @@ echo "  种类: $KIND ${PATCH_SLUG:+($PATCH_SLUG)}"
 if [[ "$KIND" == "install" ]]; then
   echo "  端口: web=${WEB_PORT} api=${API_PORT}（只改宿主机映射）"
 fi
-echo "  版本: $VERSION"
+echo "  版本: $VERSION（来源: ${VERSION_SOURCE:-未识别}）"
 echo "  输出: $OUT_DIR/$ARCHIVE"
 confirm_or_die "$ASSUME_YES"
 

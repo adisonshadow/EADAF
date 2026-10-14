@@ -5,9 +5,48 @@
 服务器上用 Node 直接跑开发环境见 [dev-server-deploy.md](./dev-server-deploy.md)。
 
 > 本节说的是 **运行时安装包 / 升级包 / 补丁包**（`packages/EADAF`、`packages/APP` 下的 `.tar.gz`）。  
-> 管理端「系统设置」里按实例迁配置与业务数据的 ZIP，见 [data-transfer.md](./data-transfer.md)，二者不要混用。
+> 管理端导航「应用部署」里按实例迁配置与业务数据的 ZIP，见 [data-transfer.md](./data-transfer.md)，二者不要混用。
 >
-> **数据包补丁已暂时停用。** 升级包、补丁包只含程序（镜像 / 前端 dist），不带表结构，也不带业务数据。表结构只在 **EADAF 安装包** 的 init-db SQL 里。已运行实例之间同步配置与业务数据，用系统设置里的 EADAF / 应用数据包导出、导入。
+> **数据包补丁已暂时停用。** 升级包、补丁包只含程序（镜像 / 前端 dist），不带表结构，也不带业务数据。表结构只在 **EADAF 安装包** 的 init-db SQL 里。已运行实例之间同步配置与业务数据，用「应用部署」里的 EADAF / 应用数据包导出、导入。
+
+---
+
+## 0. 两种入口：命令行 与 管理端「应用部署」
+
+| 入口 | 位置 | 说明 |
+|------|------|------|
+| 命令行 | 仓库根 `pnpm pack:eadaf` / `pnpm pack:app` | 交互式问答（网络、运行方式、种类、端口、版本、输出目录），见第 2、3 节 |
+| 管理端 | 导航 **应用部署 → 发布平台 / 发布应用** | 表单填同样的参数，后端在 **DEV 模式** 开发机上执行同一套脚本，页面实时输出日志，结束后给出产物（`.tar.gz`）的目标目录与完整路径 |
+
+「应用部署」菜单项：
+
+- **应用数据导出/导入**、**EADAF数据导出/导入**：实例间迁移数据，见 [data-transfer.md](./data-transfer.md)。这两项已从「系统设置」迁到这里，设置页不再展示。
+- **发布平台**（`pnpm pack:eadaf`）、**发布应用**（`pnpm pack:app`）：**仅 DEV 模式可用**（后端 `NODE_ENV=development`，即 `pnpm dev` / `pnpm pm2dev` 起的开发栈）。非 DEV 模式页面会明确提示并禁用按钮，后端接口也会返回 403。
+
+两个发布页的约定：
+
+- **目标目录默认按项目地址拼出**：平台 `<项目目录>/packages/EADAF`、应用 `<项目目录>/packages/APP`（后端用仓库根拼好回给页面，页面上的示例也只显示 `<项目目录>/...` 这种相对写法）。
+- **发布应用分两步**：先「选择应用 + 填项目目录」并点校验（目录下必须有 `eadaf.app.yaml`），校验通过后按「应用 → 项目目录」记进**浏览器本地缓存**，下次选同一个应用会自动回填并重新校验；再点「下一步」才出现其余打包配置。
+- **打包历史存在浏览器**（`localStorage`）：任务结束后自动记一条（版本、种类配置、状态、目标目录、产物文件名与大小），可直接复制目标目录去取包；换浏览器或清缓存后，服务端若还留着最近一次任务，会补记进历史。历史上限 50 条，可单条移除或整体清空。
+
+### 0.1 默认版本号从哪来
+
+| 目标 | 默认版本来源 | 回退顺序 |
+|------|--------------|----------|
+| 平台包（`pnpm pack:eadaf`） | 仓库根 `package.json` 的 `version` | `--version` 显式指定 → 根 `package.json` → `0.0.0` |
+| 应用包（`pnpm pack:app`） | **应用仓库** `package.json` 的 `version` | `--version` 显式指定 → 应用 `package.json` → `eadaf.app.yaml` 的 `version` → `0.0.0` |
+
+摘要区会打印 `版本: x.y.z（来源: package.json（仓库根）/ package.json（应用仓库根）/ eadaf.app.yaml（回退）/ 命令行 --version）`，便于核对包名里的版本。
+
+### 0.2 Windows 开发机能否打 Linux 包
+
+可以，前提是 **Git for Windows（Git Bash）+ Docker Desktop**：
+
+- 镜像由 Docker Desktop 的 Linux 引擎构建/导出（`docker build --platform linux/amd64`、`docker save`），产物就是目标机 `docker load` 能用的 Linux 镜像 tar；
+- 打包脚本由 Git Bash 执行，包内 `.sh` 保留可执行位（`0755`），脚本换行已在打包时统一为 LF；
+- 打包需要 `docker`、`git`、`tar`、`curl`、`pnpm`、`node`；`rsync` 可选——Git for Windows 不自带 rsync，fpcu2 预设的构建上下文复制会自动回退到 Node 复制器（`scripts/deploy/copy-tree.cjs`，排除规则与 rsync 版一致）；
+- 网络与磁盘开销：安装包会导出 postgres / mysql / minio / nginx 等镜像（数 GB），并下载静态 Docker（离线包），Windows 上同样可行但更慢；
+- 仍需注意：`tar`/`bash` 走的是 Git Bash 的实现，建议打包后按第 4 节在目标 Linux 上先 `tar -tzf` 检查一次包结构。
 
 ---
 
@@ -30,6 +69,8 @@
 
 在本仓库根目录执行。交互顺序：网络 → 运行方式 → 默认发行版 → CPU 架构 → 安装 / 升级 / 补丁 →（仅安装包）前后端端口 → 版本 → 输出目录。
 
+对应管理端「应用部署 → 发布平台」（仅 DEV 模式，见第 0 节）。
+
 ```bash
 pnpm pack:eadaf
 # 非交互示例
@@ -51,7 +92,7 @@ bash scripts/deploy/pack-eadaf.sh --network offline --runtime compose --os cento
 | 升级 | 程序镜像 + 前端 dist。~~尚未执行的表结构 SQL~~ 升级包暂时只有代码，不带表结构、不带数据 |
 | 补丁 | 只含所选程序种类（`web` / `api`）。~~数据补丁只含系统应用 `EADAF` 的 BizData 模型 upsert~~ 已暂时停用 |
 
-~~数据补丁从开发库读取 `EADAF` 的 `bizdata_scope_codes`。没有 scope、或 scope 下没有实体时，导出失败，不会打出空包或整库。~~ 配置与业务数据改走管理端「系统设置」的 EADAF / 应用数据包，见 [data-transfer.md](./data-transfer.md)。
+~~数据补丁从开发库读取 `EADAF` 的 `bizdata_scope_codes`。没有 scope、或 scope 下没有实体时，导出失败，不会打出空包或整库。~~ 配置与业务数据改走管理端「应用部署」的 EADAF / 应用数据包，见 [data-transfer.md](./data-transfer.md)。
 
 兼容入口（只出离线包）：
 
@@ -69,6 +110,8 @@ pnpm offline:patch all                           # web + api
 
 在本仓库根目录执行，源码指向应用仓库。交互顺序：应用目录 → CPU 架构（与 EADAF 包一致）→ 安装 / 升级 / 补丁 →（仅安装包）应用前后端端口 → 版本 → 输出目录。
 
+对应管理端「应用部署 → 发布应用」（仅 DEV 模式，见第 0 节）：页面上填应用目录、点「校验」读回 `eadaf.app.yaml` 与应用 `package.json` 版本后再打包。
+
 ```bash
 pnpm pack:app
 ```
@@ -82,7 +125,7 @@ pnpm pack:app
 | 安装、升级 | `<应用名>-<种类>-<架构>-v<版本>-<日期>-<时分>.tar.gz` |
 | 补丁 | `<应用名>-patch-<种类>-<架构>-v<版本>-<日期>-<时分>.tar.gz` |
 
-~~应用数据补丁写入的是该应用在 EADAF 里的 BizData，不是应用自带的另一套库。~~ 应用数据补丁已暂时停用。该应用的配置、模型与业务数据用系统设置里的「应用导出/导入」。
+~~应用数据补丁写入的是该应用在 EADAF 里的 BizData，不是应用自带的另一套库。~~ 应用数据补丁已暂时停用。该应用的配置、模型与业务数据用「应用部署 → 应用数据导出/导入」。
 
 ---
 
@@ -150,7 +193,7 @@ DEPLOY_ROOT=/path/to/eadaf-runtime ./apply.sh
 
 应用包（安装 / 升级 / 补丁）**只含程序**：镜像与前端 `dist`。包内**不跑**任何建模型、物化表或写业务数据的脚本，`apply.sh` 只做两件事——注册应用到 EADAF（`application.sql.template`，写 `uac.applications` 一行）与拉起容器。
 
-**模型、表结构、数据 API 与业务数据一律走管理端「系统设置 → 应用导出/导入」**，见 [data-transfer.md](./data-transfer.md)：
+**模型、表结构、数据 API 与业务数据一律走管理端「应用部署 → 应用数据导出/导入」**，见 [data-transfer.md](./data-transfer.md)：
 
 | 内容 | 走哪里 |
 |------|--------|

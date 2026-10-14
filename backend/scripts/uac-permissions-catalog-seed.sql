@@ -9,6 +9,7 @@ VALUES
   ('660e8400-e29b-41d4-a716-446655440035', 'api_services:manage', 'API 服务', 'MENU', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('660e8400-e29b-41d4-a716-446655440036', 'file_storage:manage', '文件', 'MENU', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('660e8400-e29b-41d4-a716-446655440037', 'ai_management:manage', 'AI 管理', 'MENU', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('660e8400-e29b-41d4-a716-446655440038', 'app_deployment:manage', '应用部署', 'MENU', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('660e8400-e29b-41d4-a716-446655440090', 'system:manage', '系统管理', 'MENU', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   -- BUTTON：成员
   ('660e8400-e29b-41d4-a716-446655440040', 'member:create', '创建成员', 'BUTTON', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
