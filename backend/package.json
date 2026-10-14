@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon src/app.js",
     "dev:watch": "cross-env NODE_ENV=development nodemon src/app.js",
+    "prod": "cross-env NODE_ENV=production node src/app.js",
+    "start": "cross-env NODE_ENV=production node src/app.js",
     "pm2dev": "pm2 startOrReload ecosystem.config.cjs --only uac-api-dev",
     "pm2prod": "pm2 startOrReload ecosystem.config.cjs --only uac-api",
     "test": "jest",

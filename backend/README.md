@@ -41,6 +41,9 @@ npm run dev
 ### 常用命令
 
 ```bash
+npm run dev                 # 开发：nodemon 热重载，读 .env.development
+npm run prod                # 生产：node 直启（无热重载），NODE_ENV=production，读 .env.production
+npm start                   # 等价于 npm run prod（pm2 / PaaS 默认入口）
 npm test                    # 单元 / 接口测试
 npm run swagger             # 生成 swagger.json
 pnpm export-eadaf-ai-skills # 从当前库导出 EADAF Skill/Tool upsert SQL 并写入仓库
