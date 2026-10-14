@@ -386,6 +386,8 @@ const Page: React.FC = () => {
             ...record.sso_config,
             redirect_mode: record.sso_config?.redirect_mode ?? 'POST_REDIRECT',
             redirect_uri_use_system_host: !!record.sso_config?.redirect_uri_use_system_host,
+            // 未配置过时按「需要验证」展示，与平台默认一致
+            login_verify_enabled: record.sso_config?.login_verify_enabled ?? true,
             base_url: window.location.origin,
             client_id: record.code,
             issuer: window.location.origin,
@@ -756,6 +758,13 @@ const Page: React.FC = () => {
                     }}
                     initialValue="POST_REDIRECT"
                     tooltip="POST跳转模式：JWT信息在请求体中传递；302重定向模式：JWT信息在URL参数中传递"
+                  />
+
+                  <ProFormSwitch
+                    name={['sso_config', 'login_verify_enabled']}
+                    label="登录时验证是人类"
+                    colProps={{ span: 24 }}
+                    tooltip="开启后登录页需滑动验证通过才能登录；内部应用可关闭，登录将直接进行（密码校验与登录失败次数限制不受影响）"
                   />
 
                   <Col span={24}>

@@ -629,6 +629,11 @@ declare namespace API {
     frontend_url?: string;
     /** SSO 登录页样式 */
     login_page?: SsoLoginPageStyle;
+    /**
+     * 登录时是否要求「人类验证」（滑动验证）。
+     * false 表示该应用登录直接进行，不弹滑块；未设置时跟随平台全局开关。
+     */
+    login_verify_enabled?: boolean;
     /** 其他SSO协议特定的参数 */
     additional_params?: Record<string, any>;
   };

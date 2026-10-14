@@ -4,6 +4,7 @@ const { Op } = require('sequelize');
 const config = require('../config');
 const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSecret');
 const { resolveSsoRedirectUri, requestHostInfo } = require('../utils/ssoRedirectUri');
+const { isLoginVerifyRequired } = require('../utils/ssoLoginVerify');
 const logger = require('../utils/logger');
 const User = require('../models/user');
 const Role = require('../models/role');
@@ -49,10 +50,14 @@ class AuthController {
 
       // 开发环境下的 dev 模式，跳过验证码和登录限制检查
       const isDevMode = dev && process.env.NODE_ENV === 'development';
-      
+
+      // 该应用是否需要「人类验证」（滑块）：应用可在 sso_config.login_verify_enabled 上关闭，
+      // 未设置时跟随平台全局开关。只免掉滑块，密码校验与失败次数限制照旧。
+      const loginVerifyRequired = await isLoginVerifyRequired(application_id);
+
       if (!isDevMode) {
         // 检查是否需要验证码
-        if (config.api.loginVerify.enabled) {
+        if (config.api.loginVerify.enabled && loginVerifyRequired) {
           // 如果没有提供验证码ID，返回需要验证码的响应
           if (!captcha_id) {
             ctx.status = 202;
@@ -291,6 +296,8 @@ class AuthController {
           application_code: application.code,
           sso_config: {
             ...application.sso_config,
+            // 显式回传本次登录是否要求人类验证，登录页据此决定弹不弹滑块
+            login_verify_enabled: loginVerifyRequired,
             redirect_mode: redirectMode,
             redirect_uri: resolvedRedirectUri,
           }

@@ -197,6 +197,14 @@ router.get('/system-branding', ApplicationController.getSystemBranding);
        *                               nullable: true
        *                               maxLength: 80
        *                               description: 登录页副标题；不填则不显示
+       *                         login_verify_enabled:
+       *                           type: boolean
+       *                           description: |
+       *                             登录时是否要求「人类验证」（滑动验证）。
+       *                             false = 该应用登录直接进行、不弹滑块（内部应用场景）；
+       *                             未配置时跟随平台全局开关 LOGIN_VERIFY_ENABLED。
+       *                             关闭只免掉滑块，密码校验与登录失败次数限制不受影响。
+       *                           example: false
  *                     description:
  *                       type: string
  *                       nullable: true

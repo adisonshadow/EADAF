@@ -63,6 +63,8 @@ interface ApplicationInfo {
     issuer?: string;
     frontend_url?: string;
     login_page?: API.SsoLoginPageStyle;
+    /** 该应用登录页是否要求人类验证（滑块）；false 时登录直接进行 */
+    login_verify_enabled?: boolean;
   };
 }
 
@@ -533,6 +535,7 @@ const LoginPage: React.FC = () => {
               issuer: ssoInfo.sso_config?.issuer,
               frontend_url: ssoInfo.sso_config?.frontend_url,
               login_page: ssoInfo.sso_config?.login_page || applicationInfo?.sso_config?.login_page,
+              login_verify_enabled: ssoInfo.sso_config?.login_verify_enabled,
             },
           });
         }
@@ -551,6 +554,14 @@ const LoginPage: React.FC = () => {
         await handleLoginSuccess(userInfo, msg.data.token, msg.data.refresh_token);
         return true;
       } else if (msg.data?.need_captcha) {
+        // 该应用配置了「不需要人类验证」时，服务端不会再返回 need_captcha；
+        // 这里再兜一层：拿不到明确要求就不弹滑块，避免多余的一次滑动。
+        const verifyRequired = msg.data?.sso?.sso_config?.login_verify_enabled
+          ?? applicationInfo?.sso_config?.login_verify_enabled;
+        if (verifyRequired === false) {
+          message.error(msg.message || '登录失败');
+          return false;
+        }
         setLoginParams(loginData);
         const response = await getCaptcha();
         if (!response.data?.captcha_id) {

@@ -34,6 +34,8 @@ export async function getApplicationsSsoId(
         issuer?: string;
         frontend_url?: string;
         login_page?: API.SsoLoginPageStyle;
+        /** 该应用登录页是否要求人类验证（滑块）；未配置时跟随平台全局开关 */
+        login_verify_enabled?: boolean;
       };
       created_at?: string;
       updated_at?: string;

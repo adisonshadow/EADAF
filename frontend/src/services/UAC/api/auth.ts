@@ -108,6 +108,8 @@ export async function postAuthLogin(
           salt?: string;
           redirect_uri?: string;
           redirect_mode?: 'POST_REDIRECT' | 'HEADER_REDIRECT';
+          /** 本次登录是否要求人类验证（滑块）；由服务端按应用配置解析 */
+          login_verify_enabled?: boolean;
         };
       };
     };

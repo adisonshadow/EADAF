@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { hasSsoSigningSecret, resolveSsoSigningSecret } = require('../utils/ssoSecret');
 const { mergeSsoLoginPage, normalizeSsoLoginPage } = require('../utils/ssoLoginPage');
+const { resolveLoginVerifyEnabled } = require('../utils/ssoLoginVerify');
 const {
   validateSsoRedirectUriConfig,
   resolveSsoRedirectUri,
@@ -1031,6 +1032,11 @@ class ApplicationController {
         redirect_uri: resolveSsoRedirectUri(application.sso_config, requestHostInfo(ctx)),
         redirect_uri_use_system_host: !!application.sso_config.redirect_uri_use_system_host,
         redirect_mode: redirectMode,
+        // 该应用的登录页是否要求人类验证（滑块）；未配置时跟随平台全局开关
+        login_verify_enabled: resolveLoginVerifyEnabled({
+          appFlag: application.sso_config?.login_verify_enabled,
+          globalFlag: config.api?.loginVerify?.enabled !== false,
+        }),
         ...(loginPage ? { login_page: loginPage } : {}),
       };
 
