@@ -4,8 +4,7 @@ import { getDepartments } from '@/services/UAC/api/departments';
 import { getAuthCheck } from '@/services/UAC/api/auth';
 import { getSystemFeatures } from '@/services/UAC/api/system';
 import { getPermissions } from '@/services/UAC/api/permissions';
-import { clearAuth, consumeEmbedAuthFromUrl, getAuth, parseAuthUser, type CurrentUser } from '@/utils/auth';
-import { AUTH_PAGES } from '@/constants/auth';
+import { clearAuth, clearAllSsoAuth, consumeEmbedAuthFromUrl, getAuth, parseAuthUser, type CurrentUser } from '@/utils/auth';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import {
   applyDocumentBranding,
@@ -26,14 +25,6 @@ export type {
   MenuPermissionItem,
 } from './initialStateContext';
 
-/** SSO 登录页（/auth/login?app=）只做应用品牌与签发应用 JWT，不能拿平台会话去验应用密钥 */
-function isSsoAuthPage() {
-  if (typeof window === 'undefined') return false;
-  const path = window.location.pathname;
-  if (!(AUTH_PAGES as readonly string[]).includes(path)) return false;
-  return new URLSearchParams(window.location.search).has('app');
-}
-
 async function fetchUserInfo() {
   try {
     const { token } = getAuth();
@@ -47,10 +38,11 @@ async function fetchUserInfo() {
   } catch (error: unknown) {
     const err = error as { response?: { status?: number } };
     if (err?.response?.status === 401) {
-      // SSO 登录页上即便偶发 401，也不得清掉管理台已登录态（同源 localStorage）
-      if (!isSsoAuthPage()) {
-        clearAuth();
-      }
+      // 全局会话用的是平台 token，验不过就是真的失效（或旧版本把应用 token 写进了
+      // 这个位置），必须清掉，否则会一直 401 停在"回到登录页"的状态。
+      // 应用 token 现在存在 sso_token:<app_id> 独立键里，这里顺手清一遍脏数据即可。
+      clearAuth();
+      clearAllSsoAuth();
     }
     return undefined;
   }

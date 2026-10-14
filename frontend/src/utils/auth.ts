@@ -152,6 +152,22 @@ export const saveAuth = (token: string, refreshToken?: string) => {
   console.log('认证信息保存完成');
 };
 
+/**
+ * SSO 应用 token 的独立存储。
+ *
+ * 应用 JWT 由后端用【应用密钥】签发，只对带 `app=<id>` 的请求有效；而 EADAF
+ * 管理台的全局会话校验不带 app（用平台密钥验签）。两者若共用 localStorage.token，
+ * 应用登录就会把管理台会话覆盖成无效 token —— 现象就是「SSO 登录后 EADAF 掉登录」。
+ * 所以应用 token 按应用分别存放，绝不写进平台会话位（实现见 ssoTokenStore）。
+ */
+export {
+  saveSsoAuth,
+  getSsoAuth,
+  clearSsoAuth,
+  clearAllSsoAuth,
+  ssoTokenKey,
+} from './ssoTokenStore';
+
 // 获取认证信息（高频路径：勿打日志；调试设 localStorage DEBUG_AUTH=1）
 export const getAuth = () => {
   const token = localStorage.getItem('token');

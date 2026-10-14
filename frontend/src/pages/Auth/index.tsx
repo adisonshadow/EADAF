@@ -11,7 +11,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import SliderCaptchaComponent, { SliderCaptchaRef } from '@/components/SliderCaptcha';
 import loadingLottie from '@/assets/lotties/loading.json';
 import './index.scss';
-import { saveAuth, checkTokenValid, parseAuthUser } from '@/utils/auth';
+import { saveAuth, saveSsoAuth, getSsoAuth, clearSsoAuth, clearAuth, checkTokenValid, parseAuthUser } from '@/utils/auth';
 import { getApiErrorMessage } from '@/utils/apiResponse';
 import { normalizeUploadFileId } from '@/utils/image';
 import {
@@ -421,8 +421,13 @@ const LoginPage: React.FC = () => {
           status: userData.status,
           department_id: userData.department_id,
         };
-        const token = localStorage.getItem('token') || '';
-        const refreshToken = localStorage.getItem('refresh_token') || '';
+        // 必须用该应用的 token：平台 token 的签名与 app 不同，交给业务侧会被拒
+        const { token, refreshToken } = getSsoAuth(appId);
+        if (!token) {
+          // 没有该应用的 token 就不要拿着平台 token 去跳转（业务侧必然 401）
+          ssoRedirectStartedRef.current = false;
+          return;
+        }
         await performSsoRedirect(appId, userInfo, token, refreshToken);
       } catch (error) {
         console.error('SSO 自动跳转失败:', error);
@@ -435,11 +440,18 @@ const LoginPage: React.FC = () => {
   }, [isLoggedIn, isCheckingAuth, isApplicationInfoLoaded, applicationInfo, ssoError]);
 
   const handleLoginSuccess = async (userInfo: UserInfo, token: string, refreshToken?: string) => {
+    const urlParams = new URL(window.location.href).searchParams;
+    const appId = urlParams.get('app');
     try {
-      saveAuth(token, refreshToken);
-
-      const urlParams = new URL(window.location.href).searchParams;
-      const appId = urlParams.get('app');
+      // SSO 登录时 JWT 是按【应用密钥】签发的，只对「带 app 参数」的请求有效；
+      // EADAF 管理台的全局会话校验不带 app（用平台密钥验签），把它写进同一个
+      // localStorage.token 会把管理台会话覆盖成无效 token，随后 401 → 清会话 →
+      // 回登录页。所以应用 token 存到独立键，绝不占用平台会话位。
+      if (appId) {
+        saveSsoAuth(appId, token, refreshToken);
+      } else {
+        saveAuth(token, refreshToken);
+      }
 
       // SSO：JWT 按应用密钥签发，check 必须带 app
       if (appId) {
@@ -447,6 +459,7 @@ const LoginPage: React.FC = () => {
           await getAuthCheck({ app: appId }, { skipErrorHandler: true }),
         );
         if (!userData) {
+          clearSsoAuth(appId);
           message.error('登录失败，请重试');
           return;
         }
@@ -491,7 +504,12 @@ const LoginPage: React.FC = () => {
         history.replace('/member_org');
       }
     } catch (error) {
-      saveAuth('', '');
+      // 同一层原因：SSO 请求失败也不能去清管理台会话（那正是"EADAF 掉登录"的现象）
+      if (appId) {
+        clearSsoAuth(appId);
+      } else {
+        clearAuth();
+      }
       message.error('登录失败，请重试');
     }
   };
