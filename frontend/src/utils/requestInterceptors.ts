@@ -3,6 +3,7 @@ import { message } from '@/utils/antdAppApis';
 
 import { handleUnauthorized, consumeEmbedAuthFromUrl } from './auth';
 import { getApiErrorMessage, enrichAxiosError } from './apiResponse';
+import { ssoTokenKey } from './ssoTokenStore';
 import { NO_TOKEN_APIS, AUTH_HEADER, AUTH_PREFIX, AUTH_PAGES } from '@/constants/auth';
 
 // 错误类型枚举
@@ -43,8 +44,26 @@ export const requestInterceptors = [
       return { url, options };
     }
 
-    // 其他所有 API 都需要 token
-    const token = localStorage.getItem('token');
+    // 解析应用（SSO）上下文：
+    // 1) 调用方显式传 params.app（如 Auth 页 getAuthCheck({ app })）；
+    // 2) 或非认证页 URL 自带 ?app=（第三方嵌入）。
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+    const onAuthPage = (AUTH_PAGES as readonly string[]).includes(pathname);
+    const pageApp =
+      !onAuthPage && typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('app')
+        : null;
+    const existingParams =
+      options.params && typeof options.params === 'object' && !Array.isArray(options.params)
+        ? (options.params as Record<string, unknown>)
+        : {};
+    const appId = (existingParams.app as string | undefined) || pageApp || null;
+
+    // 应用 token 与平台会话隔离：带 app 的请求优先用 sso_token:<app>；
+    // 找不到应用 token 时退回平台 token（兼容把 token 写在平台会话位的旧嵌入场景）。
+    const token = appId
+      ? localStorage.getItem(ssoTokenKey(appId)) || localStorage.getItem('token')
+      : localStorage.getItem('token');
 
     if (!token) {
       console.log('请求拦截器 - 未找到 token，直接放行:', url);
@@ -60,18 +79,8 @@ export const requestInterceptors = [
     // SSO 应用 JWT 必须带 app；但认证页上的 ?app= 只表示「正在给该应用做 SSO」，
     // 不能自动注入到所有请求，否则会把平台 JWT 拿去验应用密钥并误清登录态。
     // 需要带 app 的调用方（如 Auth 页 getAuthCheck）应显式传 params.app。
-    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-    const onAuthPage = (AUTH_PAGES as readonly string[]).includes(pathname);
-    const pageApp =
-      !onAuthPage && typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('app')
-        : null;
-    const existingParams =
-      options.params && typeof options.params === 'object' && !Array.isArray(options.params)
-        ? (options.params as Record<string, unknown>)
-        : {};
-    const nextParams = pageApp
-      ? { ...existingParams, app: existingParams.app ?? pageApp }
+    const nextParams = appId
+      ? { ...existingParams, app: existingParams.app ?? appId }
       : existingParams;
 
     return {

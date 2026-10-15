@@ -25,6 +25,30 @@ function resolveLodashEs(): string {
 
 const lodashEsDir = resolveLodashEs();
 
+/** pnpm 隔离下 frontend 解析不到 ai-base 源码里的运行时依赖（@cordisjs/core / ajv / @antv/gpt-vis），
+ * 与 resolveLodashEs 同理：从仓库 .pnpm store 取已安装副本，返回真实目录供 Vite 解析。 */
+function resolvePnpmDep(pkgName: string): string {
+  const hoisted = path.resolve(__dirname, 'node_modules', pkgName);
+  if (fs.existsSync(hoisted)) return hoisted;
+  const pnpmRoot = path.resolve(__dirname, '../node_modules/.pnpm');
+  if (fs.existsSync(pnpmRoot)) {
+    // .pnpm 目录名把 scope 的 / 换成 +（@cordisjs/core → @cordisjs+core@x.y.z）
+    const prefix = pkgName.replace('/', '+');
+    const dirs = fs.readdirSync(pnpmRoot).filter((name) => name.startsWith(`${prefix}@`));
+    dirs.sort();
+    const latest = dirs.at(-1);
+    if (latest) {
+      const candidate = path.join(pnpmRoot, latest, 'node_modules', pkgName);
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  }
+  return pkgName;
+}
+
+const cordisCoreDir = resolvePnpmDep('@cordisjs/core');
+const ajvDir = resolvePnpmDep('ajv');
+const gptVisDir = resolvePnpmDep('@antv/gpt-vis');
+
 export default defineConfig({
   plugins: [
     react(),
@@ -83,6 +107,10 @@ export default defineConfig({
         find: '@eadaf/ai-base',
         replacement: path.resolve(__dirname, '../package/ai-base/src/index.ts'),
       },
+      // ai-base 源码直接引用其运行时依赖；pnpm 隔离下 frontend 的 node_modules 没有这些包，直链 .pnpm store
+      { find: '@cordisjs/core', replacement: cordisCoreDir },
+      { find: 'ajv', replacement: ajvDir },
+      { find: '@antv/gpt-vis', replacement: gptVisDir },
       // 该包 ESM 导出在 Vite optimizeDeps 下偶发写不出 .vite/deps 文件（浏览器 504），直链 dist
       {
         find: 'constrained-editor-plugin',
