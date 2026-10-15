@@ -5,7 +5,7 @@
 > 本文仍可作为字段/派生步骤的附录级参考；增量以新目录第 07 章 + 代码现状为准。
 >
 > **日期**：2026-08-12（取代说明更新于 2026-08-14）  
-> **范围**：`@eadaf/ai-base`（`AIBase_with_example/package/ai-base`）+ `frontend`，后端无改动  
+> **范围**：`@eadaf/ai-base`（`package/ai-base`）+ `frontend`，后端无改动  
 > **取代**：[`AIBase-语义化路由与AI决策跳转方案.md`](./AIBase-语义化路由与AI决策跳转方案.md)（v1；其中 catalog 直挂 `component` 的方案作废）  
 > **一句话目标**：废弃「工具成功必跳页」硬编码桥；以**语义路由清单**为单一事实源，派生菜单元数据与业务 `<Route>`，初始化 AIBase 时注入清单，由 AI 经 `navigate_to_page` 决策跳转，并在面板设置中提供可关闭的「自动跳转」开关。
 
@@ -582,7 +582,7 @@ autoNavigate: true,
 ### 7.2 构建
 
 ```bash
-cd AIBase_with_example/package/ai-base && pnpm build
+cd package/ai-base && pnpm build
 cd frontend && pnpm refresh:ai-base && pnpm build
 ```
 

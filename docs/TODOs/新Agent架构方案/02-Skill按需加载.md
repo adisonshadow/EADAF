@@ -6,7 +6,7 @@
 
 ## 1. 问题
 
-当前 [`skillLoader.ts`](../../../AIBase_with_example/package/ai-base/src/registry/skillLoader.ts) 的 `buildCombinedSystemPrompt` 把**已加载 Skill 的全文**拼进 system prompt；`loadChatSkillContext` 拉取的也是全文。结果：
+当前 [`skillLoader.ts`](../../../package/ai-base/src/registry/skillLoader.ts) 的 `buildCombinedSystemPrompt` 把**已加载 Skill 的全文**拼进 system prompt；`loadChatSkillContext` 拉取的也是全文。结果：
 
 - Token 被框架协议 + 顶层 Skill + 页面 Skill 吃满
 - 多 Skill 指引互相稀释 → 工具选错 / 漏调

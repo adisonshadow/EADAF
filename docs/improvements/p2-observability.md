@@ -16,7 +16,7 @@
 
 ## 当前问题（锚点）
 
-- `AIBase_with_example/package/ai-base/src/utils/toolInvokeLogger.ts`：
+- `package/ai-base/src/utils/toolInvokeLogger.ts`：
   ```ts
   export interface ToolInvokeLogEntry {
     side, name, args, success, durationMs, result?, error?, executionType?
@@ -24,7 +24,7 @@
   }
   let toolInvokeLogger: ToolInvokeLogger | null = null;  // 单 logger，无聚合
   ```
-- `AIBase_with_example/package/ai-base/src/chat/useAIBaseChat.ts` 的 tool 循环：
+- `package/ai-base/src/chat/useAIBaseChat.ts` 的 tool 循环：
   无 turnId 贯穿；每次 `executeOneToolCall` 独立 log，丢失「属于第几轮 / 哪个会话」。
 - 后端 `backend/src/controllers/aiServiceController.js` 写 `ApiRequestLog`（trace_id、slug、
   status、duration），但 `aiCapabilityController.invokeTool`（`/v1/ai/tools/invoke`）
@@ -45,7 +45,7 @@
 
 ### 前端 SDK
 
-- **`AIBase_with_example/package/ai-base/src/utils/toolInvokeLogger.ts`**：
+- **`package/ai-base/src/utils/toolInvokeLogger.ts`**：
   ```ts
   export interface ToolInvokeLogEntry {
     side: ToolInvokeSide;
@@ -61,13 +61,13 @@
     conversationKey?: string; // ← 新增
   }
   ```
-- **`AIBase_with_example/package/ai-base/src/chat/useAIBaseChat.ts`**（`submitQuery` 开头）：
+- **`package/ai-base/src/chat/useAIBaseChat.ts`**（`submitQuery` 开头）：
   ```ts
   const turnId = `turn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   ```
   在 `executeOneToolCall` 内把 `turnId`、`round`、`conversationKey` 传给
   `invokeToolByMeta` → `withToolInvokeLog`（需透传）。
-- **新建 `AIBase_with_example/package/ai-base/src/utils/toolMetrics.ts`**：
+- **新建 `package/ai-base/src/utils/toolMetrics.ts`**：
   ```ts
   export interface ToolMetric {
     name: string;
@@ -85,7 +85,7 @@
   export function resetToolMetrics(): void;
   export function subscribeToolMetrics(listener: () => void): () => void;
   ```
-- **`AIBase_with_example/package/ai-base/src/chat/useAIBaseChat.ts`**（chat 请求头）：
+- **`package/ai-base/src/chat/useAIBaseChat.ts`**（chat 请求头）：
   在 `streamChatRound` 的 fetch headers 加 `X-AIBase-TurnId: <turnId>`，让后端能关联。
 
 ### 后端

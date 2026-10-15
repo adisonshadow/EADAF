@@ -39,7 +39,7 @@
 
 ### 🔴 主因（铁证）：vite dev 按需编译瀑布
 
-`AIBase_with_example/vite.config.ts:9-22`：
+`app_example/vite.config.ts:9-22`：
 
 ```ts
 resolve: {
@@ -68,7 +68,7 @@ optimizeDeps: {
 
 ### 🟠 放大因素 ①（铁证）：React 19 StrictMode 双重挂载
 
-`AIBase_with_example/src/main.tsx:7`：
+`app_example/src/main.tsx:7`：
 
 ```tsx
 createRoot(...).render(
@@ -209,16 +209,16 @@ requestHandlerRef.current = provider?.request;
 
 | 关注点 | 文件:行 |
 |---|---|
-| 主因（编译瀑布） | `AIBase_with_example/vite.config.ts:9-22` |
-| StrictMode 双挂载 | `AIBase_with_example/src/main.tsx:7` |
-| Panel 首屏必然挂载 | `AIBase_with_example/package/ai-base/src/config/runtime.ts:36` |
-| `defaultOpen` 默认 true | `AIBase_with_example/package/ai-base/src/config/runtime.ts:36` |
+| 主因（编译瀑布） | `app_example/vite.config.ts:9-22` |
+| StrictMode 双挂载 | `app_example/src/main.tsx:7` |
+| Panel 首屏必然挂载 | `package/ai-base/src/config/runtime.ts:36` |
+| `defaultOpen` 默认 true | `package/ai-base/src/config/runtime.ts:36` |
 | `useXChat` 渲染期副作用 | `node_modules/@ant-design/x-sdk/es/x-chat/index.js:91-93` |
 | 冷启动 store 异步初始化 | `node_modules/@ant-design/x-sdk/es/x-chat/store.js:53-65` |
 | store 缓存 Map（冷热分叉点） | `node_modules/@ant-design/x-sdk/es/x-chat/store.js:2-3` |
-| `defaultMessages` 异步 IDB 读取 | `AIBase_with_example/package/ai-base/src/chat/useAIBaseChat.ts:236-261` |
-| IDB 单例 | `AIBase_with_example/package/ai-base/src/storage/chatHistoryDb.ts:38-61` |
-| 注册级联通知 | `AIBase_with_example/package/ai-base/src/chat/useAIBaseChat.ts:211` |
-| `registerBuiltinTools` | `AIBase_with_example/package/ai-base/src/registry/builtinTools.ts:288-337` |
-| 重渲染压力（submitQuery deps） | `AIBase_with_example/package/ai-base/src/chat/useAIBaseChat.ts:1026-1039` |
-| skill 缓存（5min TTL） | `AIBase_with_example/package/ai-base/src/registry/skillLoader.ts` |
+| `defaultMessages` 异步 IDB 读取 | `package/ai-base/src/chat/useAIBaseChat.ts:236-261` |
+| IDB 单例 | `package/ai-base/src/storage/chatHistoryDb.ts:38-61` |
+| 注册级联通知 | `package/ai-base/src/chat/useAIBaseChat.ts:211` |
+| `registerBuiltinTools` | `package/ai-base/src/registry/builtinTools.ts:288-337` |
+| 重渲染压力（submitQuery deps） | `package/ai-base/src/chat/useAIBaseChat.ts:1026-1039` |
+| skill 缓存（5min TTL） | `package/ai-base/src/registry/skillLoader.ts` |

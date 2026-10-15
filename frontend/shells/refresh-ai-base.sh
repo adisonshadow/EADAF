@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRONTEND_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ROOT_DIR="$(cd "$FRONTEND_DIR/.." && pwd)"
-AI_BASE_PKG="$ROOT_DIR/AIBase_with_example/package/ai-base"
+AI_BASE_PKG="$ROOT_DIR/package/ai-base"
 
 echo "==> 路径"
 echo "    monorepo 根目录: $ROOT_DIR"

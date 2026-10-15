@@ -1,7 +1,7 @@
 # 上下文漏斗沉淀分析 — ZCode Review
 
 > Review 对象：[docs/上下文漏斗沉淀分析_ee26a00a.plan.md](上下文漏斗沉淀分析_ee26a00a.plan.md)
-> 核查基准：[AIBase_with_example/package/ai-base](../AIBase_with_example/package/ai-base) 源码 + EADAF backend 透传链路 + 引用的《AI数据底座Agent重设计方案.md》
+> 核查基准：[package/ai-base](../package/ai-base) 源码 + EADAF backend 透传链路 + 引用的《AI数据底座Agent重设计方案.md》
 > Review 日期：2026-08-29 · 方式：方案中全部事实断言逐条对照源码核查（file:line 为证）
 
 ---

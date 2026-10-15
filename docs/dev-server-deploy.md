@@ -245,10 +245,10 @@ pnpm install
 
 ### 6.1 编译 `@eadaf/ai-base`（必做）
 
-`AIBase_with_example/package/ai-base` 的 `dist/` **不进 Git**（被 `AIBase_with_example/.gitignore` 忽略）。`pnpm install` 只链上 workspace 包，**不会**自动产出 `dist`。不编译的话，前端依赖 `@eadaf/ai-base` 的入口（`main` / `exports` 指向 `./dist/...`）会缺失，后续 `frontend build` / 预览 / AI 侧栏都容易挂。
+`package/ai-base` 的 `dist/` **不进 Git**（被 `app_example/.gitignore` 忽略）。`pnpm install` 只链上 workspace 包，**不会**自动产出 `dist`。不编译的话，前端依赖 `@eadaf/ai-base` 的入口（`main` / `exports` 指向 `./dist/...`）会缺失，后续 `frontend build` / 预览 / AI 侧栏都容易挂。
 
 ```bash
-cd /var/www/UAC2/AIBase_with_example/package/ai-base
+cd /var/www/UAC2/package/ai-base
 pnpm run build
 ```
 
@@ -314,8 +314,8 @@ npm install pm2 -g
 
 ```bash
 cd /var/www/UAC2
-pnpm --filter ./AIBase_with_example/package/ai-base build
-# 或：cd AIBase_with_example/package/ai-base && pnpm run build
+pnpm --filter ./package/ai-base build
+# 或：cd package/ai-base && pnpm run build
 
 pnpm --filter ./frontend build
 pnpm pm2prod
@@ -325,7 +325,7 @@ pnpm pm2prod
 
 ```bash
 cd /var/www/UAC2
-pnpm --filter ./AIBase_with_example/package/ai-base build
+pnpm --filter ./package/ai-base build
 pnpm pm2dev
 ```
 
@@ -387,5 +387,5 @@ git remote -v
 | `pnpm init-db` 连接失败 | `docker ps` 看 Postgres 是否 `healthy`；核对 `.env.development` 端口 `25432` |
 | 前端能开、接口 CORS 失败 | 确认 `.env.*` 里 `CORS_ORIGIN=*`（或包含当前页面 Origin），并已重启 API |
 | `pm2dev` 找不到命令 | 先在仓库根目录执行过 `pnpm install`；全局 CLI 再 `npm i -g pm2` |
-| 前端报找不到 `@eadaf/ai-base` / `dist/index.js` | `dist` 未进仓库；按 [§6.1](#61-编译-eadafai-base必做) 执行 `pnpm run build`，或 `pnpm --filter ./AIBase_with_example/package/ai-base build` |
+| 前端报找不到 `@eadaf/ai-base` / `dist/index.js` | `dist` 未进仓库；按 [§6.1](#61-编译-eadafai-base必做) 执行 `pnpm run build`，或 `pnpm --filter ./package/ai-base build` |
 | AI Chat 行为与源码不一致 | 在 frontend 执行 `pnpm refresh:ai-base` 后重启前端进程 |

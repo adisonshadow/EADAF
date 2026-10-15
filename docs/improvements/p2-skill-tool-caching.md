@@ -15,7 +15,7 @@
 
 ## 当前问题（锚点）
 
-- `AIBase_with_example/package/ai-base/src/registry/skillLoader.ts:74`
+- `package/ai-base/src/registry/skillLoader.ts:74`
   ```ts
   const remoteSkills = skillMetas.length
     ? ((await Promise.all(skillMetas.map((item) => loadSkill(client, item.slug))))
@@ -23,7 +23,7 @@
     : [];
   ```
   → N 次 `GET /v1/ai/skills/:slug`，无缓存。
-- `AIBase_with_example/package/ai-base/src/chat/useAIBaseChat.ts` 的 skill 加载 effect
+- `package/ai-base/src/chat/useAIBaseChat.ts` 的 skill 加载 effect
   依赖 `[client, config]`，config 一变就全量重拉。
 - 后端 `backend/src/controllers/skillController.js` `getPublicBySlug` 每次 `findByPk` + include。
 
@@ -50,7 +50,7 @@
 
 ### 前端 SDK
 
-- **`AIBase_with_example/package/ai-base/src/sdk/client.ts`**：
+- **`package/ai-base/src/sdk/client.ts`**：
   ```ts
   async loadSkills(slugs: string[]): Promise<AIBaseSkill[]> {
     if (!slugs.length) return [];
@@ -60,12 +60,12 @@
     return res.data || [];
   }
   ```
-- **`AIBase_with_example/package/ai-base/src/registry/skillLoader.ts`**：
+- **`package/ai-base/src/registry/skillLoader.ts`**：
   - `loadSkillsBySlugs` 改用 `client.loadSkills(slugs)`（单请求替代 N 个）。
   - `loadChatSkillContext` 中 `skillMetas.map(loadSkill)` 也用批量接口：
     从 `caps.skills` 取 slug 列表 → 一次 `client.loadSkills([...])`。
   - 加缓存层（见下）。
-- **新建 `AIBase_with_example/package/ai-base/src/registry/skillCache.ts`**：
+- **新建 `package/ai-base/src/registry/skillCache.ts`**：
   ```ts
   interface CacheEntry { ctx: ChatSkillContext; expireAt: number; }
   const cache = new Map<string, CacheEntry>();

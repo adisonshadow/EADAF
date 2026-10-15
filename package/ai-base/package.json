@@ -1,0 +1,84 @@
+{
+  "name": "@eadaf/ai-base",
+  "version": "0.1.2",
+  "description": "EADAF AI 助手基础库（React 前端组件 + 对接 EADAF AI runtime 的对话/Skill/Tool 能力）。",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adisonshadow/UAC2.git",
+    "directory": "package/ai-base"
+  },
+  "homepage": "https://www.npmjs.com/package/@eadaf/ai-base",
+  "bugs": {
+    "url": "https://github.com/adisonshadow/UAC2/issues"
+  },
+  "keywords": [
+    "eadaf",
+    "ai-base",
+    "ai",
+    "chat",
+    "tool",
+    "skill",
+    "openai-compatible",
+    "react",
+    "typescript"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup && cp src/ui/AIChatPanel.css dist/style.css && cat src/a2ui/NextStepA2uiDeck.css >> dist/style.css && cat src/ui/UserChoiceCard.css >> dist/style.css && cat src/ui/ToolResultSurface.css >> dist/style.css && cat src/ui/invocation/InvocationCard.css >> dist/style.css",
+    "prepublishOnly": "npm run build",
+    "release": "npm publish --access public"
+  },
+  "peerDependencies": {
+    "@ant-design/icons": "^6.0.0",
+    "@ant-design/x": "^2.8.0",
+    "@ant-design/x-card": "^2.8.0",
+    "@ant-design/x-markdown": "^2.8.0",
+    "@ant-design/x-sdk": "^2.8.0",
+    "antd": "^6.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@antv/gpt-vis": "^1.0.0",
+    "@cordisjs/core": "^3.18.1",
+    "ajv": "^8.20.0"
+  },
+  "devDependencies": {
+    "@ant-design/icons": "^6.2.5",
+    "@ant-design/x": "^2.8.0",
+    "@ant-design/x-card": "^2.8.0",
+    "@ant-design/x-markdown": "^2.8.0",
+    "@ant-design/x-sdk": "^2.8.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "antd": "^6.4.4",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tsup": "^8.5.0",
+    "typescript": "~6.0.2"
+  }
+}

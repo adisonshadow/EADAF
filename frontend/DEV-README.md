@@ -75,7 +75,7 @@ pnpm dev
 本项目通过 pnpm workspace 依赖本地包：
 
 ```
-EADAF/node_modules/@eadaf/ai-base  →  AIBase_with_example/package/ai-base
+EADAF/node_modules/@eadaf/ai-base  →  package/ai-base
 ```
 
 AI Chat 相关能力（`AIChatProvider`、`useChatReference`、Chat Reference 等）均来自该包。
@@ -103,7 +103,7 @@ bash EADAF_frontend/shells/refresh-ai-base.sh
 
 1. 删除 `node_modules/@eadaf/ai-base`（根目录与 frontend）
 2. 清除 `node_modules/.vite` 预构建缓存
-3. 在 `AIBase_with_example/package/ai-base` 重新 `pnpm run build`
+3. 在 `package/ai-base` 重新 `pnpm run build`
 4. 在 monorepo 根目录执行 `pnpm install` 重建链接
 
 **完成后务必重启 dev 服务：**

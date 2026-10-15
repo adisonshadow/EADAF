@@ -6,7 +6,7 @@
 
 > 文档定位（历史）：站在「Harness 这类成熟 Agent」的方法论视角，对企业数据底座（EADAF + `@eadaf/ai-base`）现有 Agent 进行一次系统化体检，并给出**方法论 → 核心技巧 → 问题分级（P0–P5）→ 项目规划 → 重点修改点**的完整重设计方案。
 >
-> 写作依据：实际阅读了 `AIBase_with_example/package/ai-base/src/**`、`backend/src/**`（AI 能力链路）、`frontend/src/**`（工具注册/Skill 策略/语义路由）、`backend/scripts/aibase-ai-seed.sql`（权威种子：**18 个 Skill / 156 个 Tool / 204 条 Skill↔Tool 关联**）。
+> 写作依据：实际阅读了 `package/ai-base/src/**`、`backend/src/**`（AI 能力链路）、`frontend/src/**`（工具注册/Skill 策略/语义路由）、`backend/scripts/aibase-ai-seed.sql`（权威种子：**18 个 Skill / 156 个 Tool / 204 条 Skill↔Tool 关联**）。
 >
 > 本文与已有文档的关系：不重复已有内容，只做引用与衔接。
 > - `docs/AIBase 成熟闭环与 Planning next moves 统一方案.md`：六阶段闭环方法论（本文第 1 章与其对齐）

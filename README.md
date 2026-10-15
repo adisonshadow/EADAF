@@ -9,7 +9,8 @@
 | --------------------------- | --------------------------------------- |
 | `backend`                   | Koa + Sequelize REST API                |
 | `frontend`                  | React + Vite 管理端                        |
-| `AIBase_with_example`       | AI Base 演示与 `@eadaf/ai-base` 源码包        |
+| `app_example`               | 业务应用示例：雨伞品牌独立站销售管理（前端极简，账号/数据/AI 全部复用平台） |
+| `package/ai-base`           | `@eadaf/ai-base` 源码包（AI 助手前端组件，workspace 引用） |
 | `eadaf-runtime`            | 平台运行时骨架（在线 / 离线 × Compose / K8s，不含业务应用） |
 | `scripts/deploy`            | 开发机打包脚本（平台包、应用包）                        |
 | `packages/EADAF`、`packages/APP` | 打包产物目录（不入库）                             |
@@ -291,7 +292,7 @@ pnpm pack:app      # 业务应用包 → packages/APP/
 
 ### 7.4 构建前端前先构建 AI Base
 
-本仓库通过 workspace 引用 `@eadaf/ai-base`，没有直接使用 npm （支持直接使用npm 包， 需要你自己修改配置）。修改 `AIBase_with_example/package/ai-base` 后先在该目录 `pnpm build`，再构建前端。前端也可执行 `pnpm refresh:ai-base` 刷新依赖。
+本仓库通过 workspace 引用 `@eadaf/ai-base`，没有直接使用 npm （支持直接使用npm 包， 需要你自己修改配置）。修改 `package/ai-base` 后先在该目录 `pnpm build`，再构建前端。前端也可执行 `pnpm refresh:ai-base` 刷新依赖。
 
 ### 7.5 业务数据物化
 

@@ -141,7 +141,7 @@ const ai = {
 
 const salesDemo = {
   dbPath: process.env.SALES_DEMO_DB_PATH || './data/sales-demo.db',
-  sqlPath: process.env.SALES_DEMO_SQL_PATH || '../AIBase_with_example/scripts/sales-demo-db.sql'
+  sqlPath: process.env.SALES_DEMO_SQL_PATH || '../app_example/scripts/sales-demo-db.sql'
 };
 
 const systemApplication = {

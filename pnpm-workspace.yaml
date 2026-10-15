@@ -1,11 +1,11 @@
 packages:
   # AI Base 源码包
-  - "AIBase_with_example/package/ai-base"
+  - "package/ai-base"
   # 业务项目 （AI Base 业务项目）
   - "frontend"
   - "backend"
   # AI Base demo 项目
-  - "AIBase_with_example"
+  - "app_example"
 allowBuilds:
   '@parcel/watcher': true
   es5-ext: true

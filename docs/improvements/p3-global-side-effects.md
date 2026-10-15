@@ -11,7 +11,7 @@ router、埋点 SDK）叠加时会出问题。属于「能跑但脆弱」，优�
 
 ### 当前问题（锚点）
 
-`AIBase_with_example/package/ai-base/src/provider/pathnameDisplayMode.ts:21-38`：
+`package/ai-base/src/provider/pathnameDisplayMode.ts:21-38`：
 ```ts
 const { pushState, replaceState } = history;
 history.pushState = function (...args) { pushState.apply(this, args); handleChange(); };
@@ -41,14 +41,14 @@ return () => {
 
 ### 改动清单（按文件）
 
-- **`AIBase_with_example/package/ai-base/src/provider/pathnameDisplayMode.ts`**：
+- **`package/ai-base/src/provider/pathnameDisplayMode.ts`**：
   - 删除 `history.pushState/replaceState` 的 patch。
   - `subscribePathname` 改为仅监听 `popstate` + 暴露 `__aibaseNotifyPathChange()` 全局钩子
     （宿主路由 change 时调）。
   - 新增 `notifyPathnameChange()` 导出，供宿主主动通知。
-- **`AIBase_with_example/package/ai-base/src/provider/AIChatProvider.tsx`**：
+- **`package/ai-base/src/provider/AIChatProvider.tsx`**：
   effect 中仍 `subscribePathname`，但兼容宿主未集成的情况（popstate 兜底）。
-- **宿主应用（`AIBase_with_example/src`、`frontend/src`）**：
+- **宿主应用（`app_example/src`、`frontend/src`）**：
   在 react-router 根（`<BrowserRouter>` 或 router 实例）的 `subscribe` 回调里调
   `notifyPathnameChange()`。示例：
   ```tsx
@@ -63,7 +63,7 @@ return () => {
 
 ### 当前问题（锚点）
 
-`AIBase_with_example/package/ai-base/src/utils/aiChatBridge.ts:5-24`：
+`package/ai-base/src/utils/aiChatBridge.ts:5-24`：
 ```ts
 let pendingMessage: string | null = null;
 let openPanel: (() => void) | null = null;
@@ -83,7 +83,7 @@ let sessionControls: AIChatSessionControls | null = null;
 
 ### 改动清单（按文件）
 
-- **`AIBase_with_example/package/ai-base/src/utils/aiChatBridge.ts`**：
+- **`package/ai-base/src/utils/aiChatBridge.ts`**：
   ```ts
   interface ChatBridgeInstance {
     openPanel: (() => void) | null;
@@ -105,9 +105,9 @@ let sessionControls: AIChatSessionControls | null = null;
   export function loadAIChatConversation(key, instanceId?) { /* … */ }
   ```
   window 事件保持（但 detail 带 instanceId，或 broadcast 到所有实例由各自判断）。
-- **`AIBase_with_example/package/ai-base/src/provider/AIChatProvider.tsx`**：
+- **`package/ai-base/src/provider/AIChatProvider.tsx`**：
   接受可选 `instanceId` prop（默认 'default'），注册 controls 时带上。
-- **`AIBase_with_example/package/ai-base/src/types.ts`**：`AIChatConfig` 加 `instanceId?: string`。
+- **`package/ai-base/src/types.ts`**：`AIChatConfig` 加 `instanceId?: string`。
 - **`index.ts`**：新 API 签名导出（向后兼容，instanceId 可选）。
 
 ## 验证方式

@@ -13,7 +13,7 @@ Tool 元数据里已带 `parameters`（OpenAI function JSON Schema），但**完
 
 ## 当前问题（锚点）
 
-- `AIBase_with_example/package/ai-base/src/chat/useAIBaseChat.ts:610-614`（`executeOneToolCall` 内）：
+- `package/ai-base/src/chat/useAIBaseChat.ts:610-614`（`executeOneToolCall` 内）：
   ```ts
   let args: Record<string, unknown> = {};
   try {
@@ -22,7 +22,7 @@ Tool 元数据里已带 `parameters`（OpenAI function JSON Schema），但**完
     args = {};   // ← 静默吞掉解析失败，handler 收到空对象
   }
   ```
-- `AIBase_with_example/package/ai-base/src/registry/toolManifest.ts` 的 `toOpenAIToolFromMeta`
+- `package/ai-base/src/registry/toolManifest.ts` 的 `toOpenAIToolFromMeta`
   生成 `parameters` 但仅用于发给 LLM，从不用于运行时校验。
 - 后端 `backend/src/services/ai/toolInvokeService.js` `invokeTool` 也不校验 args。
 
@@ -39,8 +39,8 @@ Tool 元数据里已带 `parameters`（OpenAI function JSON Schema），但**完
 ### 前端 SDK
 
 - **新增依赖**：`ajv` + `ajv-formats`（peer 或 direct；考虑包体积可用 `ajv/dist/2020`）。
-  在 `AIBase_with_example/package/ai-base/package.json` 加 `dependencies`。
-- **新建 `AIBase_with_example/package/ai-base/src/utils/validateToolArgs.ts`**：
+  在 `package/ai-base/package.json` 加 `dependencies`。
+- **新建 `package/ai-base/src/utils/validateToolArgs.ts`**：
   ```ts
   import Ajv, { type ErrorObject } from 'ajv';
   const ajv = new Ajv({ allErrors: true, strict: false });
@@ -61,7 +61,7 @@ Tool 元数据里已带 `parameters`（OpenAI function JSON Schema），但**完
   export function formatAjvErrors(errors: ErrorObject[]): string;
   ```
   缓存编译后的 validator（按 schema 序列化做 key），避免每次重编译。
-- **`AIBase_with_example/package/ai-base/src/chat/useAIBaseChat.ts`**（`executeOneToolCall` 内，
+- **`package/ai-base/src/chat/useAIBaseChat.ts`**（`executeOneToolCall` 内，
   JSON.parse 之后、`invokeToolByMeta` 之前）：
   ```ts
   let args: Record<string, unknown>;

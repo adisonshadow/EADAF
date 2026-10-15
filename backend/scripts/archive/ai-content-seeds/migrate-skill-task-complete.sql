@@ -1,7 +1,7 @@
 -- 结构化终止（task_complete / update_plan）机制：为各业务 Skill 声明 completion_strategy。
 --
 -- 配合前端 SDK 的 AIChatConfig.enableStructuredTermination 灰度开关使用。
--- 字段含义（见 AIBase_with_example/package/ai-base/src/types.ts SkillCompletionStrategy）：
+-- 字段含义（见 package/ai-base/src/types.ts SkillCompletionStrategy）：
 --   terminationStrictness: 'strict' | 'plan-only' | 'off'（默认 strict）
 --     - strict：task_complete 须通过三层校验（plan 全完成 + 关键 Tool verified + successCriteria）
 --     - plan-only：只校验 plan 全 completed

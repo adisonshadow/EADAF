@@ -3,7 +3,7 @@ const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
 
 const projectRoot = path.resolve(__dirname, '..');
-const defaultSqlPath = path.resolve(projectRoot, '../AIBase_with_example/scripts/sales-demo-db.sql');
+const defaultSqlPath = path.resolve(projectRoot, '../app_example/scripts/sales-demo-db.sql');
 const defaultDbPath = path.resolve(projectRoot, 'data/sales-demo.db');
 
 function resolveSqlPath() {

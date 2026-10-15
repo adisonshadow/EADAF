@@ -1,0 +1,41 @@
+{
+  "name": "@eadaf/app-example",
+  "private": true,
+  "version": "0.1.0",
+  "description": "EADAF 业务应用示例：雨伞品牌厂商 · 电商独立站销售管理系统（前端极简，数据全部复用 EADAF /backend）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "gen:sales-demo": "node scripts/gen-sales-demo-sql.cjs"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.2.5",
+    "@ant-design/x": "^2.8.0",
+    "@ant-design/x-markdown": "^2.8.0",
+    "@ant-design/x-sdk": "^2.8.0",
+    "@antv/gpt-vis": "^1.0.0",
+    "antd": "^6.4.4",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-router-dom": "^7.18.0",
+    "tslib": "^2.8.1",
+    "@eadaf/ai-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.12"
+  }
+}

@@ -247,7 +247,7 @@ build_eadaf_web() {
   if [[ ! -d "$REPO_ROOT/node_modules" ]]; then
     (cd "$REPO_ROOT" && pnpm install)
   fi
-  (cd "$REPO_ROOT" && pnpm --filter ./AIBase_with_example/package/ai-base build)
+  (cd "$REPO_ROOT" && pnpm --filter ./package/ai-base build)
   (cd "$REPO_ROOT" && pnpm --filter ./frontend build)
   [[ -d "$REPO_ROOT/frontend/dist" ]] || die "前端 dist 未生成"
   rm -rf "$dest/frontend/dist"
