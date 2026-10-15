@@ -97,6 +97,9 @@ coverage/
 .offline-fpcu2-staging/
 .offline-fpcu2-staging-patch/
 
+# --- 根目录临时导出（应用/平台导出 dump、报错日志等） ---
+/tmp/
+
 # --- EADAF_frontend ---
 frontend/tmp/
 
