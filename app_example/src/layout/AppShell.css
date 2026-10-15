@@ -1,0 +1,20 @@
+.app-example-shell {
+  min-height: 100vh;
+}
+
+.app-example-shell-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  width: 100%;
+  height: 64px;
+  line-height: 64px;
+  padding-inline: 24px;
+}
+
+.app-example-shell-body {
+  margin-top: 64px;
+  min-height: calc(100vh - 64px);
+}

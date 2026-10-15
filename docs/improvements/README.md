@@ -16,8 +16,8 @@ P0 / P1 已在本次实现完成，以下是尚未实施的 P2、P3 项。
 
 ## 通用约定
 
-- **SDK 包根**：`AIBase_with_example/package/ai-base/src/`（对外 `@eadaf/ai-base`，产物在 `dist/`）。
-- **改动后必做**：`cd AIBase_with_example/package/ai-base && npx tsc --noEmit && npx tsup`；
+- **SDK 包根**：`package/ai-base/src/`（对外 `@eadaf/ai-base`，产物在 `dist/`）。
+- **改动后必做**：`cd package/ai-base && npx tsc --noEmit && npx tsup`；
   若改了 `EADAF_frontend` 消费的导出，还需 `pnpm refresh:ai-base`（在 frontend 根）。
 - **后端改动**：跑对应 `backend/scripts/migrate-*.sql`；涉及 controller 时用
   `node -e "require('./src/controllers/xxx.js')"` 快速自检语法。

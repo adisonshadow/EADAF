@@ -163,7 +163,7 @@ resolveTerminationCompletionStrategy     ← 只选一个主 Skill 策略
 | 导出脚本 | `backend/scripts/export-aibase-ai-seed.js` |
 | 中期正文硬化（可重复跑） | `backend/scripts/apply-skill-midterm-hardening.js` |
 | 历史增量归档 | `backend/scripts/archive/ai-content-seeds/` |
-| 加载 / 拼 prompt | `AIBase_with_example/package/ai-base/src/registry/skillLoader.ts` |
+| 加载 / 拼 prompt | `package/ai-base/src/registry/skillLoader.ts` |
 | 策略覆盖 / 主 Skill 解析 | `.../skillPolicyRegistry.ts` |
 | 前端业务策略注册 | `frontend/src/ai/skillCompletionPolicies.ts` |
 | 页面 Skill 绑定 | `frontend/src/wrappers/*AI.tsx` |

@@ -4,7 +4,7 @@
 > **继任文档（历史）**：[AIBase-语义化路由与AI决策跳转方案-v2.md](./AIBase-语义化路由与AI决策跳转方案-v2.md)  
 > **现行总方案**：[新Agent架构方案/07-语义路由.md](./新Agent架构方案/07-语义路由.md)（总览 [README](./新Agent架构方案/README.md)）  
 > **日期**：2026-08-12（更新）；取代链说明更新于 2026-08-14  
-> **范围**：`@eadaf/ai-base`（`AIBase_with_example/package/ai-base`）+ `frontend`，后端无改动  
+> **范围**：`@eadaf/ai-base`（`package/ai-base`）+ `frontend`，后端无改动  
 > **一句话目标**：废弃"工具成功必跳页"的硬编码规则，改为在初始化 AIBase 时载入语义化路由清单，由 AI 通过 `navigate_to_page` 工具自主决策"何时跳、跳到哪里"，并在 AIBase 面板 header 提供可关闭的"自动跳转"开关。
 
 ---
@@ -401,7 +401,7 @@ autoNavigate: true, // 默认开（已确认）；用户可在面板设置关闭
 
 ## 五、涉及文件清单
 
-### 5.1 `@eadaf/ai-base`（`AIBase_with_example/package/ai-base/src/`）
+### 5.1 `@eadaf/ai-base`（`package/ai-base/src/`）
 
 | 文件 | 改动 |
 |---|---|
@@ -476,7 +476,7 @@ P4a 与 P4b 分离是刻意为之：先让 catalog 成为「数据事实」并�
 ### 7.2 构建验证
 
 ```bash
-cd AIBase_with_example/package/ai-base && pnpm build     # tsup 产物
+cd package/ai-base && pnpm build     # tsup 产物
 cd frontend && pnpm refresh:ai-base                       # 刷新依赖到前端
 cd frontend && pnpm build                                 # tsc -b 类型检查 + vite build
 ```
