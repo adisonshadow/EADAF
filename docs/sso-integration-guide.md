@@ -389,6 +389,121 @@ sequenceDiagram
 
 ---
 
+## 13. 新接入（推荐）：授权码 + PKCE
+
+> **Phase 2 起新增的接入方式，也是后续唯一推荐的方式。** §2–§12 描述的老流程
+> （`/auth/login?app=` 把令牌放进 URL / POST body、用应用密钥签用户 JWT）进入**弃用窗口**：
+> 保留 2 个版本，之后停用。老应用无需立刻改造，但新应用请走本节。
+
+### 13.1 和老的相比，好在哪
+
+| 维度 | 老流程 | 授权码 + PKCE |
+|------|--------|----------------|
+| 令牌是否进浏览器地址栏 | 是（`?access_token=...` / 表单） | **否**，浏览器只拿一次性 `code` |
+| 令牌签名密钥 | 应用统一密钥（分发到每个应用） | **平台私钥 RS256**，应用用 JWKS 公钥验签 |
+| 验签是否需要 `?app=` | 需要（漏带就 401） | **不需要**（`iss`/`aud`/`azp`/`sid` 都在令牌里） |
+| 刷新令牌存放 | 浏览器 localStorage | **只落 BFF**（服务端会话） |
+| CSRF / 重放防护 | `state` 仅透传 | `state` + PKCE(S256) + 一次性 code（120s） |
+
+### 13.2 准备（管理台）
+
+1. 三方应用 → 该应用 → **SSO**：启用 SSO，`redirect_uri` 填 **BFF 的回调**（如 `http://localhost:4100/auth/callback`）；
+2. **密钥管理**：生成应用统一密钥（= OAuth `client_secret`，只放 BFF）。
+
+### 13.3 端点
+
+| 端点 | 谁调用 | 说明 |
+|------|--------|------|
+| `GET {eadaf_frontend}/oauth/authorize?client_id=&redirect_uri=&scope=&state=&nonce=&code_challenge=&code_challenge_method=S256` | 浏览器（跳转） | 管理台授权页；未登录会先去登录，登录后自动继续 |
+| `POST {eadaf}/api/v1/oauth/token` | BFF（服务端） | `grant_type=authorization_code` 或 `refresh_token`；客户端认证 `client_secret_post` / `client_secret_basic` |
+| `GET {eadaf}/.well-known/jwks.json` | BFF | 平台公钥（RS256），用于本地验签 |
+| `GET {eadaf}/.well-known/openid-configuration` | BFF | 发现文档 |
+| `{eadaf}/api/v1/auth/end-session` | 浏览器 | RP-Initiated Logout（§7.1） |
+| `GET/POST {eadaf_frontend}/auth/logout` | 浏览器 | 登出中转页（§7.1） |
+
+`POST /api/v1/oauth/token` 返回**标准 OAuth 扁平结构**（不套 `{code,message,data}`）：
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "refresh_token": "rt_...",
+  "id_token": "eyJhbGciOiJSUzI1NiIs...",
+  "scope": "openid profile",
+  "sid": "…"
+}
+```
+
+令牌 claims：`iss`（平台 origin）、`sub`（user_id）、`aud`/`azp`（application_id）、`sid`（会话）、`scope`、`jti`、`exp`。
+
+### 13.4 时序
+
+```mermaid
+sequenceDiagram
+  participant B as 浏览器
+  participant BFF as 应用 BFF
+  participant OP as EADAF
+  B->>BFF: GET /login
+  BFF->>BFF: 生成 state + code_verifier（存会话）
+  BFF-->>B: 302 {eadaf_frontend}/oauth/authorize?...&code_challenge=...
+  OP->>OP: 未登录 → 登录页（登录后自动继续）
+  OP-->>B: 302 {BFF}/auth/callback?code=...&state=...
+  B->>BFF: GET /auth/callback
+  BFF->>BFF: 校验 state
+  BFF->>OP: POST /api/v1/oauth/token (code + code_verifier + client_secret)
+  OP-->>BFF: access_token / refresh_token / id_token
+  BFF->>BFF: 建服务端会话（令牌只落服务端）
+  BFF-->>B: Set-Cookie: app_session=...; 302 /dashboard
+```
+
+### 13.5 BFF 侧要点（含 JWKS 本地验签）
+
+1. `code_verifier` 用随机串（43–128 字符），`code_challenge = BASE64URL(SHA256(verifier))`，`code_challenge_method=S256`；`state` 存会话并在回调时**严格比对**；
+2. 回调里立刻用 `code` + `code_verifier` + `client_secret` 换票；**授权码一次性**，失败不要重试同一个码，重新走授权；
+3. 访问令牌**不要下发给前端**；前端用 BFF 的 httpOnly 会话 Cookie；
+4. 验签：用 JWKS 公钥本地验（无需共享密钥），并校验 `iss`/`aud`/`exp`：
+
+```js
+// 依赖：jsonwebtoken（Node 内置 crypto 足够处理 JWK）
+const jwt = require('jsonwebtoken');
+
+let cachedJwks = null;
+async function getSigningKey(kid, eadafBaseUrl) {
+  if (!cachedJwks) {
+    cachedJwks = await (await fetch(`${eadafBaseUrl}/.well-known/jwks.json`)).json();
+  }
+  const jwk = cachedJwks.keys.find((k) => k.kid === kid) || cachedJwks.keys[0];
+  if (!jwk) throw new Error('JWKS 中没有可用公钥');
+  return require('crypto').createPublicKey({ key: jwk, format: 'jwk' });
+}
+
+async function verifyEadafToken(token, { eadafBaseUrl, applicationId }) {
+  const { kid } = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
+  const publicKey = await getSigningKey(kid, eadafBaseUrl);
+  return jwt.verify(token, publicKey, {
+    algorithms: ['RS256'],          // 必须限定算法，防算法混淆
+    issuer: eadafBaseUrl,
+    audience: applicationId,
+  });
+}
+```
+
+5. 刷新：`grant_type=refresh_token`（带 `client_id`/`client_secret`）→ 轮换后的新令牌；**刷新令牌会轮换**，务必存新的。401 `TOKEN_EXPIRED` 时刷新一次再重放原请求；`SESSION_REVOKED`/`TOKEN_INVALID` 则清会话回登录页（§6.4）；
+6. 登出：清 BFF 会话 + 跳 §7.1 的登出中转页（可带 `post_logout_redirect_uri` 回应用登录页）。
+
+### 13.6 常见错误
+
+| 现象 | 原因 |
+|------|------|
+| 授权页报"redirect_uri 未在该应用中登记" | 必须与应用登记的回调**完全一致**（含端口与路径）；两套地址见 §2 的 DEV 专用重定向 |
+| 换票 400 `invalid_grant` | 授权码已用过/超时（120s）；`redirect_uri` 与授权时不一致；`code_verifier` 与 `code_challenge` 不匹配 |
+| 换票 401 `invalid_client` | `client_secret` 不对（注意用「密钥管理」里生成的那把） |
+| 授权页提示"授权码存储不可用" | 平台 Redis 不可用（授权码必须一次性，宁可不发） |
+| 本地验签总失败 | 忘了限定 `algorithms: ['RS256']`、`iss` 与实际访问地址不一致（可用 `SSO_ISSUER` 固定）、容器重建换了密钥（生产用 `SSO_JWT_PRIVATE_KEY` 固定） |
+
+---
+
 > **文档版本**：2026-08-09  
 > **适用**：当前 EADAF 开发版  
 > **相关**：AI 调用约定见 [`docs/eadaf-api-skill/SKILL.md`](./eadaf-api-skill/SKILL.md)

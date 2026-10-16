@@ -69,7 +69,7 @@ export function isAuthCheckSuccess(response: unknown): boolean {
 export const loginPath = '/auth/login';
 
 // 认证相关页面
-export const authPages = ['/auth/login', '/auth/logout', '/auth/reset-password'];
+export const authPages = ['/auth/login', '/auth/logout', '/auth/reset-password', '/oauth/authorize'];
 
 // 检查是否是认证页面
 export const isAuthPage = (pathname: string) => authPages.includes(pathname);

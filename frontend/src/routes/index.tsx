@@ -23,6 +23,7 @@ import { setNavigate } from '@/utils/navigation';
 
 const Auth = lazy(() => import('@/pages/Auth'));
 const Logout = lazy(() => import('@/pages/Auth/Logout'));
+const OAuthAuthorize = lazy(() => import('@/pages/OAuth/Authorize'));
 const ResetPSWD = lazy(() => import('@/pages/ResetPSWD'));
 const ApplicationPublicApiCatalog = lazy(() => import('@/pages/ServiceProvider/Applications/PublicApiCatalog'));
 const ApplicationExceptionResponses = lazy(() => import('@/pages/ServiceProvider/Applications/PublicApiCatalog/ExceptionResponsesPage'));
@@ -141,6 +142,8 @@ export default function AppRoutes() {
           <Route path="/auth/login" element={<Auth />} />
           <Route path="/auth/logout" element={<Logout />} />
           <Route path="/auth/reset-password" element={<ResetPSWD />} />
+          {/* 授权码中转：已登录的管理台页面登记一次性 code 后 302 到业务 BFF */}
+          <Route path="/oauth/authorize" element={<OAuthAuthorize />} />
         </Route>
 
         <Route element={<SecurityLayout />}>
