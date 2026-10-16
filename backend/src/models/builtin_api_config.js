@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 /**
  * 内置 API 限制配置
@@ -23,7 +24,7 @@ const BuiltinApiConfig = sequelize.define('BuiltinApiConfig', {
   },
 }, {
   tableName: 'builtin_api_configs',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',

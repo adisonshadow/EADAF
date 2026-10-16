@@ -662,7 +662,7 @@ export const RUN_CODE_OPENAI_TOOL = {
         },
         source: {
           type: 'string',
-          description: '脚本正文。JS 示例：const r = await tools.uac_list_users({}); return r;',
+          description: '脚本正文。JS 示例：const r = await tools.eadaf_list_users({}); return r;',
         },
         timeoutMs: { type: 'integer', description: '可选超时毫秒，默认 12000' },
       },

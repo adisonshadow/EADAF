@@ -2,7 +2,7 @@
 -- redirect_uri 使用「跟随 Host」后缀，换服务器 IP/域名无需改库
 -- 变量：FPCU2_APPLICATION_ID / FPCU2_APP_SECRET / FPCU2_API_HOST_PORT / FPCU2_WEB_HOST_PORT
 
-INSERT INTO uac.applications (
+INSERT INTO eadaf.applications (
   application_id,
   name,
   code,
@@ -84,7 +84,7 @@ ON CONFLICT (code) DO UPDATE SET
   updated_at = CURRENT_TIMESTAMP;
 
 -- FPCU 公开存储桶
-INSERT INTO uac.storage_buckets (
+INSERT INTO eadaf.storage_buckets (
   code, name, description, application_id, status, access_mode, access_restrictions
 ) VALUES (
   'fpcu',

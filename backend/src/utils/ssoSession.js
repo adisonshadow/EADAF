@@ -1,7 +1,7 @@
 /**
  * SSO 会话（sid）存储：会话的创建 / 撤销 / 列举。
  *
- * 为什么放 Redis：撤销要「立刻生效」，而 `uac.refresh_tokens` 只有 token 维度，
+ * 为什么放 Redis：撤销要「立刻生效」，而 `eadaf.refresh_tokens` 只有 token 维度，
  * 加 `sid`/设备信息这些列需要 DDL（升级包不跑表结构迁移）。Redis 在项目里已有
  * 带降级的封装（`utils/redisClient`）。
  *
@@ -73,7 +73,7 @@ function newSessionId() {
 /**
  * 生成刷新令牌：**不透明随机串**，不再用 JWT。
  *
- * 原因：① `uac.refresh_tokens.token` 是 VARCHAR(255)，JWT 加 `sid` 就顶到上限；
+ * 原因：① `eadaf.refresh_tokens.token` 是 VARCHAR(255)，JWT 加 `sid` 就顶到上限；
  * ② JWT 的 `iat` 只到秒 —— 同一秒内轮换会签出**完全相同**的字符串，新记录与已撤销
  * 记录同串，刷新时按串查回旧行 → 刚刷新就"令牌无效"。随机串两个问题都没有。
  *

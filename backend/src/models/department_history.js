@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const DepartmentHistory = sequelize.define('DepartmentHistory', {
   history_id: {
@@ -49,7 +50,7 @@ const DepartmentHistory = sequelize.define('DepartmentHistory', {
   }
 }, {
   tableName: 'department_history',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at'

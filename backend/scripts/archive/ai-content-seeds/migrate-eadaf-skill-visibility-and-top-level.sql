@@ -14,7 +14,7 @@ WHERE slug IN (
   'aibase-capability-manage',
   'aibase-provider-manage',
   'aibase-model-manage',
-  'uac-access-control',
+  'eadaf-access-control',
   'bizdata-model-design',
   'bizdata-materialization',
   'bizdata-api-service-create',
@@ -46,7 +46,7 @@ WHERE s.slug IN (
   'aibase-capability-manage',
   'aibase-provider-manage',
   'aibase-model-manage',
-  'uac-access-control',
+  'eadaf-access-control',
   'bizdata-model-design',
   'bizdata-materialization',
   'bizdata-api-service-create',
@@ -69,7 +69,7 @@ ON CONFLICT (skill_id, application_id) DO NOTHING;
 -- ---------------------------------------------------------------------------
 -- 2. EADAF 顶层 Skill 内容
 -- ---------------------------------------------------------------------------
-UPDATE uac.applications
+UPDATE eadaf.applications
 SET top_level_skill_markdown = $EADAF_TOP$
 # EADAF 应用顶层 Skill
 
@@ -102,7 +102,7 @@ SET top_level_skill_markdown = $EADAF_TOP$
 ### 与用户沟通
 - 用业务语言；**禁止**向用户展示 Tool 函数名、内部 JSON 协议、原始 Tool 返回体
 - 涉及成员、权限、实体、API 等数据时**必须先调用 Tool 查询**，禁止编造 ID、version、连接信息
-- 用户说的「Scope / 业务域 / 设备域」通常指 **bizdata 实体 code 前缀**（如 `equipment`），用 `uac_list_bizdata_scopes` / `bizdata_list_entity_summaries` 查询实体列表；**不是** aibase.scopes（AI 能力域管理菜单暂未开放）
+- 用户说的「Scope / 业务域 / 设备域」通常指 **bizdata 实体 code 前缀**（如 `equipment`），用 `eadaf_list_bizdata_scopes` / `bizdata_list_entity_summaries` 查询实体列表；**不是** aibase.scopes（AI 能力域管理菜单暂未开放）
 
 ### 引用与快捷操作
 - 用户可通过页面 `@` 引用成员、实体、API 服务等上下文；优先结合引用内容理解意图
@@ -113,10 +113,10 @@ SET top_level_skill_markdown = $EADAF_TOP$
 ### 成员与组织（/member_org、/permissions）
 | 页面 | Skill ID | 要点 |
 |------|----------|------|
-| 成员 / 组织 / 角色 | `uac-access-control` | 用户、部门树、角色、数据范围规则 |
-| 菜单 / 按钮 / API 权限 | `uac-access-control` | 权限项维护与角色授权 |
+| 成员 / 组织 / 角色 | `eadaf-access-control` | 用户、部门树、角色、数据范围规则 |
+| 菜单 / 按钮 / API 权限 | `eadaf-access-control` | 权限项维护与角色授权 |
 
-主要 Tool：`uac_list_*` / `uac_create_*` / `uac_update_*` / `uac_assign_*` / `uac_set_role_permissions` / `uac_create_data_rule`
+主要 Tool：`eadaf_list_*` / `eadaf_create_*` / `eadaf_update_*` / `eadaf_assign_*` / `eadaf_set_role_permissions` / `eadaf_create_data_rule`
 
 ### 业务数据（/business_data）
 | 页面 | Skill ID | 要点 |
@@ -173,7 +173,7 @@ WHERE slug IN (
   'aibase-capability-manage',
   'aibase-provider-manage',
   'aibase-model-manage',
-  'uac-access-control',
+  'eadaf-access-control',
   'bizdata-model-design',
   'bizdata-materialization',
   'bizdata-api-service-create',
@@ -207,5 +207,5 @@ WHERE is_active = true
 ORDER BY is_global DESC, slug;
 
 SELECT code, length(top_level_skill_markdown) AS top_level_len
-FROM uac.applications
+FROM eadaf.applications
 WHERE code = 'EADAF';

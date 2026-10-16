@@ -41,14 +41,14 @@ assert.equal(envelope.error?.retryable, true);
 assert.equal(envelope.display?.kind, 'error');
 
 const listOk = normalizeToolResult({
-  tool: 'uac_list_users',
+  tool: 'eadaf_list_users',
   rawResult: { items: [{ username: 'admin' }, { username: 'test' }] },
 });
 assert.equal(listOk.kind, 'success');
 assert.equal(listOk.display?.kind, 'table');
 
 const emptyOk = normalizeToolResult({
-  tool: 'uac_list_users',
+  tool: 'eadaf_list_users',
   rawResult: { items: [] },
 });
 assert.equal(emptyOk.display?.kind, 'empty');

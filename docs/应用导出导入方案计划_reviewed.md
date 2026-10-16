@@ -1,7 +1,7 @@
 # 应用导出/导入 方案计划 — Review 修订稿
 
 > Review 对象：[docs/应用导出导入方案计划.md](应用导出导入方案计划.md)  
-> 核查基准：`uac.applications` / 两套 Scope、`bizdata` 实体与物化、API/管道/Webhook、`aibase` Skill/Tool/Provider、`automation.hooks`、对象存储桶、`builtinApi/catalog`、系统设置 Tab、备份恢复上传模式  
+> 核查基准：`eadaf.applications` / 两套 Scope、`bizdata` 实体与物化、API/管道/Webhook、`aibase` Skill/Tool/Provider、`automation.hooks`、对象存储桶、`builtinApi/catalog`、系统设置 Tab、备份恢复上传模式  
 > Review 日期：2026-09-07 · 方式：方案中全部事实断言逐条对照源码核查（file:line 为证）  
 > 状态：**以本文为准的实施蓝本**（原文保留作历史；落地请按本文执行）
 
@@ -93,7 +93,7 @@
 |---|---|---|
 | `bizdata.metrics` + `metric_cards` | `metrics.scope_code`、`metric_cards.domain_code` 均可前缀命中 | **纳入结构导出**（排除 `metric_runs` / `metric_values`） |
 | `automation.hooks` | 无 code；`event_filter` 常指向 API/实体 | **纳入**：筛 `event_filter` 命中本次导出的 apiService/entity code；upsert 键 `(name, event_type)`（表无 UNIQUE，导入前按此查） |
-| `uac.storage_buckets` | 有 `application_id` | **只导桶元数据**（code UNIQUE），**不导对象文件**（与原文「存储桶文件内容不做」一致） |
+| `eadaf.storage_buckets` | 有 `application_id` | **只导桶元数据**（code UNIQUE），**不导对象文件**（与原文「存储桶文件内容不做」一致） |
 | `bizdata.data_standards` | 元数据治理，弱关联 | v1 **不导出**（无稳定应用边界） |
 
 ---
@@ -102,7 +102,7 @@
 
 | # | 原问题 | 拍板 |
 |---|---|---|
-| 1 | 「应用配置中 EADAF 的应用数据」指什么 | **所选应用在 `uac.applications` 的完整配置行**（含 `api_*` / `sso_*` / `bizdata_scope_codes` / `top_level_skill_markdown`）。**不是**内置系统应用 EADAF 的 `docs/eadaf-api-skill` 或内置 API catalog。EADAF 自身禁止出现在导出下拉中 |
+| 1 | 「应用配置中 EADAF 的应用数据」指什么 | **所选应用在 `eadaf.applications` 的完整配置行**（含 `api_*` / `sso_*` / `bizdata_scope_codes` / `top_level_skill_markdown`）。**不是**内置系统应用 EADAF 的 `docs/eadaf-api-skill` 或内置 API catalog。EADAF 自身禁止出现在导出下拉中 |
 | 2 | 「无论如何，结构一定导出」 | 拆成两句，避免和 EADAF 勾选搅在一起：**(a) 数据实体/API/管道/Webhook/指标/钩子/专用 Skill 的结构始终导出**，与是否勾选「含用户」无关；`dataMode=data_only` 仍然带实体结构（至少 code+version+fields），否则目标无法做版本校验。**(b) EADAF：不勾选则只导出被引用的 permissions（及作为 grant 目标的 roles 定义），不导出用户/部门/授权行。** 不要理解成「全量角色目录始终导出」 |
 | 3 | API 服务筛选 | **保持 `api_data_scope` 优先**（`serviceCodes` 精确 + `domainCodes` 前缀），空则回退 **`bizdata_scope_codes` 原值前缀**（不要用 `T(A)` 首段膨胀）。不要改成「只导 `grant_type=application` 绑定的服务」——授权给角色的服务仍属于该应用数据域 |
 | 4 | 非 PG/MySQL 行数据 v1 跳过 | **接受**。说明：browse 服务已支持 Mongo/Redis，这是产品取舍不是做不到。导出摘要里必须列出跳过的实体 |

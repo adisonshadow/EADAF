@@ -15,7 +15,7 @@
 
 核心判断全部成立：
 
-- `uac.operation_logs` 确有写入、零读取，管理面审计缺口真实；
+- `eadaf.operation_logs` 确有写入、零读取，管理面审计缺口真实；
 - 混合式（声明式中间件 + 控制器按需快照）方向正确，优于继续在各控制器堆 `try/create/catch`；
 - 查询 API / 前端页沿用「AI 管理 → 请求日志」骨架正确；
 - 权限走内置 API catalog + `authWithBuiltinApiGuard` 正确；
@@ -40,7 +40,7 @@
 
 | # | 方案断言 | 结论 | 证据 |
 |---|---|---|---|
-| 1 | `uac.operation_logs` 已存在，无任何查询 API / 前端页 | ✅ | 模型 `models/operation_log.js`；全仓无 list/get 路由；前端无 OperationLogs 页 |
+| 1 | `eadaf.operation_logs` 已存在，无任何查询 API / 前端页 | ✅ | 模型 `models/operation_log.js`；全仓无 list/get 路由；前端无 OperationLogs 页 |
 | 2 | 只有 7 处零散写入 | ⚠️ | `OperationLog.create` 确为 7 处：`userController.js` 5 处 + `roleController.js` 2 处。但 **LOGOUT 那处是死代码**（见 #8） |
 | 3 | `user_id` 存的是被操作目标而非操作者 | ✅ | `userController.js:255` 注释「使用被更新的用户ID」；角色写入甚至不填 `user_id`（`roleController.js:245-256`） |
 | 4 | 无 IP / UA / trace_id / 耗时；`created_at` 无索引 | ✅ | 表定义 `schemas.sql:178-190`；索引仅 `user_id` / `(resource_type,resource_id)` / `status`（`:328-330`） |
@@ -129,7 +129,7 @@ M4 清单里凡「AI 也能直调服务」的写操作，必须在服务层或 b
 
 | 原文 | 修订 |
 |---|---|
-| `operator_id UUID REFERENCES uac.users(user_id)` | **不要 FK 到 users**。APPLICATION 要把 `application_id` 放这里会违反 FK；用户删除会被日志行卡住。改为无 FK 的 UUID + `ON DELETE` 无需声明 |
+| `operator_id UUID REFERENCES eadaf.users(user_id)` | **不要 FK 到 users**。APPLICATION 要把 `application_id` 放这里会违反 FK；用户删除会被日志行卡住。改为无 FK 的 UUID + `ON DELETE` 无需声明 |
 | 无 application 标识 | 新增可空 `application_id UUID`（同样无 FK，或 FK `applications` 且 `ON DELETE SET NULL`） |
 | `resource_id VARCHAR(50)` 保持不变 | **加宽到 `VARCHAR(200)`**。UUID=36 够用，但存储 object key、实体 code、复合标识会超 50 |
 | 存量 `user_id` 语义 | 维持「目标用户」；仅 user 域填写。角色/应用等保持 NULL |
@@ -208,7 +208,7 @@ M4 清单里凡「AI 也能直调服务」的写操作，必须在服务层或 b
  writeOperationLog(record)       ← 唯一落库点；测试可同步
      │
      ▼
- uac.operation_logs
+ eadaf.operation_logs
 ```
 
 非 HTTP 写（server_builtin 物化 / 灌 mock）在 handler 末尾直接调 `writeOperationLog`。
@@ -233,7 +233,7 @@ M4 清单里凡「AI 也能直调服务」的写操作，必须在服务层或 b
 ```sql
 BEGIN;
 
-ALTER TABLE uac.operation_logs
+ALTER TABLE eadaf.operation_logs
   ADD COLUMN IF NOT EXISTS operator_id UUID,
   ADD COLUMN IF NOT EXISTS operator_name VARCHAR(100),
   ADD COLUMN IF NOT EXISTS operator_type VARCHAR(20) NOT NULL DEFAULT 'USER',
@@ -247,7 +247,7 @@ ALTER TABLE uac.operation_logs
   ADD COLUMN IF NOT EXISTS request_summary JSONB;
 
 -- 加宽 resource_id（存量 UUID 不受影响）
-ALTER TABLE uac.operation_logs
+ALTER TABLE eadaf.operation_logs
   ALTER COLUMN resource_id TYPE VARCHAR(200);
 
 -- 约束用独立 CHECK，避免 ADD COLUMN IF NOT EXISTS 与 CHECK 组合在重跑时踩坑
@@ -256,20 +256,20 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'operation_logs_operator_type_check'
   ) THEN
-    ALTER TABLE uac.operation_logs
+    ALTER TABLE eadaf.operation_logs
       ADD CONSTRAINT operation_logs_operator_type_check
       CHECK (operator_type IN ('USER', 'APPLICATION', 'SYSTEM', 'ANONYMOUS'));
   END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_operation_logs_created_at
-  ON uac.operation_logs (created_at DESC);
+  ON eadaf.operation_logs (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_operation_logs_operator_id
-  ON uac.operation_logs (operator_id);
+  ON eadaf.operation_logs (operator_id);
 CREATE INDEX IF NOT EXISTS idx_operation_logs_domain_created_at
-  ON uac.operation_logs (domain, created_at DESC);
+  ON eadaf.operation_logs (domain, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_operation_logs_trace_id
-  ON uac.operation_logs (trace_id);
+  ON eadaf.operation_logs (trace_id);
 
 COMMIT;
 ```
@@ -336,11 +336,11 @@ seed：
 
 ```sql
 -- 菜单：系统分组（/system → system:manage）
-INSERT INTO uac.permissions (...)
+INSERT INTO eadaf.permissions (...)
 VALUES ('660e8400-e29b-41d4-a716-446655440090', 'system:manage', '系统管理', 'MENU', '["read"]', ...)
 ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description, updated_at = CURRENT_TIMESTAMP;
 
-INSERT INTO uac.builtin_api_configs (code, access_restriction) VALUES
+INSERT INTO eadaf.builtin_api_configs (code, access_restriction) VALUES
   ('system:operation_log:list', '{"mode":"role","roleIds":["10000000-0000-0000-0000-000000000001"]}'::jsonb),
   ('system:operation_log:get',  '{"mode":"role","roleIds":["10000000-0000-0000-0000-000000000001"]}'::jsonb)
 ON CONFLICT (code) DO UPDATE SET access_restriction = EXCLUDED.access_restriction;

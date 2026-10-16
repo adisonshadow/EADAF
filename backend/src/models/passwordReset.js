@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const PasswordReset = sequelize.define('PasswordReset', {
   reset_id: {
@@ -44,7 +45,7 @@ const PasswordReset = sequelize.define('PasswordReset', {
   }
 }, {
   tableName: 'password_resets',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',

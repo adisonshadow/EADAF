@@ -36,7 +36,8 @@
     "compose:up": "npm run --silent compose:env && docker compose up -d",
     "compose:down": "docker compose down",
     "compose:mysql:up": "npm run --silent compose:env && docker compose -f docker-compose_with_MySQL.yml up -d",
-    "compose:mysql:down": "docker compose -f docker-compose_with_MySQL.yml down"
+    "compose:mysql:down": "docker compose -f docker-compose_with_MySQL.yml down",
+    "migrate-uac-to-eadaf": "bash scripts/migrate-uac-to-eadaf.sh"
   },
   "dependencies": {
     "@koa/cors": "^5.0.0",

@@ -70,12 +70,12 @@ SET
 WHERE slug = 'bizdata-model-design'
   AND content_markdown LIKE '%仅当确实需要一次性拉取全部 fields%';
 
-UPDATE uac.applications
+UPDATE eadaf.applications
 SET
     top_level_skill_markdown = REPLACE(
         top_level_skill_markdown,
-        '用 `uac_list_bizdata_scopes` / `bizdata_list_entities` 查询',
-        '用 `uac_list_bizdata_scopes` / `bizdata_list_entity_summaries` 查询实体列表'
+        '用 `eadaf_list_bizdata_scopes` / `bizdata_list_entities` 查询',
+        '用 `eadaf_list_bizdata_scopes` / `bizdata_list_entity_summaries` 查询实体列表'
     ),
     updated_at = CURRENT_TIMESTAMP
 WHERE top_level_skill_markdown LIKE '%bizdata_list_entities%';

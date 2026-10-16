@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const DepartmentClosure = sequelize.define('DepartmentClosure', {
   ancestor_id: {
@@ -26,7 +27,7 @@ const DepartmentClosure = sequelize.define('DepartmentClosure', {
   }
 }, {
   tableName: 'department_closure',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at'

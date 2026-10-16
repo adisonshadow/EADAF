@@ -1,5 +1,6 @@
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 class Application extends Model {}
 
@@ -104,7 +105,7 @@ Application.init({
   sequelize,
   modelName: 'Application',
   tableName: 'applications',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   paranoid: true,
   createdAt: 'created_at',

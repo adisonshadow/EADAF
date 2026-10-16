@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const Role = sequelize.define('Role', {
   role_id: {
@@ -53,7 +54,7 @@ const Role = sequelize.define('Role', {
   }
 }, {
   tableName: 'roles',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   underscored: true,
   paranoid: true,

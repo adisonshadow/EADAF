@@ -95,7 +95,7 @@ else
 fi
 
 echo "== 5. 刷新令牌 =="
-# 刷新令牌要落库（uac.refresh_tokens.token 是 VARCHAR(255)），必须够短且不携带应用声明
+# 刷新令牌要落库（eadaf.refresh_tokens.token 是 VARCHAR(255)），必须够短且不携带应用声明
 python3 - "$SSO_REFRESH" <<'PY'
 import sys, base64, json
 t = sys.argv[1]

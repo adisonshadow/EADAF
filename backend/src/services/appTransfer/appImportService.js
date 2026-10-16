@@ -95,7 +95,7 @@ function tempApplicationCode(sourceId) {
 }
 
 /**
- * 指向 uac.applications(application_id) 的单列外键。
+ * 指向 eadaf.applications(application_id) 的单列外键。
  * 物理删除应用前必须先摘掉,否则 storage_objects 等会直接把导入事务打回。
  */
 async function listIncomingApplicationFks(transaction) {
@@ -627,9 +627,9 @@ class ImportContext {
   async importEadafCore() {
     const section = this.beginSection('uac');
     const uac = this.file.uac || {};
-    const roles = Array.isArray(uac.roles) ? uac.roles : [];
-    const permissions = Array.isArray(uac.permissions) ? uac.permissions : [];
-    const rolePermissions = Array.isArray(uac.rolePermissions) ? uac.rolePermissions : [];
+    const roles = Array.isArray(eadaf.roles) ? eadaf.roles : [];
+    const permissions = Array.isArray(eadaf.permissions) ? eadaf.permissions : [];
+    const rolePermissions = Array.isArray(eadaf.rolePermissions) ? eadaf.rolePermissions : [];
     if (!roles.length && !permissions.length) {
       section.status = 'ok';
       return section;
@@ -664,10 +664,10 @@ class ImportContext {
       return this.skipSection(section, '未勾选 includeUac,跳过用户/部门数据');
     }
     const uac = this.file.uac || {};
-    const departments = Array.isArray(uac.departments) ? uac.departments : [];
-    const users = Array.isArray(uac.users) ? uac.users : [];
-    const userRoles = Array.isArray(uac.userRoles) ? uac.userRoles : [];
-    const rules = Array.isArray(uac.dataPermissionRules) ? uac.dataPermissionRules : [];
+    const departments = Array.isArray(eadaf.departments) ? eadaf.departments : [];
+    const users = Array.isArray(eadaf.users) ? eadaf.users : [];
+    const userRoles = Array.isArray(eadaf.userRoles) ? eadaf.userRoles : [];
+    const rules = Array.isArray(eadaf.dataPermissionRules) ? eadaf.dataPermissionRules : [];
 
     try {
       await this.withSectionTransaction(async (transaction) => {

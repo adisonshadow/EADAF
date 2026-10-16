@@ -71,7 +71,7 @@ WHERE slug IN (
 
 -- 成员/权限查询经常是“拿到列表即可交付”的轻量任务，允许查询成功后直接收尾
 UPDATE aibase.skills SET completion_strategy = '{"terminationStrictness":"plan-only","allowDirectAnswerTermination":true}'::jsonb, updated_at = CURRENT_TIMESTAMP
-WHERE slug = 'uac-access-control';
+WHERE slug = 'eadaf-access-control';
 
 -- ============================================================
 -- 纯对话/分析型 Skill（off）：demo 演示用，无需 plan / 验收

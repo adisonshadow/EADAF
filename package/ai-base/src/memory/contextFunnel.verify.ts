@@ -248,16 +248,16 @@ clearAISurfacesForTests();
   });
   registerAISurface({
     id: 'form',
-    domain: 'uac',
+    domain: 'eadaf',
     label: 'B',
     read: () => ({ b: 1 }),
   });
   assert.ok(getAISurface('form', 'bizdata'));
-  assert.ok(getAISurface('form', 'uac'));
+  assert.ok(getAISurface('form', 'eadaf'));
   assert.equal(surfaceRegistryKey('bizdata', 'form'), 'bizdata::form');
   unregisterAISurface('form', 'bizdata');
   assert.equal(getAISurface('form', 'bizdata'), undefined);
-  assert.ok(getAISurface('form', 'uac'));
+  assert.ok(getAISurface('form', 'eadaf'));
   clearAISurfacesForTests();
 }
 

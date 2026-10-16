@@ -15,7 +15,7 @@ SET
 WHERE slug = 'aibase-chat-framework'
   AND content_markdown NOT LIKE '%Tool 结果汇报（硬约束）%';
 
-UPDATE uac.applications
+UPDATE eadaf.applications
 SET
     top_level_skill_markdown = REPLACE(
         top_level_skill_markdown,

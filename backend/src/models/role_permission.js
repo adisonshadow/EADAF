@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const RolePermission = sequelize.define('RolePermission', {
   role_id: {
@@ -22,7 +23,7 @@ const RolePermission = sequelize.define('RolePermission', {
   }
 }, {
   tableName: 'role_permissions',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at'

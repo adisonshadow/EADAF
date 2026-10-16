@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const DataPermissionRule = sequelize.define('DataPermissionRule', {
   rule_id: {
@@ -37,7 +38,7 @@ const DataPermissionRule = sequelize.define('DataPermissionRule', {
   }
 }, {
   tableName: 'data_permission_rules',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',

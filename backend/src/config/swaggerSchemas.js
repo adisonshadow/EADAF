@@ -985,7 +985,7 @@ Object.assign(schemas, {
       includeUac: bool('是否导入了用户数据', false),
       includeFiles: bool('是否导入了存储对象文件', false),
       sections: obj('各节执行结果 { status, counts, errors, notes }。含 databaseConnections(matched/created/failed);notes 为预期跳过说明,不算失败'),
-      chainStoppedAt: str('硬依赖链终止节(uac/application/entities);连接创建/物化与行数据失败不写入此项', 'entities'),
+      chainStoppedAt: str('硬依赖链终止节(eadaf/application/entities);连接创建/物化与行数据失败不写入此项', 'entities'),
       chainError: str('硬依赖链终止原因'),
       conflicts: { type: 'array', items: { type: 'object' }, description: 'abort 中止时的冲突清单' },
       warnings: { type: 'array', items: { type: 'string' } },

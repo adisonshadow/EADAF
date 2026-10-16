@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const OperationLog = sequelize.define('OperationLog', {
   log_id: {
@@ -94,7 +95,7 @@ const OperationLog = sequelize.define('OperationLog', {
   }
 }, {
   tableName: 'operation_logs',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at'

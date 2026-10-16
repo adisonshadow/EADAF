@@ -188,11 +188,11 @@ VALUES
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 -- SSO 应用 AIBase_with_example（redirect_uri 需在管理台按需调整）
-DELETE FROM uac.applications
+DELETE FROM eadaf.applications
 WHERE code = 'AIBase_with_example'
   AND application_id = '77777777-7777-7777-8777-777777777701';
 
-INSERT INTO uac.applications (
+INSERT INTO eadaf.applications (
     application_id, name, code, status, sso_enabled, sso_config, description
 )
 VALUES (

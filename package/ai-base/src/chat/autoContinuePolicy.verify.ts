@@ -607,8 +607,8 @@ console.log('autoContinuePolicy + A2UI 回归场景全部通过');
     },
     toolsExecuted: 2,
     toolOutcomes: [
-      { ok: true, kind: 'success', meta: { tool: 'uac_list_users' }, data: [{ username: 'admin' }] },
-      { ok: true, kind: 'success', meta: { tool: 'uac_list_users' }, data: [{ username: 'test' }] },
+      { ok: true, kind: 'success', meta: { tool: 'eadaf_list_users' }, data: [{ username: 'admin' }] },
+      { ok: true, kind: 'success', meta: { tool: 'eadaf_list_users' }, data: [{ username: 'test' }] },
     ],
   });
   assert.equal(d.action, 'terminate');
@@ -628,7 +628,7 @@ console.log('autoContinuePolicy + A2UI 回归场景全部通过');
       allowDirectAnswerTermination: true,
     },
     toolsExecuted: 1,
-    toolOutcomes: [{ ok: true, kind: 'success', meta: { tool: 'uac_list_users' }, data: [] }],
+    toolOutcomes: [{ ok: true, kind: 'success', meta: { tool: 'eadaf_list_users' }, data: [] }],
   });
   assert.equal(d.action, 'continue');
 }
@@ -648,8 +648,8 @@ console.log('autoContinuePolicy + A2UI 回归场景全部通过');
     },
     toolsExecuted: 2,
     toolOutcomes: [
-      { ok: false, verified: false, kind: 'system_error', meta: { tool: 'uac_list_users' }, error: { message: 'HTTP 500' } },
-      { ok: true, verified: true, kind: 'success', meta: { tool: 'uac_list_users' }, data: [{ username: 'admin' }] },
+      { ok: false, verified: false, kind: 'system_error', meta: { tool: 'eadaf_list_users' }, error: { message: 'HTTP 500' } },
+      { ok: true, verified: true, kind: 'success', meta: { tool: 'eadaf_list_users' }, data: [{ username: 'admin' }] },
     ],
   });
   assert.equal(d.action, 'terminate');
@@ -670,8 +670,8 @@ console.log('autoContinuePolicy + A2UI 回归场景全部通过');
     },
     toolsExecuted: 2,
     toolOutcomes: [
-      { ok: true, verified: true, kind: 'success', meta: { tool: 'uac_list_users' }, data: [{ username: 'admin' }] },
-      { ok: false, verified: false, kind: 'system_error', meta: { tool: 'uac_list_users' }, error: { message: 'HTTP 500' } },
+      { ok: true, verified: true, kind: 'success', meta: { tool: 'eadaf_list_users' }, data: [{ username: 'admin' }] },
+      { ok: false, verified: false, kind: 'system_error', meta: { tool: 'eadaf_list_users' }, error: { message: 'HTTP 500' } },
     ],
   });
   assert.equal(d.action, 'continue');
@@ -867,7 +867,7 @@ function toolMsg(name: string, id: string, envelope: Partial<ToolResponse>) {
       terminationStrictness: 'strict',
       requiredTools: ['bizdata_execute_materialization'],
     }),
-    makeSkill('uac-access-control', {
+    makeSkill('eadaf-access-control', {
       terminationStrictness: 'plan-only',
       allowDirectAnswerTermination: true,
     }),
@@ -880,7 +880,7 @@ function toolMsg(name: string, id: string, envelope: Partial<ToolResponse>) {
       requiredTools: ['bizdata_save_metric'],
     }),
   ];
-  const strategy = resolveTerminationCompletionStrategy(skills, ['uac-access-control']);
+  const strategy = resolveTerminationCompletionStrategy(skills, ['eadaf-access-control']);
   assert.equal(strategy?.terminationStrictness, 'plan-only');
   assert.equal(strategy?.allowDirectAnswerTermination, true);
   assert.equal(strategy?.requiredTools, undefined);
@@ -902,7 +902,7 @@ function toolMsg(name: string, id: string, envelope: Partial<ToolResponse>) {
   assert.deepEqual(strategy?.requiredTools, ['bizdata_validate_model']);
 }
 
-// 场景 T3：查询型 uac — task_complete 不得因胡填的写操作 requiresVerification 失败
+// 场景 T3：查询型 EADAF — task_complete 不得因胡填的写操作 requiresVerification 失败
 await (async () => {
   clearFunctionCalls();
   registerBuiltinTools();
@@ -914,16 +914,16 @@ await (async () => {
         ok: true,
         kind: 'success',
         verified: true,
-        meta: { tool: 'uac_list_departments' },
+        meta: { tool: 'eadaf_list_departments' },
         data: [],
       },
     ],
-    invokedToolNames: new Set(['uac_list_departments']),
+    invokedToolNames: new Set(['eadaf_list_departments']),
     completionStrategy: {
       terminationStrictness: 'plan-only',
       allowDirectAnswerTermination: true,
     },
-    availableToolNames: new Set(['uac_list_departments', 'uac_list_users']),
+    availableToolNames: new Set(['eadaf_list_departments', 'eadaf_list_users']),
   });
   setPlan([
     {

@@ -59,7 +59,7 @@ function resolvePageScope(pathname: string): PageScopeConfig {
       fallbackSkillSlugs: ['aibase-capability-design'],
       headerCaption: '能力设计助手',
       systemPromptPrefix:
-        '你是 EADAF AI 能力设计助手，帮助用户设计 Tool、Skill 结构与指令内容。业务域 Scope 指 bizdata 实体 code 前缀，用 bizdata_list_entities / uac_list_bizdata_scopes 查询；禁止用 aibase_create_scope 创建业务域。',
+        '你是 EADAF AI 能力设计助手，帮助用户设计 Tool、Skill 结构与指令内容。业务域 Scope 指 bizdata 实体 code 前缀，用 bizdata_list_entities / eadaf_list_bizdata_scopes 查询；禁止用 aibase_create_scope 创建业务域。',
       welcome: {
         title: 'Skill / Tool 设计',
         description: '在表单页可添加 Skill 引用；列表页点击名称旁的 @ 更新快捷提示。',

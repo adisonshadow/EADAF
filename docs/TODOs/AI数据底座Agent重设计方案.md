@@ -253,7 +253,7 @@ EADAF 现状：`contextBudget.ts` 用**字符数估算**（120k 字符）做阈�
 
 - **现象**：`completion_strategy` 一份在 DB、一份在前端覆盖，`resolveTerminationCompletionStrategy` 用「第一个有策略的 Skill」这种启发式选主策略，可能选到错误 Skill 的写操作清单。
 - **证据**：
-  - `skillPolicyRegistry.ts#resolveTerminationCompletionStrategy` 注释原话记录了历史 bug：「查询页（uac-access-control）被建模/物化/API 写操作清单误伤」。
+  - `skillPolicyRegistry.ts#resolveTerminationCompletionStrategy` 注释原话记录了历史 bug：「查询页（eadaf-access-control）被建模/物化/API 写操作清单误伤」。
   - `getSkillCompletionStrategy` 浅合并（override 优先），合并语义对数组字段（requiredTools）是整体替换而非合并，易产生认知偏差。
 - **影响**：查询型任务被写操作验收清单卡死；策略归属不清。
 - **修复方向**：策略以「激活 Skill」而非「第一个有策略的 Skill」为准；策略 schema 收敛 + 显式合并语义（见 M6）。

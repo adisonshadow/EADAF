@@ -22,7 +22,7 @@ set +a
 DB_NAME="${POSTGRES_DATABASE:-eadaf_db}"
 DB_USER="${POSTGRES_USER:-my_name}"
 DB_PASS="${POSTGRES_PASSWORD:-123456}"
-DB_SCHEMA="${POSTGRES_SCHEMA:-uac}"
+DB_SCHEMA="${POSTGRES_SCHEMA:-eadaf}"
 CONTAINER="${POSTGRES_CONTAINER:-EADAF-postgres}"
 SQL_DIR="$ROOT/init-sql"
 
@@ -111,7 +111,7 @@ ensure_superadmin() {
   fi
   echo "未找到 admin 用户，补种超级管理员（admin / 123456）..."
   psql_exec -v ON_ERROR_STOP=1 <<'SQL'
-INSERT INTO uac.roles (role_id, role_name, code, description, status)
+INSERT INTO eadaf.roles (role_id, role_name, code, description, status)
 VALUES (
     '10000000-0000-0000-0000-000000000001',
     '超级管理员',
@@ -121,7 +121,7 @@ VALUES (
 )
 ON CONFLICT (role_id) DO NOTHING;
 
-INSERT INTO uac.users (user_id, username, password_hash, email, avatar, phone, gender, status)
+INSERT INTO eadaf.users (user_id, username, password_hash, email, avatar, phone, gender, status)
 VALUES (
     '10000000-0000-0000-0000-000000000001',
     'admin',
@@ -134,28 +134,28 @@ VALUES (
 )
 ON CONFLICT (user_id) DO NOTHING;
 
-INSERT INTO uac.role_permissions (role_id, permission_id)
+INSERT INTO eadaf.role_permissions (role_id, permission_id)
 SELECT
     '10000000-0000-0000-0000-000000000001',
     permission_id
-FROM uac.permissions
+FROM eadaf.permissions
 ON CONFLICT DO NOTHING;
 
-INSERT INTO uac.user_roles (user_id, role_id)
+INSERT INTO eadaf.user_roles (user_id, role_id)
 VALUES (
     '10000000-0000-0000-0000-000000000001',
     '10000000-0000-0000-0000-000000000001'
 )
 ON CONFLICT DO NOTHING;
 
-INSERT INTO uac.data_permission_rules (role_id, resource_type, conditions, status)
+INSERT INTO eadaf.data_permission_rules (role_id, resource_type, conditions, status)
 SELECT
     '10000000-0000-0000-0000-000000000001',
     '*',
     '{"operator": "ALL"}'::jsonb,
     'ACTIVE'
 WHERE NOT EXISTS (
-    SELECT 1 FROM uac.data_permission_rules
+    SELECT 1 FROM eadaf.data_permission_rules
     WHERE role_id = '10000000-0000-0000-0000-000000000001'
       AND resource_type = '*'
       AND deleted_at IS NULL

@@ -6,7 +6,7 @@
 START TRANSACTION;
 
 -- 查询权限默认限 SUPER_ADMIN(角色 ID 见 scripts/superadmin.sql)
-INSERT INTO uac.builtin_api_configs (code, access_restriction) VALUES
+INSERT INTO eadaf.builtin_api_configs (code, access_restriction) VALUES
   ('system:app_transfer:export',  '{"mode":"role","roleIds":["10000000-0000-0000-0000-000000000001"]}'::jsonb),
   ('system:app_transfer:preview', '{"mode":"role","roleIds":["10000000-0000-0000-0000-000000000001"]}'::jsonb),
   ('system:app_transfer:import',  '{"mode":"role","roleIds":["10000000-0000-0000-0000-000000000001"]}'::jsonb)

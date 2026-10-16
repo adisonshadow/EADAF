@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const _sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const RefreshToken = (sequelize) => {
   const model = sequelize.define('RefreshToken', {
@@ -51,7 +52,7 @@ const RefreshToken = (sequelize) => {
   }, {
     modelName: 'RefreshToken',
     tableName: 'refresh_tokens',
-    schema: 'uac',
+    schema: SCHEMA,
     timestamps: true,
     underscored: true,
     indexes: [

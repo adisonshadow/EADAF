@@ -369,7 +369,7 @@ module.exports = async (ctx, next) => {
     ctx.state.user = payload;
     ctx.state.isSsoAuth = isSsoAuth;
     // 本次请求按哪个应用验的签：刷新令牌要用它保持应用会话
-    // （刷新令牌自身不带 application_id，避免超过 uac.refresh_tokens.token 的 255 上限）
+    // （刷新令牌自身不带 application_id，避免超过 eadaf.refresh_tokens.token 的 255 上限）
     ctx.state.ssoApplicationId = matchedCandidate.application?.application_id || null;
     
     logger.debug('认证成功', {

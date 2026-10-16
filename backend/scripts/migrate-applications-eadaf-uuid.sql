@@ -3,13 +3,13 @@ UPDATE aibase.skill_applications
 SET application_id = '10000000-0000-4000-8000-000000000002'
 WHERE application_id = '10000000-0000-0000-0000-000000000002';
 
-UPDATE uac.applications
+UPDATE eadaf.applications
 SET application_id = '10000000-0000-4000-8000-000000000002',
     updated_at = CURRENT_TIMESTAMP
 WHERE code = 'EADAF'
   AND application_id = '10000000-0000-0000-0000-000000000002';
 
-INSERT INTO uac.applications (
+INSERT INTO eadaf.applications (
     application_id, name, code, logo_url, status, description
 )
 SELECT
@@ -20,5 +20,5 @@ SELECT
     'ACTIVE',
     'EADAF 本系统（系统内置应用，不可删除）'
 WHERE NOT EXISTS (
-    SELECT 1 FROM uac.applications WHERE code = 'EADAF'
+    SELECT 1 FROM eadaf.applications WHERE code = 'EADAF'
 );

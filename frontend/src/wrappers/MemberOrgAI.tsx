@@ -40,7 +40,7 @@ function resolvePageScope(pathname: string): PageScopeConfig {
     return {
       headerCaption: '角色与权限助手',
       systemPromptPrefix:
-        '你是 EADAF 角色与权限管理助手。业务域 Scope 指 bizdata code 前缀（如 equipment），用 uac_list_bizdata_scopes 查询；禁止管理 aibase.scopes。',
+        '你是 EADAF 角色与权限管理助手。业务域 Scope 指 bizdata code 前缀（如 equipment），用 eadaf_list_bizdata_scopes 查询；禁止管理 aibase.scopes。',
       welcome: {
         title: '角色管理',
         description: '点击角色名称旁的 @ 添加引用，快捷提示会随上下文更新。',
@@ -69,7 +69,7 @@ export default function MemberOrgAI() {
   return (
     <AIChatPageScope
       scopeSlug="member-org"
-      fallbackSkillSlugs={['uac-access-control']}
+      fallbackSkillSlugs={['eadaf-access-control']}
       semanticRouteDomains={['member_org']}
       {...pageScope}
     >
