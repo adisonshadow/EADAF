@@ -540,9 +540,30 @@ router.post(
  *         description: 会话不存在或不属于当前用户
  */
 // 登录设备（会话）：列出 / 撤销单个 / 撤销全部
+// 撤销都要进操作日志（Phase 3 §3.3：全局登出策略与审计）
 router.get('/sessions', auth, authController.listSessions);
-router.delete('/sessions/:sid', auth, authController.revokeSession);
-router.delete('/sessions', auth, authController.revokeAllSessions);
+router.delete(
+  '/sessions/:sid',
+  auth,
+  operationAudit({
+    domain: 'auth',
+    operationType: 'LOGOUT',
+    resourceType: 'session',
+    resourceId: (ctx) => ctx.params.sid,
+  }),
+  authController.revokeSession,
+);
+router.delete(
+  '/sessions',
+  auth,
+  operationAudit({
+    domain: 'auth',
+    operationType: 'LOGOUT_ALL',
+    resourceType: 'user',
+    resourceId: (ctx) => ctx.state.user?.user_id,
+  }),
+  authController.revokeAllSessions,
+);
 
 /**
  * @swagger
