@@ -9,7 +9,7 @@ const yuan = (value: number) => `¥${Number(value).toFixed(2)}`;
 
 /**
  * 伞品管理：长柄伞 / 折叠伞 / 高尔夫伞 / 广告伞 / 儿童伞。
- * 数据来自 EADAF 后端 /demo/sales/products（示例应用不自建商品库）。
+ * 数据来自 EADAF 生成的 API 服务 /api/v1/data/YS/product/Product（示例应用不自建商品库）。
  */
 export default function ProductsPage() {
   const [loading, setLoading] = useState(true);

@@ -10,22 +10,41 @@
 
 ---
 
-## 1. 复用了 EADAF `/backend` 的什么
+## 1. 复用了 EADAF 的什么
 
-示例应用的所有数据都来自平台后端已内置的 **销售 Demo** 模块（`/api/v1/demo/sales/*`），
-数据源是 `backend/data/sales-demo.db`（SQLite），**前端与 AI Tool 共用同一份数据**：
+示例应用的**数据模型、物化表、API 服务全部由 EADAF 生成**，前端只调这些服务：
 
-| 页面 | 复用的 EADAF 接口 | 说明 |
-|------|-------------------|------|
-| 经营概览 | `GET /api/v1/demo/sales/stats/orders`、`GET .../stats/complaints` | 订单/销售额/发货/售后 KPI 与分布 |
-| 伞品管理 | `GET /api/v1/demo/sales/products` | 20 款伞品（5 个品类，含库存） |
-| 独立站订单 | `GET /api/v1/demo/sales/orders`、`GET .../orders/{orderNo}` | 60 笔订单 + 明细（含会员信息） |
-| 会员 | `GET /api/v1/demo/sales/users` | 20 位会员（金牌/普通），订单数与消费在前端汇总 |
-| 售后工单 | `GET /api/v1/demo/sales/complaints` | 质量 / 物流 / 服务 / 退款工单 |
+```
+EADAF 管理台「业务数据」                     运行时
+────────────────────────────                ────────────────────────────────
+模型设计   YS:member:Member  ┐              物化表 bizdata_mat.ys_member ┐
+          YS:product:Product ┤              物化表 …ys_product            │
+          YS:order:Order     ├─ 物化 ──▶   物化表 …ys_order              ├─▶ API 服务
+          YS:order:OrderItem ┤              物化表 …ys_order_item         │   /api/v1/data/YS/…
+          YS:service:Complaint┘             物化表 …ys_complaint          ┘
+```
+
+| 页面 | 调用的 EADAF API 服务 | 说明 |
+|------|----------------------|------|
+| 经营概览 | `GET /api/v1/data/YS/order/Order`、`.../service/Complaint` | 订单/销售额/发货/售后 KPI 与分布（示例量小，前端汇总） |
+| 伞品管理 | `GET /api/v1/data/YS/product/Product` | 20 款伞品（5 个品类，含库存） |
+| 独立站订单 | `GET /api/v1/data/YS/order/Order`、`.../Order/one?order_no=`、`.../OrderItem?order_id=` | 60 笔订单 + 明细 |
+| 会员 | `GET /api/v1/data/YS/member/Member` | 20 位会员（金牌/普通），订单数与消费在前端汇总 |
+| 售后工单 | `GET /api/v1/data/YS/service/Complaint` | 质量 / 物流 / 服务 / 退款工单 |
 | 登录 | `GET /api/v1/auth/check` + EADAF SSO | 账号与权限由平台 UAC 统一管理，示例不存密码 |
-| AI 助手 | `POST /api/v1/ai/chat/completions`（经 ai-base） | 走平台 Skill/Tool，可查询上表同一份数据 |
+| AI 助手 | `POST /api/v1/ai/chat/completions`（经 ai-base） | 走平台 Skill/Tool |
 
-接口封装集中在 [`src/pages/store/storeApi.ts`](src/pages/store/storeApi.ts)，页面里没有别的数据来源。
+**模型域**：实体 code 前缀 `YS:`（与应用的 AI Scope slug 一致），物化目标是默认连接
+（本地 MySQL 13306）的 `bizdata_mat`，物理表名 `ys_*`。响应信封统一为
+`{ items, pagination: { total, page, pageSize } }`。
+
+接口封装集中在 [`src/pages/store/storeApi.ts`](src/pages/store/storeApi.ts)，页面里没有别的数据来源；
+跨实体的关联（订单→会员、明细→伞品）在 `storeApi.ts` 里用 memo 缓存做，真实项目应在 API 服务里 join/聚合。
+
+> ⚠️ **AI 助手的数据源还没切过来**：平台的 Skill/Tool 目前仍读旧的 SQLite 演示库
+> （`backend/data/sales-demo.db`），与页面读的物化表是两份数据。把 Tool 指到上面的
+> API 服务是待办项（见根目录 `docs/pack-and-deploy.md` 与业务数据 Scope 配置）。
+
 
 ## 2. 和真实业务应用（CIAC-MS / FPCU2 等）的关系
 
@@ -51,9 +70,20 @@ pnpm install
 # 2) 初始化销售 Demo 数据（雨伞示例数据：20 会员 / 20 伞品 / 60 订单 / 10 售后工单）
 pnpm --filter ./backend init-sales-demo-db
 
-# 3) 启动示例应用（http://localhost:29529）
+# 3) 在 EADAF 上自举：建桶 + 数据模型 + 物化 + API 服务（幂等）
+node app_example/scripts/eadaf/provision.mjs
+
+# 4) 把演示数据灌进物化表
+EADAF_MYSQL_CMD='docker exec -i mysql-local sh -c '"'"'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" bizdata_mat'"'"'' \
+  node app_example/scripts/eadaf/load-data.mjs
+
+# 5) 启动示例应用（http://localhost:29529）
 pnpm --filter ./app_example dev
 ```
+
+> 第 3、4 步的细节、前置条件与可调环境变量见
+> [`scripts/eadaf/README.md`](scripts/eadaf/README.md)。建完可在管理台
+> **业务数据 → 模型设计** 看到 `YS` 域、**物化** 看到运行记录、**API 服务** 看到 5 个服务。
 
 首次使用还需在 EADAF 管理台准备两件事（一次性）：
 

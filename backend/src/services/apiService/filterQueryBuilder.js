@@ -1,9 +1,14 @@
 const { quoteIdent } = require('./sqlDialect');
 const { extractSqlNamedParams, resolveDefinitionScript } = require('./operationParameterSchemas');
 
-/** 不参与 filter 解析的结构化参数字段 */
+/**
+ * 不参与 filter 解析的结构化参数字段。
+ *
+ * `app`：SSO 应用密钥签发的用户 JWT 调受保护路由时必须带 `?app=<application_id>`
+ * （见 middlewares/auth.js 用它选择验签密钥），它不是业务过滤条件。
+ */
 const STRUCTURAL_PARAM_KEYS = new Set([
-  'limit', 'skip', 'filter', 'body', 'set', 'id', 'field', 'pipeline', 'operation',
+  'limit', 'skip', 'filter', 'body', 'set', 'id', 'field', 'pipeline', 'operation', 'app',
 ]);
 
 const COLUMN_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;

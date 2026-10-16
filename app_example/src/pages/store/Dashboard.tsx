@@ -15,7 +15,7 @@ const yuan = (value: number | string | undefined) =>
 
 /**
  * 经营概览：订单/销售额/待发货/售后待处理 + 订单状态分布 + 售后类型分布。
- * 数据来自 EADAF 后端的 /demo/sales/stats/*（示例应用只做展示，不落库）。
+ * 数据来自 EADAF 生成的 API 服务 /api/v1/data/YS/order/Order 与 .../service/Complaint
  */
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);

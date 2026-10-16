@@ -3,7 +3,8 @@
  * 生成销售 Demo（SQLite）种子 SQL：**雨伞品牌厂商的电商独立站销售管理系统**
  *
  * 该 SQL 由 backend/scripts/init-sales-demo-db.js 载入，落到 backend/data/sales-demo.db，
- * 供 EADAF 的 /api/v1/demo/sales/* 接口与 AI Tool 使用（app_example 示例应用直接复用这些接口）。
+ * 供 EADAF 仍读 SQLite 的 **AI Tool** 使用（app_example 页面已改为调 EADAF 物化表上的
+ * API 服务 /api/v1/data/YS/*，数据由本 SQL 灌入 bizdata_mat.ys_*，见 /tmp/ys-load.mjs 一路的做法）。
  *
  * 用法：
  *   node scripts/gen-sales-demo-sql.cjs            # 写入 scripts/sales-demo-db.sql
