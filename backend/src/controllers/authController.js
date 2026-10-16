@@ -225,6 +225,9 @@ class AuthController {
       // 如果提供了 application_id，获取应用的 SSO 配置
       let jwtSecret = config.api.security.jwtSecret;
       let application = null;
+      // 用应用密钥签发时把 application_id 写进令牌：验签端据此选密钥，
+      // 请求就不必再依赖 URL 上的 ?app=（漏带会 401，业务应用表现为「一调后端就掉登录」）
+      let tokenAppId = null;
       
       if (application_id) {
         application = await Application.findOne({
@@ -239,6 +242,7 @@ class AuthController {
           const signingSecret = resolveSsoSigningSecret(application);
           if (signingSecret) {
             jwtSecret = signingSecret;
+            tokenAppId = application.application_id;
             logger.debug('Using SSO app secret as JWT secret', { application_id });
           }
         }
@@ -246,12 +250,19 @@ class AuthController {
 
       // 生成访问令牌
       const token = jwt.sign(
-        { user_id: user.user_id, username: user.username },
+        {
+          user_id: user.user_id,
+          username: user.username,
+          ...(tokenAppId ? { application_id: tokenAppId } : {}),
+        },
         jwtSecret,
         { expiresIn: config.api.security.jwtExpiresIn }
       );
       
       // 生成刷新令牌
+      // 注意：不往刷新令牌里塞 application_id —— 它要落库（uac.refresh_tokens.token
+      // 是 VARCHAR(255)），加声明会把长度顶过上限，而升级包不跑表结构迁移。
+      // 刷新时用「请求上下文里的应用」（见 refreshToken）保持应用会话不变。
       const refreshToken = jwt.sign(
         { user_id: user.user_id },
         jwtSecret,
@@ -376,14 +387,20 @@ class AuthController {
         return;
       }
 
-      // 检查是否通过app参数传递了application_id（第三方系统验证）
+      // app 显式声明优先；否则用本次请求鉴权时匹配到的应用（auth 中间件写入
+      // ctx.state.ssoApplicationId）。刷新令牌本身不带应用信息，否则会超过
+      // uac.refresh_tokens.token 的 255 上限。
+      // 两者都没有才退回平台密钥，避免把应用会话刷成平台会话。
+      const refreshAppId = app || ctx.state?.ssoApplicationId || null;
+
       let jwtSecret = config.api.security.jwtSecret;
-      
-      if (app) {
-        // 验证application_id并获取SSO salt
+      let tokenAppId = null;
+
+      if (refreshAppId) {
+        // 验证application_id并获取SSO签名密钥
         const application = await Application.findOne({
           where: {
-            application_id: app,
+            application_id: refreshAppId,
             status: 'ACTIVE',
             sso_enabled: true
           }
@@ -400,7 +417,8 @@ class AuthController {
         }
 
         jwtSecret = resolveSsoSigningSecret(application);
-        logger.debug('Using SSO app secret for token refresh', { application_id: app });
+        tokenAppId = application.application_id;
+        logger.debug('Using SSO app secret for token refresh', { application_id: refreshAppId });
       }
 
       // 查找刷新令牌
@@ -442,14 +460,21 @@ class AuthController {
 
       // 生成新的访问令牌
       const token = jwt.sign(
-        { user_id: user.user_id, username: user.username },
+        {
+          user_id: user.user_id,
+          username: user.username,
+          ...(tokenAppId ? { application_id: tokenAppId } : {}),
+        },
         jwtSecret,
         { expiresIn: config.api.security.jwtExpiresIn }
       );
 
       // 生成新的刷新令牌
       const newRefreshToken = jwt.sign(
-        { user_id: user.user_id },
+        {
+          user_id: user.user_id,
+          ...(tokenAppId ? { application_id: tokenAppId } : {}),
+        },
         jwtSecret,
         { expiresIn: '7d' }
       );

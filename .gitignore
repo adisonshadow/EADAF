@@ -16,6 +16,8 @@ node_modules/
 .env.production
 .env.test
 !.env.example
+# app_example 是纯前端示例：.env 里只有公开的 VITE_* 值（无密钥），入库以便开箱即用
+!app_example/.env
 
 # --- Logs ---
 /logs/
@@ -35,14 +37,14 @@ dist/
 dist-ssr/
 build/
 out/
-/packages/*
-!/packages/EADAF/
-!/packages/APP/
-/packages/EADAF/**
-!/packages/EADAF/.gitkeep
-/packages/APP/**
-!/packages/APP/.gitkeep
-/packages/.staging*/
+/deploy-artifacts/*
+!/deploy-artifacts/EADAF/
+!/deploy-artifacts/APP/
+/deploy-artifacts/EADAF/**
+!/deploy-artifacts/EADAF/.gitkeep
+/deploy-artifacts/APP/**
+!/deploy-artifacts/APP/.gitkeep
+/deploy-artifacts/.staging*/
 *.tsbuildinfo
 
 # --- Offline deploy: 跟踪脚本/配置，忽略大产物 ---

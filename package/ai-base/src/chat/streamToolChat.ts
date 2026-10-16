@@ -1,5 +1,6 @@
 import type { OpenAIToolDefinition } from '../types';
 import { extractAiChatErrorMessage, readChatErrorMessage } from '../utils/formatAiChatError';
+import { withEadafAppParamForToken } from '../utils/eadafAppParam';
 import { sleep } from '../utils/sleep';
 import type { EADAFChatMessage } from './EADAFChatProvider';
 
@@ -173,7 +174,7 @@ export async function streamChatRound(
   // 仅在拿到流之前的失败（突发/限流 429）做指数退避重试；
   // 一旦进入流式读取即不再重试。
   const doFetch = () =>
-    fetch(`${params.apiBase}/v1/ai/chat/completions`, {
+    fetch(withEadafAppParamForToken(`${params.apiBase}/v1/ai/chat/completions`, token), {
       method: 'POST',
       headers,
       signal: params.signal,

@@ -36,7 +36,7 @@ usage() {
   --web-port N                  仅安装包，默认 9527
   --api-port N                  仅安装包，默认 9526
   --version VER                 默认 package.json
-  --out DIR                     默认 <仓库>/packages/EADAF
+  --out DIR                     默认 <仓库>/deploy-artifacts/EADAF
   --non-interactive             缺参即失败，不再提问
   --yes                         跳过确认
 EOF
@@ -169,7 +169,7 @@ if [[ "$NONINT" != "1" && -t 0 ]]; then
     API_PORT="$(ask "后端宿主机端口" "${API_PORT:-9526}")"
   fi
   VERSION="$(ask "版本" "${VERSION:-$PLATFORM_DEFAULT_VERSION}")"
-  OUT_DIR="$(ask "输出目录" "${OUT_DIR:-$REPO_ROOT/packages/EADAF}")"
+  OUT_DIR="$(ask "输出目录" "${OUT_DIR:-$REPO_ROOT/deploy-artifacts/EADAF}")"
 else
   [[ -n "$NETWORK" && -n "$RUNTIME" && -n "$KIND" && -n "$ARCH" ]] || die "非交互模式需要 --network、--runtime、--kind、--arch"
   [[ "$KIND" != "patch" || -n "$PATCH_PARTS" ]] || die "补丁需要 --patch web,api"
@@ -177,7 +177,7 @@ else
   WEB_PORT="${WEB_PORT:-9527}"
   API_PORT="${API_PORT:-9526}"
   VERSION="${VERSION:-$PLATFORM_DEFAULT_VERSION}"
-  OUT_DIR="${OUT_DIR:-$REPO_ROOT/packages/EADAF}"
+  OUT_DIR="${OUT_DIR:-$REPO_ROOT/deploy-artifacts/EADAF}"
   ASSUME_YES=1
 fi
 
@@ -282,7 +282,7 @@ fi
 need_cmd tar
 need_cmd curl
 
-STAGE="$(mktemp -d "$REPO_ROOT/packages/.staging.XXXXXX")"
+STAGE="$(mktemp -d "$REPO_ROOT/deploy-artifacts/.staging.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
 INNER="eadaf-runtime"
 if [[ "$KIND" != "install" ]]; then

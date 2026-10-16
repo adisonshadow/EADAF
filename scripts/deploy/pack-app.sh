@@ -28,7 +28,7 @@ usage() {
   --web-port N                  仅安装包
   --api-port N                  仅安装包
   --version VER
-  --out DIR                     默认 <仓库>/packages/APP
+  --out DIR                     默认 <仓库>/deploy-artifacts/APP
   --non-interactive --yes
 EOF
 }
@@ -155,11 +155,11 @@ if [[ "$NONINT" != "1" && -t 0 ]]; then
     API_PORT="$(ask "应用后端宿主机端口" "${API_PORT:-$API_DEFAULT}")"
   fi
   VERSION="$(ask "版本" "$VERSION")"
-  OUT_DIR="$(ask "输出目录" "${OUT_DIR:-$REPO_ROOT/packages/APP}")"
+  OUT_DIR="$(ask "输出目录" "${OUT_DIR:-$REPO_ROOT/deploy-artifacts/APP}")"
 else
   WEB_PORT="${WEB_PORT:-$WEB_DEFAULT}"
   API_PORT="${API_PORT:-$API_DEFAULT}"
-  OUT_DIR="${OUT_DIR:-$REPO_ROOT/packages/APP}"
+  OUT_DIR="${OUT_DIR:-$REPO_ROOT/deploy-artifacts/APP}"
 fi
 
 # 版本来源标注（在交互问答之后判定，用户改了版本就如实标出来）
@@ -241,7 +241,7 @@ if [[ "$NEED_WEB" == "1" || "$NEED_API" == "1" ]]; then
   fi
 fi
 
-STAGE="$(mktemp -d "$REPO_ROOT/packages/.staging.XXXXXX")"
+STAGE="$(mktemp -d "$REPO_ROOT/deploy-artifacts/.staging.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
 INNER="${ARCHIVE%.tar.gz}"
 DEST="$STAGE/$INNER"

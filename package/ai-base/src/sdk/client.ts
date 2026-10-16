@@ -7,6 +7,7 @@ import type {
   ToolInvokeResult,
 } from '../types';
 import { extractAiChatErrorMessage } from '../utils/formatAiChatError';
+import { withEadafAppParamForToken } from '../utils/eadafAppParam';
 import { getActiveTurnId } from '../observability/turnTrace';
 
 function resolveBaseUrl(baseUrl?: string) {
@@ -34,7 +35,7 @@ export class AIBaseClient {
       headers.set('X-AIBase-TurnId', turnId);
     }
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
+    const response = await fetch(withEadafAppParamForToken(`${this.baseUrl}${path}`, token), {
       ...init,
       headers,
     });

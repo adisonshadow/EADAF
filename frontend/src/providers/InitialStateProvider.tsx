@@ -4,7 +4,7 @@ import { getDepartments } from '@/services/UAC/api/departments';
 import { getAuthCheck } from '@/services/UAC/api/auth';
 import { getSystemFeatures } from '@/services/UAC/api/system';
 import { getPermissions } from '@/services/UAC/api/permissions';
-import { clearAuth, clearAllSsoAuth, consumeEmbedAuthFromUrl, getAuth, parseAuthUser, type CurrentUser } from '@/utils/auth';
+import { clearAuth, consumeEmbedAuthFromUrl, getAuth, parseAuthUser, type CurrentUser } from '@/utils/auth';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import {
   applyDocumentBranding,
@@ -40,9 +40,9 @@ async function fetchUserInfo() {
     if (err?.response?.status === 401) {
       // 全局会话用的是平台 token，验不过就是真的失效（或旧版本把应用 token 写进了
       // 这个位置），必须清掉，否则会一直 401 停在"回到登录页"的状态。
-      // 应用 token 现在存在 sso_token:<app_id> 独立键里，这里顺手清一遍脏数据即可。
+      // 但不要顺手 clearAllSsoAuth()：那是「所有应用」的 sso_token:<app_id>，
+      // 管理台一次 401 不该把别的应用登录态一起抹掉（现象：操作管理台 → 业务应用掉登录）。
       clearAuth();
-      clearAllSsoAuth();
     }
     return undefined;
   }

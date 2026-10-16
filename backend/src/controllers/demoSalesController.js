@@ -63,7 +63,8 @@ class DemoSalesController {
     try {
       ctx.body = {
         data: {
-          byStatus: salesDemoDb.orderStatsByStatus(),
+          // 取 .byStatus：service 返回的是 { summary, byStatus }，接口约定 byStatus 本身是数组
+          byStatus: salesDemoDb.orderStatsByStatus().byStatus,
           dashboard: salesDemoDb.getDashboardStats().orders
         }
       };
@@ -78,8 +79,9 @@ class DemoSalesController {
     try {
       ctx.body = {
         data: {
-          byType: salesDemoDb.complaintStatsByType(),
-          byStatus: salesDemoDb.complaintStatsByStatus(),
+          // 同上：complaintStatsByType() → { byType: [...] }
+          byType: salesDemoDb.complaintStatsByType().byType,
+          byStatus: salesDemoDb.complaintStatsByStatus().byStatus,
           dashboard: salesDemoDb.getDashboardStats().complaints
         }
       };

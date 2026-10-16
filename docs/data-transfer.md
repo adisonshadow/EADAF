@@ -97,7 +97,7 @@
 
 | | 应用部署数据包 | `pnpm pack:*` 运行时包 |
 |--|----------------|------------------------|
-| 产出位置 | 浏览器下载 ZIP | `packages/EADAF/`、`packages/APP/` 的 `.tar.gz` |
+| 产出位置 | 浏览器下载 ZIP | `deploy-artifacts/EADAF/`、`deploy-artifacts/APP/` 的 `.tar.gz` |
 | 用途 | 实例间迁配置 / 业务数据 | 装 Docker/K8s、换程序镜像、跑 SQL |
 | 是否含容器镜像 | 否 | 是（平台安装/升级等） |
 | 操作面 | 已运行的管理端 | 开发机打包 + 目标机 `start.sh` / `apply.sh` |

@@ -5,8 +5,74 @@ const Application = require('../models/application');
 const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSecret');
 
 /**
+ * 查一个可用于验签的 SSO 应用。
+ * 应用必须 ACTIVE + 启用 SSO + 有统一密钥（client_secret / app_secret / 旧 salt）。
+ * @returns {Promise<{application: object, secret: string}|null>}
+ */
+async function findSsoSigningApp(applicationId) {
+  if (!applicationId) return null;
+
+  const application = await Application.findOne({
+    where: {
+      application_id: applicationId,
+      status: 'ACTIVE',
+      sso_enabled: true,
+    },
+  });
+
+  if (!application || !hasSsoSigningSecret(application)) return null;
+
+  return { application, secret: resolveSsoSigningSecret(application) };
+}
+
+/**
+ * 候选验签密钥顺序（纯函数，自检见 scripts/verify-auth-secret-candidates.js）。
+ *
+ * 顺序决定「哪类令牌能被接受」，因此不能只按 `?app=` 判断：
+ *   1. 带 `?app=`：应用密钥优先（SSO 用户 JWT），平台密钥兜底
+ *      （应用 Token 是平台密钥签发的，客户端多带了个 app 也不该 401）
+ *   2. 应用 Token（`type=application`，平台密钥签发）：平台密钥优先
+ *   3. 其余（SSO 用户 JWT）：令牌自述的 application_id 优先
+ *
+ * @param {object} input
+ * @param {{application: object|null, secret: string}|null} [input.queryApp] `?app=` 解析出的应用
+ * @param {{application: object|null, secret: string}|null} [input.claimedApp] 令牌自述 application_id 解析出的应用
+ * @param {string} input.platformSecret 平台 JWT 密钥
+ * @param {boolean} [input.isApplicationToken] 令牌为应用 Token（type=application）
+ * @returns {Array<{application: object|null, secret: string}>}
+ */
+function buildSecretCandidates({ queryApp, claimedApp, platformSecret, isApplicationToken }) {
+  const platformCandidate = { application: null, secret: platformSecret };
+  const candidates = [];
+
+  const add = (candidate) => {
+    if (!candidate || !candidate.secret) return;
+    if (candidates.some((item) => item.secret === candidate.secret)) return;
+    candidates.push(candidate);
+  };
+
+  if (queryApp) {
+    add(queryApp);
+    add(platformCandidate);
+  } else if (isApplicationToken) {
+    add(platformCandidate);
+    add(claimedApp);
+  } else {
+    add(claimedApp);
+    add(platformCandidate);
+  }
+
+  return candidates;
+}
+
+/**
  * Bearer Token 认证中间件
  * 支持标准 JWT 认证和第三方应用 SSO 认证
+ *
+ * 密钥选择：过去只看 URL 上有没有 `?app=`，而两类令牌正好用两把密钥签发
+ * （SSO 用户 JWT 用应用密钥、应用 Token 用平台密钥），客户端漏带 / 多带 `?app=`
+ * 都必然 401（现象：业务应用一发 EADAF 请求就掉登录）。现在改为按令牌自身的
+ * 线索挑密钥：令牌里的 application_id 声明 + `?app=` 显式声明 + 平台密钥兜底。
  */
 module.exports = async (ctx, next) => {
   const authHeader = ctx.headers.authorization;
@@ -64,35 +130,25 @@ module.exports = async (ctx, next) => {
   }
   
   try {
-    // 检查是否通过app参数传递了application_id（第三方系统验证）
+    // 先不验签解一层：只用来判断「该用哪把密钥」，是否可信仍由下面的 jwt.verify 决定
     const { app } = ctx.query;
-    let jwtSecret = config.api.security.jwtSecret;
-    let isSsoAuth = false;
-    
-    if (app) {
-      // 验证 application_id 并解析 SSO 签名密钥（client_secret / app_secret，兼容旧 salt）
-      const application = await Application.findOne({
-        where: {
-          application_id: app,
-          status: 'ACTIVE',
-          sso_enabled: true
-        }
-      });
+    const unverified = jwt.decode(token) || {};
+    const claimedAppId = typeof unverified === 'object' ? unverified.application_id : null;
+    const isApplicationToken = typeof unverified === 'object' && unverified.type === 'application';
 
-      if (application && hasSsoSigningSecret(application)) {
-        jwtSecret = resolveSsoSigningSecret(application);
-        isSsoAuth = true;
-        logger.debug('使用 SSO 认证', { 
-          application_id: app, 
-          application_name: application.name
-        });
-      } else {
+    const platformSecret = config.api.security.jwtSecret;
+
+    // ?app= 是显式声明：指定的应用必须存在且启用 SSO，否则保持原语义直接 401
+    let queryApp = null;
+    if (app) {
+      queryApp = await findSsoSigningApp(app);
+      if (!queryApp) {
         logger.warn('SSO 认证失败：应用不存在或未启用 SSO', {
           method: ctx.method,
           url: ctx.url,
           app: app
         });
-        
+
         ctx.status = 401;
         ctx.body = {
           code: 401,
@@ -101,9 +157,51 @@ module.exports = async (ctx, next) => {
         };
         return;
       }
+      logger.debug('使用 SSO 认证', {
+        application_id: app,
+        application_name: queryApp.application.name
+      });
     }
-    
-    const payload = jwt.verify(token, jwtSecret);
+
+    // 候选密钥顺序：
+    //   - 带 ?app=：应用密钥优先，平台密钥兜底（应用 Token 是平台密钥签的，多带 app 也要能用）
+    //   - 应用 Token（type=application，平台密钥签发）：平台密钥优先
+    //   - 其余（SSO 用户 JWT）：令牌自述的 application_id 优先
+    const claimedApp = !queryApp && !isApplicationToken && claimedAppId
+      ? await findSsoSigningApp(claimedAppId)
+      : null;
+    if (claimedApp) {
+      logger.debug('使用 SSO 认证（令牌自述 application_id）', {
+        application_id: claimedApp.application.application_id,
+        application_name: claimedApp.application.name
+      });
+    }
+
+    const secretCandidates = buildSecretCandidates({
+      queryApp,
+      claimedApp,
+      platformSecret,
+      isApplicationToken,
+    });
+
+    let payload = null;
+    let matchedCandidate = null;
+    let lastError = null;
+    let expiredError = null;
+    for (const candidate of secretCandidates) {
+      try {
+        payload = jwt.verify(token, candidate.secret);
+        matchedCandidate = candidate;
+        break;
+      } catch (error) {
+        if (error.name === 'TokenExpiredError') expiredError = error;
+        lastError = error;
+      }
+    }
+    if (!matchedCandidate) throw expiredError || lastError || new Error('invalid token');
+
+    // 用应用密钥验过的用户令牌即 SSO 认证（平台密钥签发的平台会话 / 应用 Token 都不算）
+    const isSsoAuth = matchedCandidate.secret !== platformSecret;
 
     // 应用令牌（type=application）：外部系统通过 app_secret 换取的 JWT，用于调用内置 API。
     // 校验应用启用 API 且状态为 ACTIVE，设置 ctx.state.application（不设 user），
@@ -175,6 +273,9 @@ module.exports = async (ctx, next) => {
     // 将用户信息存储到 ctx.state 中
     ctx.state.user = payload;
     ctx.state.isSsoAuth = isSsoAuth;
+    // 本次请求按哪个应用验的签：刷新令牌要用它保持应用会话
+    // （刷新令牌自身不带 application_id，避免超过 uac.refresh_tokens.token 的 255 上限）
+    ctx.state.ssoApplicationId = matchedCandidate.application?.application_id || null;
     
     logger.debug('认证成功', {
       method: ctx.method,
@@ -213,3 +314,7 @@ module.exports = async (ctx, next) => {
     };
   }
 };
+
+// 供自检脚本使用（不改中间件行为）
+module.exports.buildSecretCandidates = buildSecretCandidates;
+module.exports.findSsoSigningApp = findSsoSigningApp;

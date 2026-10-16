@@ -28,8 +28,8 @@ const execFileAsync = promisify(execFile);
 const PLATFORM_SCRIPT = 'scripts/deploy/pack-eadaf.sh';
 const APP_SCRIPT = 'scripts/deploy/pack-app.sh';
 const MANIFEST_READER = path.join(REPO_ROOT, 'scripts', 'deploy', 'read-app-manifest.cjs');
-const PLATFORM_DEFAULT_OUT_DIR = path.join(REPO_ROOT, 'packages', 'EADAF');
-const APP_DEFAULT_OUT_DIR = path.join(REPO_ROOT, 'packages', 'APP');
+const PLATFORM_DEFAULT_OUT_DIR = path.join(REPO_ROOT, 'deploy-artifacts', 'EADAF');
+const APP_DEFAULT_OUT_DIR = path.join(REPO_ROOT, 'deploy-artifacts', 'APP');
 
 const ENUMS = {
   network: ['offline', 'online'],

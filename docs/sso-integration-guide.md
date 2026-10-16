@@ -146,6 +146,22 @@ BFF 本地 `jwt.verify` 使用的密钥必须与上述应用密钥**完全一致
 
 登录时 EADAF 前端会把 URL 中的 `app` 作为 `application_id` 传给 `POST /api/v1/auth/login`，从而用应用密钥签发用户 JWT，与 `check?app=` 一致。
 
+### 6.3 验签密钥怎么选（`?app=` 与令牌自述）
+
+EADAF 侧按顺序挑验签密钥，因此**同一个 token 带不带 `?app=` 都能通过**：
+
+| 顺序 | 依据 | 说明 |
+|------|------|------|
+| 1 | `?app={application_id}` | 显式声明；该应用必须存在、`ACTIVE` 且已启用 SSO，否则 401 |
+| 2 | JWT 负载里的 `application_id` | 新版 EADAF 签发用户 JWT 时会写入，令牌自描述 |
+| 3 | 平台密钥 | 平台会话 JWT、以及用平台密钥签发的**应用 Token** |
+
+- 用户 JWT（应用密钥签发）与**应用 Token**（`POST /applications/token`，平台密钥签发）是两把密钥，过去靠「URL 上有没有 `?app=`」区分，客户端漏带/多带都会 401 —— 业务侧若把 401 当会话失效，用户就会「一发请求就掉登录」。
+- 客户端的稳妥做法仍是**显式带 `?app={application_id}`**（兼容旧后端与旧令牌）；`@eadaf/ai-base` 会自动读**令牌自述的 `application_id`** 补上它。
+- ⚠️ **别把「AI 归属应用」当 SSO 应用**：ai-base 配置里的 `applicationId`（EADAF 控制台用的是内置应用 `EADAF`，它并未启用 SSO）只用于 Skill/Scope 归属，把它塞进 `?app=` 会得到 401「无效的第三方应用认证」。`?app=` 只能是**签发该用户 JWT 的那个应用**。
+- 旧版本签发的用户 JWT 不带 `application_id` 声明，重新登录一次即可；在此之前请带 `?app=`。
+
+
 ---
 
 ## 7. 应用侧必备接口（BFF 自建）
@@ -203,6 +219,8 @@ GET {eadaf}/api/v1/applications-sso/{application_id}
 | 现象 | 优先排查 |
 |------|----------|
 | 登录后又回登录页 | Hash 回调格式错误；StrictMode 双跑；check 误清 token；回跳路径写成了 `/login` |
+| **一发后端请求就掉登录** | 客户端把 401 一律当会话失效：某些接口（AI / DataAPI / 存储）漏带 `?app=` 时必然 401。先复核 `/auth/check?app=` 再决定是否清 token（见 §8.3）；`@eadaf/ai-base` 会按令牌自述的 `application_id` 自动补 `?app=` |
+| 401 **无效的第三方应用认证** | `?app=` 指向的应用不可用于 SSO：不存在 / 非 `ACTIVE` / `sso_enabled=false` / 没生成统一密钥。常见误用是把「AI 归属应用」（如控制台的内置应用 EADAF）塞进了 `?app=`，以及把「AI 归属应用」和「签发该 JWT 的应用」混为一谈 |
 | 回调 400「缺少 token」 | `redirect_mode` / 参数名与 BFF 不一致（EADAF 下发的是 `access_token`） |
 | check 总是 401 | 验签密钥不一致；未带 `app={application_id}` 调 EADAF check；登录未走 SSO（未传 `application_id`）导致密钥不匹配 |
 | DataAPI 403、登录却正常 | 应用 Token / 域授权问题，与 SSO 用户 JWT 无关 |

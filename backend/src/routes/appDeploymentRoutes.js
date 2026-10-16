@@ -61,7 +61,7 @@ router.post('/app/inspect', authWithBuiltinApiGuard, AppDeploymentController.ins
  *               webPort: { type: integer, default: 9527 }
  *               apiPort: { type: integer, default: 9526 }
  *               version: { type: string, description: '默认取仓库根 package.json version' }
- *               outDir: { type: string, description: '默认 <仓库>/packages/EADAF' }
+ *               outDir: { type: string, description: '默认 <仓库>/deploy-artifacts/EADAF' }
  *     responses:
  *       200:
  *         description: 返回 job（用 /jobs/{id}/stream 订阅实时日志）
@@ -103,7 +103,7 @@ router.post(
  *               webPort: { type: integer }
  *               apiPort: { type: integer }
  *               version: { type: string, description: '默认取应用 package.json version' }
- *               outDir: { type: string, description: '默认 <仓库>/packages/APP' }
+ *               outDir: { type: string, description: '默认 <仓库>/deploy-artifacts/APP' }
  *     responses:
  *       200:
  *         description: 返回 job（用 /jobs/{id}/stream 订阅实时日志）

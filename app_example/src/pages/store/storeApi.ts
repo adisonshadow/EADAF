@@ -1,44 +1,68 @@
 /**
  * app_example —— 雨伞品牌厂商 · 电商独立站销售管理系统（示例应用）
  *
- * 数据全部来自 **EADAF 平台后端**，示例应用不自建后端、不建库：
- *   GET /api/v1/demo/sales/products           伞品列表
- *   GET /api/v1/demo/sales/orders             订单列表（支持 status / page / pageSize）
- *   GET /api/v1/demo/sales/orders/:orderNo    订单详情（含明细与会员信息）
- *   GET /api/v1/demo/sales/users              会员列表
- *   GET /api/v1/demo/sales/complaints         售后工单（支持 type / status / 分页）
- *   GET /api/v1/demo/sales/stats/orders       订单统计
- *   GET /api/v1/demo/sales/stats/complaints   售后统计
+ * 数据来自 **EADAF 生成并物化的 API 服务**（不再是演示用的硬编码接口）：
+ *   GET /api/v1/data/YS/member/Member        会员
+ *   GET /api/v1/data/YS/product/Product      伞品
+ *   GET /api/v1/data/YS/order/Order          订单（?status= 过滤，skip/limit 分页）
+ *   GET /api/v1/data/YS/order/Order/one      订单详情（?order_no=）
+ *   GET /api/v1/data/YS/order/OrderItem      订单明细（?order_id=）
+ *   GET /api/v1/data/YS/service/Complaint    售后工单
  *
- * 数据源是 EADAF 后端内置的销售 Demo SQLite（app_example/scripts/sales-demo-db.sql），
- * 由 `pnpm --filter ./backend init-sales-demo-db` 生成，AI Tool 与前端共用同一份数据。
+ * 这些服务背后是 EADAF「数据模型 → 物化 → API 服务」链路产物：
+ *   实体 code 形如 YS:order:Order，物化物理表是 bizdata_mat.ys_order。
+ * 响应信封统一为 { items, pagination:{total,page,pageSize} }。
+ *
+ * 说明：本示例不建后端，跨实体的关联（订单→会员、明细→伞品）在前端做，
+ * 用下面极简的 memo 缓存避免重复请求。真实项目应在 API 服务里做 join / 聚合。
  */
 
-const base = import.meta.env.VITE_API_BASE || '/api';
+import { withApp, handleUnauthorized } from '@/auth/auth';
+
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+const SVC = `${API_BASE}/v1/data/YS`;
+
+interface Envelope<T> {
+  items: T[];
+  pagination?: { total: number; page: number; pageSize: number; totalPages: number; hasNext: boolean };
+}
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function request<T>(path: string): Promise<T> {
-  const res = await fetch(`${base}${path}`, { headers: authHeaders() });
+/** 调 EADAF 生成的 API 服务；?app= 由 withApp 补上（SSO JWT 是应用密钥签的） */
+async function callSvc<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<Envelope<T>> {
+  const search = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === '') continue;
+    search.set(k, String(v));
+  }
+  const qs = search.toString();
+  const url = withApp(`${SVC}${path}${qs ? `?${qs}` : ''}`);
+  const res = await fetch(url, { headers: authHeaders() });
   const json = await res.json();
-  if (!res.ok) {
+  // 401：交给 auth 层先复核会话（可能只是这个接口的问题），确认无效才清登录态回 /auth/login
+  if (res.status === 401 || json.code === 401) {
+    void handleUnauthorized();
+    throw new Error('登录已失效，正在跳转登录页…');
+  }
+  if (!res.ok || (json.code && json.code !== 200)) {
     throw new Error(json.message || json.error?.message || '请求失败');
   }
-  return json.data as T;
+  const data = json.data || {};
+  // find 返回 { items, pagination }，findOne 返回 { item }
+  const items: T[] = data.items ?? (data.item !== undefined && data.item !== null ? [data.item] : []);
+  return { items, pagination: data.pagination };
 }
 
-function toQuery(params: Record<string, string | number | undefined> = {}) {
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === '' || value === null) continue;
-    search.set(key, String(value));
-  }
-  const query = search.toString();
-  return query ? `?${query}` : '';
-}
+const toPage = <T,>(env: Envelope<T>, fallbackPageSize: number) => ({
+  items: env.items,
+  total: env.pagination?.total ?? env.items.length,
+  page: env.pagination?.page ?? 1,
+  pageSize: env.pagination?.pageSize ?? fallbackPageSize,
+});
 
 /* ---------------------------------- 类型 ---------------------------------- */
 
@@ -48,7 +72,7 @@ export type ComplaintStatus = 'open' | 'processing' | 'resolved' | 'closed';
 export type MemberLevel = 'vip' | 'normal';
 
 export interface StoreProduct {
-  id: number;
+  id: string;
   sku: string;
   name: string;
   category?: string;
@@ -57,7 +81,7 @@ export interface StoreProduct {
 }
 
 export interface StoreMember {
-  id: number;
+  id: string;
   name: string;
   phone?: string;
   email?: string;
@@ -67,10 +91,12 @@ export interface StoreMember {
 }
 
 export interface StoreOrder {
-  id: number;
+  id: string;
   order_no: string;
-  user_id: number;
+  /** EADAF 实体里叫 member_id；这里保留 user_id 以兼容页面既有写法 */
+  user_id: string;
   user_name?: string;
+  member_id: string;
   status: OrderStatus;
   total_amount: number;
   created_at: string;
@@ -78,9 +104,9 @@ export interface StoreOrder {
 }
 
 export interface StoreOrderItem {
-  id: number;
-  order_id: number;
-  product_id: number;
+  id: string;
+  order_id: string;
+  product_id: string;
   quantity: number;
   unit_price: number;
   sku: string;
@@ -97,10 +123,11 @@ export interface StoreOrderDetail extends StoreOrder {
 }
 
 export interface StoreComplaint {
-  id: number;
-  order_id: number;
+  id: string;
+  order_id: string;
   order_no?: string;
-  user_id: number;
+  member_id: string;
+  user_id: string;
   user_name?: string;
   type: ComplaintType;
   content: string;
@@ -124,6 +151,41 @@ export interface ComplaintStats {
   dashboard: { total_complaints: number; open_count: number };
   byType: Array<{ type: ComplaintType; complaint_count: number }>;
   byStatus: Array<{ status: ComplaintStatus; complaint_count: number }>;
+}
+
+/* -------------------------------- 关联缓存 -------------------------------- */
+
+/** 会员 / 伞品 是全量小表，取一次缓存起来，供订单、明细、工单做关联 */
+let memberCache: StoreMember[] | null = null;
+let productCache: StoreProduct[] | null = null;
+
+async function getMembers(): Promise<StoreMember[]> {
+  if (!memberCache) {
+    const env = await callSvc<StoreMember>('/member/Member', { limit: 100 });
+    memberCache = env.items;
+  }
+  return memberCache;
+}
+
+async function getProducts(): Promise<StoreProduct[]> {
+  if (!productCache) {
+    const env = await callSvc<StoreProduct>('/product/Product', { limit: 100 });
+    productCache = env.items.map((p) => ({ ...p, price: Number(p.price), stock: Number(p.stock) }));
+  }
+  return productCache;
+}
+
+/** 把 EADAF 返回的订单行补上页面需要的会员名 */
+async function decorateOrders(rows: StoreOrder[]): Promise<StoreOrder[]> {
+  const members = await getMembers();
+  const byId = new Map(members.map((m) => [m.id, m]));
+  return rows.map((o) => ({
+    ...o,
+    member_id: o.member_id,
+    user_id: o.member_id,
+    total_amount: Number(o.total_amount),
+    user_name: byId.get(o.member_id)?.name,
+  }));
 }
 
 /* -------------------------------- 中文映射 -------------------------------- */
@@ -175,36 +237,141 @@ export const PRODUCT_CATEGORIES = ['长柄伞', '折叠伞', '高尔夫伞', '�
 
 /* --------------------------------- 接口封装 -------------------------------- */
 
-export function fetchProducts() {
-  return request<StoreProduct[]>('/v1/demo/sales/products');
+export async function fetchProducts(): Promise<StoreProduct[]> {
+  return getProducts();
 }
 
-export function fetchMembers() {
-  return request<StoreMember[]>('/v1/demo/sales/users');
+export async function fetchMembers(): Promise<StoreMember[]> {
+  return getMembers();
 }
 
-export function fetchOrders(params: { status?: string; page?: number; pageSize?: number } = {}) {
-  return request<{ items: StoreOrder[]; total: number; page: number; pageSize: number }>(
-    `/v1/demo/sales/orders${toQuery(params)}`,
-  );
+export async function fetchOrders(
+  params: { status?: string; page?: number; pageSize?: number } = {},
+): Promise<{ items: StoreOrder[]; total: number; page: number; pageSize: number }> {
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 20;
+  const env = await callSvc<StoreOrder>('/order/Order', {
+    skip: (page - 1) * pageSize,
+    limit: pageSize,
+    status: params.status && params.status !== 'all' ? params.status : undefined,
+  });
+  return toPage({ ...env, items: await decorateOrders(env.items) }, pageSize);
 }
 
-export function fetchOrderDetail(orderNo: string) {
-  return request<StoreOrderDetail>(`/v1/demo/sales/orders/${encodeURIComponent(orderNo)}`);
+export async function fetchOrderDetail(orderNo: string): Promise<StoreOrderDetail> {
+  const one = await callSvc<StoreOrder>('/order/Order/one', { order_no: orderNo });
+  const order = (await decorateOrders(one.items))[0];
+  if (!order) throw new Error('订单不存在');
+
+  const [itemEnv, members, products] = await Promise.all([
+    callSvc<StoreOrderItem>('/order/OrderItem', { order_id: order.id, limit: 100 }),
+    getMembers(),
+    getProducts(),
+  ]);
+  const member = members.find((m) => m.id === order.member_id);
+  const productById = new Map(products.map((p) => [p.id, p]));
+  const items = itemEnv.items.map((it) => {
+    const p = productById.get(it.product_id);
+    return {
+      ...it,
+      quantity: Number(it.quantity),
+      unit_price: Number(it.unit_price),
+      sku: p?.sku ?? '',
+      product_name: p?.name ?? '',
+      category: p?.category,
+    };
+  });
+
+  return {
+    ...order,
+    user_phone: member?.phone,
+    user_email: member?.email,
+    user_city: member?.city,
+    user_level: member?.level,
+    items,
+  };
 }
 
-export function fetchComplaints(
+export async function fetchComplaints(
   params: { type?: string; status?: string; page?: number; pageSize?: number } = {},
-) {
-  return request<{ items: StoreComplaint[]; total: number; page: number; pageSize: number }>(
-    `/v1/demo/sales/complaints${toQuery(params)}`,
+): Promise<{ items: StoreComplaint[]; total: number; page: number; pageSize: number }> {
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 20;
+  const env = await callSvc<StoreComplaint>('/service/Complaint', {
+    skip: (page - 1) * pageSize,
+    limit: pageSize,
+    type: params.type && params.type !== 'all' ? params.type : undefined,
+    status: params.status && params.status !== 'all' ? params.status : undefined,
+  });
+  const [members, orders] = await Promise.all([
+    getMembers(),
+    callSvc<StoreOrder>('/order/Order', { limit: 100 }),
+  ]);
+  const memberById = new Map(members.map((m) => [m.id, m]));
+  const orderById = new Map(orders.items.map((o) => [o.id, o]));
+  return toPage(
+    {
+      ...env,
+      items: env.items.map((c) => ({
+        ...c,
+        user_id: c.member_id ?? (c as unknown as { user_id: string }).user_id,
+        user_name: memberById.get(c.member_id)?.name,
+        order_no: orderById.get(c.order_id)?.order_no,
+      })),
+    },
+    pageSize,
   );
 }
 
-export function fetchOrderStats() {
-  return request<OrderStats>('/v1/demo/sales/stats/orders');
+/**
+ * 经营概览统计。
+ * 示例数据量很小，直接拉全量在前端汇总；真实项目应在 API 服务里用 aggregate/SQL 聚合。
+ */
+export async function fetchOrderStats(): Promise<OrderStats> {
+  const env = await callSvc<StoreOrder>('/order/Order', { limit: 100 });
+  const rows = env.items.map((o) => ({ ...o, total_amount: Number(o.total_amount) }));
+
+  const byStatusMap = new Map<OrderStatus, { order_count: number; total_amount: number }>();
+  for (const o of rows) {
+    const cur = byStatusMap.get(o.status) || { order_count: 0, total_amount: 0 };
+    cur.order_count += 1;
+    cur.total_amount += o.total_amount;
+    byStatusMap.set(o.status, cur);
+  }
+
+  return {
+    dashboard: {
+      total_orders: rows.length,
+      pending_count: rows.filter((o) => o.status === 'pending').length,
+      shipped_count: rows.filter((o) => o.status === 'shipped').length,
+      completed_count: rows.filter((o) => o.status === 'completed').length,
+      total_amount: rows.reduce((s, o) => s + o.total_amount, 0),
+    },
+    byStatus: [...byStatusMap.entries()].map(([status, v]) => ({
+      status,
+      order_count: v.order_count,
+      total_amount: v.total_amount,
+    })),
+  };
 }
 
-export function fetchComplaintStats() {
-  return request<ComplaintStats>('/v1/demo/sales/stats/complaints');
+export async function fetchComplaintStats(): Promise<ComplaintStats> {
+  const env = await callSvc<StoreComplaint>('/service/Complaint', { limit: 100 });
+  const rows = env.items;
+
+  const byTypeMap = new Map<ComplaintType, number>();
+  const byStatusMap = new Map<ComplaintStatus, number>();
+  for (const c of rows) {
+    byTypeMap.set(c.type, (byTypeMap.get(c.type) || 0) + 1);
+    byStatusMap.set(c.status, (byStatusMap.get(c.status) || 0) + 1);
+  }
+
+  return {
+    dashboard: {
+      total_complaints: rows.length,
+      open_count: byStatusMap.get('open') || 0,
+    },
+    byType: [...byTypeMap.entries()].map(([type, complaint_count]) => ({ type, complaint_count })),
+    byStatus: [...byStatusMap.entries()].map(([status, complaint_count]) => ({ status, complaint_count })),
+  };
 }
