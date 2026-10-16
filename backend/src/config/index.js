@@ -147,11 +147,6 @@ const ai = {
   upstreamTimeoutMs: parseInt(process.env.AI_UPSTREAM_TIMEOUT_MS, 60000)
 };
 
-const salesDemo = {
-  dbPath: process.env.SALES_DEMO_DB_PATH || './data/sales-demo.db',
-  sqlPath: process.env.SALES_DEMO_SQL_PATH || '../app_example/scripts/sales-demo-db.sql'
-};
-
 const systemApplication = {
   applicationId: process.env.SYSTEM_APPLICATION_ID || '10000000-0000-4000-8000-000000000002',
   appSecret: process.env.SYSTEM_APPLICATION_SECRET || '',
@@ -195,7 +190,6 @@ module.exports = {
   logging,
   redis,
   ai,
-  salesDemo,
   systemApplication,
   storage,
   jwt: {

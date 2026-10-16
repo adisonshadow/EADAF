@@ -48,13 +48,15 @@ npm test                    # 单元 / 接口测试
 npm run swagger             # 生成 swagger.json
 pnpm export-eadaf-ai-skills # 从当前库导出 EADAF Skill/Tool upsert SQL 并写入仓库
 pnpm migrate-eadaf-ai-skills # 在目标库幂等 upsert（不重置、不删业务应用 Skill）
-npm run init-sales-demo-db  # 单独初始化销售 Demo SQLite
 npm run db:maintenance:all  # VACUUM / ANALYZE / REINDEX
 ```
 
 ### 同步 EADAF Skill / Tool
 
 `init-db` 会执行 `scripts/migrate-eadaf-ai-skills.sql`：写入**全局 Skill** 以及绑定应用 `EADAF` 的专用 Skill/Tool（如 `bizdata-model-design`）。不含 SFDEP、sales-demo 等业务应用 Skill，也不含销售域测试实体。
+
+> 销售 Demo（`app_example`）的 AI 工具直接读 **EADAF 物化表**（`bizdata_mat.ys_*`），
+> 与页面/API 服务同源 —— 不再有本地 SQLite 演示库。
 
 本地改完 Skill 正文、Tool 或绑定后，导出 SQL 提交，再到服务器执行（不 DROP 库）：
 

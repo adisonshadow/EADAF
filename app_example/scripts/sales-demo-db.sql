@@ -1,4 +1,4 @@
--- 雨伞品牌厂商 · 电商独立站销售管理系统 —— 销售 Demo（SQLite）种子数据
+-- 雨伞品牌厂商 · 电商独立站销售管理系统 —— 销售 Demo 种子数据（灌入 EADAF 物化表 bizdata_mat.ys_*）
 -- 会员 20 | 伞品 20 | 订单 60 | 订单明细 | 售后工单 10
 -- 由 app_example/scripts/gen-sales-demo-sql.cjs 生成；订单金额 = 明细单价 × 数量之和
 
