@@ -218,8 +218,9 @@ export default defineConfig({
     sourcemap: true,
   },
   define: {
+    // 跨域部署的 bootstrap 兜底；同源部署留空。系统存储桶 code 等改为运行时可配
+    // （public/runtime-config.js 或后端 /api/v1/system/runtime-config，见 src/config/deployConfig.ts）
     'process.env.APP_API_BASE_URL': JSON.stringify(APP_ENV.prodApiBaseUrl),
-    'process.env.APP_SYSTEM_STORAGE_BUCKET_CODE': JSON.stringify(APP_ENV.systemStorageBucketCode),
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
   },
 });

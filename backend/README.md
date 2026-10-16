@@ -81,6 +81,10 @@ pnpm --filter ./backend config:check     # 一致性检查（CI 可跑）
 **`NODE_ENV` 写进 env 文件**（应由 cross-env/pm2/compose 决定），并提示未文档化的键、
 多文件重复定义、compose 默认值与 env 不一致、`.env.production` 缺键。
 
+**前端运行时可配**：`GET /api/v1/system/runtime-config`（**公开只读**，不含密钥）向下发
+`systemStorageBucketCode` 等跨环境会变的值，前端启动时读取——同一份前端产物可部署到不同环境，
+不必为"桶 code 不同"重新构建。前端侧解析顺序见 `EADAF_frontend/src/config/deployConfig.ts`。
+
 ### 同步 EADAF Skill / Tool
 
 `init-db` 会执行 `scripts/migrate-eadaf-ai-skills.sql`：写入**全局 Skill** 以及绑定应用 `EADAF` 的专用 Skill/Tool（如 `bizdata-model-design`）。不含 SFDEP、sales-demo 等业务应用 Skill，也不含销售域测试实体。

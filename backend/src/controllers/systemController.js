@@ -1,4 +1,5 @@
 const systemService = require('../services/system/systemService');
+const config = require('../config');
 const logger = require('../utils/logger');
 const { formatApiError } = require('../utils/formatApiError');
 const fs = require('fs/promises');
@@ -11,6 +12,26 @@ function sendError(ctx, error, fallbackStatus = 500) {
 }
 
 class SystemController {
+  /**
+   * 运行时可配（**公开**，供前端启动时读取；只放非敏感值）。
+   *
+   * 目的：同一份前端产物可部署到不同环境，不必因为"系统存储桶 code 不同"而重新构建。
+   * 前端解析顺序：window.__EADAF_DEPLOY__（部署时覆盖 public/runtime-config.js）> 本接口 > 代码默认值。
+   */
+  static async getRuntimeConfig(ctx) {
+    try {
+      ctx.body = {
+        code: 200,
+        message: 'success',
+        data: {
+          systemStorageBucketCode: config.storage.systemBucket.code,
+        },
+      };
+    } catch (error) {
+      sendError(ctx, error);
+    }
+  }
+
   static async getFeatures(ctx) {
     try {
       const data = await systemService.getSystemFeatures();
