@@ -6,6 +6,9 @@ const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSe
 const { resolveSsoRedirectUri, requestHostInfo, isPlatformDevMode, isAllowedPostLogoutRedirect } = require('../utils/ssoRedirectUri');
 const ssoSession = require('../utils/ssoSession');
 const refreshRotation = require('../services/sso/refreshRotation');
+const sessionRevocation = require('../services/sso/sessionRevocation');
+const { issuerFromContext } = require('../utils/ssoIssuer');
+const { getPublicKey } = require('../utils/ssoKeys');
 
 const { isLoginVerifyRequired } = require('../utils/ssoLoginVerify');
 const logger = require('../utils/logger');
@@ -456,6 +459,7 @@ class AuthController {
       const rotation = await refreshRotation.rotateRefreshToken({
         presentedToken: refresh_token,
         applicationIdHint: refreshAppId,
+        issuer: issuerFromContext(ctx),
       });
 
       if (!rotation.ok) {
@@ -556,14 +560,16 @@ class AuthController {
         return;
       }
 
+      const issuer = issuerFromContext(ctx);
+
       if (sid) {
-        await ssoSession.revokeSession(sid, 'logout');
+        await sessionRevocation.revokeSession({ sid, userId, issuer, reason: 'logout' });
         logger.debug('已撤销 SSO 会话', { sid, user_id: userId });
       }
 
       let revokedAll = 0;
       if (all && userId) {
-        revokedAll = await ssoSession.revokeAllSessions(userId, 'logout-all');
+        revokedAll = await sessionRevocation.revokeAllSessions({ userId, issuer, reason: 'logout-all' });
       }
 
       if (!username && userId) {
@@ -656,7 +662,12 @@ class AuthController {
         return;
       }
 
-      await ssoSession.revokeSession(sid, 'revoked-by-user');
+      await sessionRevocation.revokeSession({
+        sid,
+        userId,
+        issuer: issuerFromContext(ctx),
+        reason: 'revoked-by-user',
+      });
       ctx.body = { code: 200, message: '已撤销该会话', data: { sid } };
     } catch (error) {
       logger.error('撤销会话失败', { error: error.message });
@@ -671,7 +682,11 @@ class AuthController {
   static async revokeAllSessions(ctx) {
     try {
       const userId = ctx.state.user?.user_id;
-      const revoked = await ssoSession.revokeAllSessions(userId, 'revoked-by-user');
+      const revoked = await sessionRevocation.revokeAllSessions({
+        userId,
+        issuer: issuerFromContext(ctx),
+        reason: 'revoked-by-user',
+      });
       ctx.body = { code: 200, message: '已退出所有设备', data: { revoked_sessions: revoked } };
     } catch (error) {
       logger.error('退出所有设备失败', { error: error.message });
@@ -683,24 +698,62 @@ class AuthController {
   /**
    * 单点登出中转（RP-Initiated Logout 的最小实现）
    *
-   * 浏览器侧先在管理台 `/auth/logout` 页面撤销 refresh 并清掉本地令牌，
-   * 再跳到这里；本接口只做「回跳目标白名单校验 + state 回传 + logged_out 标记」后 302。
+   * 两种用法（都在这里）：
+   *   1. **RP-Initiated Logout（推荐）**：带 `id_token_hint`（Phase 2 的 id_token），
+   *      服务端验签后**直接撤销会话**（并按 back-channel logout 通知各应用），再 302 回应用；
+   *   2. **兼容 Phase 0 的浏览器侧流程**：不带 `id_token_hint` 时，只做
+   *      「回跳目标白名单校验 + state 回传 + logged_out 标记」——撤销由管理台
+   *      `/auth/logout` 页面在浏览器侧完成（它的刷新令牌不在服务端）。
    *
-   * 之所以不在这里撤令牌：Phase 0 的刷新令牌还在浏览器 localStorage 里，
-   * 服务端拿不到；等 Phase 1 引入服务端会话（sid）后改为服务端直接撤销。
-   *
+   * GET /api/v1/auth/end-session?id_token_hint=<id_token>&post_logout_redirect_uri=<url>&state=<opaque>
    * GET /api/v1/auth/end-session?app=<application_id>&post_logout_redirect_uri=<url>&state=<opaque>
    */
   static async endSession(ctx) {
-    const { app, post_logout_redirect_uri: postLogoutRedirect, state } = ctx.query;
+    const {
+      app,
+      client_id: clientIdParam,
+      post_logout_redirect_uri: postLogoutRedirect,
+      state,
+      id_token_hint: idTokenHint,
+    } = ctx.query;
 
     try {
+      const issuer = issuerFromContext(ctx);
+
+      // 1) id_token_hint：验签后服务端直接撤会话（不依赖浏览器里的令牌）
+      let hintedClientId = null;
+      let hintedUserId = null;
+      if (idTokenHint) {
+        try {
+          const payload = jwt.verify(idTokenHint, getPublicKey(), { algorithms: ['RS256'] });
+          hintedUserId = payload.sub || null;
+          hintedClientId = typeof payload.aud === 'string'
+            ? payload.aud
+            : (Array.isArray(payload.aud) ? payload.aud[0] : null);
+
+          if (payload.sid) {
+            await sessionRevocation.revokeSession({
+              sid: payload.sid,
+              userId: hintedUserId,
+              issuer,
+              reason: 'rp-initiated-logout',
+            });
+            logger.debug('RP-Initiated Logout：已撤销会话', { sid: payload.sid });
+          }
+        } catch (error) {
+          // 提示无效就当没带：继续按"回跳"处理，避免把用户卡在错误页
+          logger.warn('end-session 的 id_token_hint 校验失败', { error: error.message });
+        }
+      }
+
+      // 2) 回跳目标白名单：client_id 优先用显式参数，其次用 id_token 的 aud
+      const clientId = app || clientIdParam || hintedClientId;
       let target = null;
 
-      if (app && postLogoutRedirect) {
+      if (clientId && postLogoutRedirect) {
         const application = await Application.findOne({
           where: {
-            application_id: app,
+            application_id: clientId,
             status: 'ACTIVE',
             sso_enabled: true,
           },
@@ -714,7 +767,7 @@ class AuthController {
         } else {
           // 记下来但不把用户送过去：可能是配置写错，也可能是伪造的开放重定向尝试
           logger.warn('登出回跳目标未通过白名单校验', {
-            app,
+            client_id: clientId,
             post_logout_redirect_uri: postLogoutRedirect,
             ip: ctx.ip,
           });
@@ -735,11 +788,11 @@ class AuthController {
       url.searchParams.set('logged_out', '1');
       if (state) url.searchParams.set('state', String(state));
 
-      logger.debug('单点登出回跳', { app, target: url.origin });
+      logger.debug('单点登出回跳', { client_id: clientId, target: url.origin });
 
       ctx.redirect(url.toString());
     } catch (error) {
-      logger.error('单点登出中转失败', { error: error.message, app });
+      logger.error('单点登出中转失败', { error: error.message, client_id: clientId });
       ctx.status = 500;
       ctx.body = {
         code: 500,

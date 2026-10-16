@@ -11,6 +11,7 @@
 const { Op } = require('sequelize');
 const logger = require('../../utils/logger');
 const ssoSession = require('../../utils/ssoSession');
+const sessionRevocation = require('./sessionRevocation');
 const RefreshToken = require('../../models/refreshToken');
 const User = require('../../models/user');
 
@@ -20,13 +21,13 @@ const REUSE_GRACE_MS = 60 * 1000;
 const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7d
 
 /**
- * @param {{ presentedToken: string, applicationIdHint?: string|null }} params
+ * @param {{ presentedToken: string, applicationIdHint?: string|null, issuer?: string|null }} params
  * @returns {Promise<
  *   { ok: true, user: object, sid: string|null, applicationId: string|null, newRefreshToken: string }
  *   | { ok: false, status: number, error_code: string, message: string }
  * >}
  */
-async function rotateRefreshToken({ presentedToken, applicationIdHint = null }) {
+async function rotateRefreshToken({ presentedToken, applicationIdHint = null, issuer = null }) {
   const tokenRecord = await RefreshToken.findOne({
     where: {
       token: presentedToken,
@@ -47,7 +48,15 @@ async function rotateRefreshToken({ presentedToken, applicationIdHint = null }) 
     const reusedAfterGrace = Number.isFinite(rotatedAt) && Date.now() - rotatedAt > REUSE_GRACE_MS;
 
     if (reusedAfterGrace) {
-      if (sid) await ssoSession.revokeSession(sid, 'refresh-token-reuse');
+      // 重放是明确的安全事件：撤会话并按 back-channel 通知该设备上用过的应用
+      if (sid) {
+        await sessionRevocation.revokeSession({
+          sid,
+          userId: tokenRecord.user_id,
+          issuer,
+          reason: 'refresh-token-reuse',
+        });
+      }
       logger.warn('检测到刷新令牌重放，已撤销该会话', { user_id: tokenRecord.user_id, sid });
       return {
         ok: false,

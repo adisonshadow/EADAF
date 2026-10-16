@@ -261,6 +261,21 @@ class ApplicationController {
             return;
           }
         }
+
+        // 验证 backchannel_logout_uri 格式（如果提供）
+        if (sso_config.backchannel_logout_uri) {
+          try {
+            new URL(sso_config.backchannel_logout_uri);
+          } catch {
+            ctx.status = 400;
+            ctx.body = {
+              code: 400,
+              message: 'Back-Channel Logout 接收地址格式不正确',
+              data: null
+            };
+            return;
+          }
+        }
       }
 
       const loginPage = sso_config
@@ -578,7 +593,9 @@ class ApplicationController {
         for (const [field, message] of [
           ['base_url', 'SSO系统URL格式不正确'],
           ['issuer', 'OIDC发行者URL格式不正确'],
-          ['frontend_url', '前端应用URL格式不正确']
+          ['frontend_url', '前端应用URL格式不正确'],
+          // Phase 3：Back-Channel Logout 的接收地址（应用 BFF）
+          ['backchannel_logout_uri', 'Back-Channel Logout 接收地址格式不正确']
         ]) {
           if (mergedSsoConfig[field]) {
             try {

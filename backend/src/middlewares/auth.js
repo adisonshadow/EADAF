@@ -104,6 +104,20 @@ function buildSecretCandidates({
   return candidates;
 }
 
+/** 旧流程使用情况的限流日志（避免每个请求一条） */
+const LEGACY_LOG_COOLDOWN_MS = 60 * 1000;
+let lastLegacyLogAt = 0;
+function noteLegacyUsage(ctx) {
+  const now = Date.now();
+  if (now - lastLegacyLogAt < LEGACY_LOG_COOLDOWN_MS) return;
+  lastLegacyLogAt = now;
+  logger.warn('仍在使用 SSO 旧流程（?app= + 应用密钥签发的用户 JWT）；该路径保留 2 个版本后停用，请迁移到授权码 + PKCE', {
+    method: ctx.method,
+    url: ctx.url,
+    application_id: ctx.query?.app || null,
+  });
+}
+
 /**
  * Bearer Token 认证中间件
  * 支持标准 JWT 认证和第三方应用 SSO 认证
@@ -244,8 +258,19 @@ module.exports = async (ctx, next) => {
     }
     if (!matchedCandidate) throw expiredError || lastError || new Error('invalid token');
 
-    // 用应用密钥验过的用户令牌即 SSO 认证（平台签发/平台会话/应用 Token 都不算）
+    // 用应用密钥验过的用户令牌即 SSO 认证（平台签发/平台会话/应用 Token 都不算）。
+    // 这条路径已弃用（保留 2 个版本）：通过响应头暴露给接入方/运维，便于观测存量并排期迁移。
     const isSsoAuth = matchedCandidate.source === 'app';
+    if (isSsoAuth) {
+      // 注意：HTTP 头只能是 ASCII（中文会让 Node 抛 Invalid character in header content）
+      ctx.set('Deprecation', 'true');
+      ctx.set(
+        'Warning',
+        '299 - "EADAF SSO: legacy flow (?app= + app-secret-signed user JWT) is deprecated; migrate to /oauth/authorize + PKCE (docs/sso-integration-guide.md section 13)"',
+      );
+      ctx.set('Link', '<https://github.com/adisonshadow/UAC2/blob/main/docs/sso-integration-guide.md>; rel="deprecation"');
+      noteLegacyUsage(ctx);
+    }
 
     // 应用令牌（type=application）：外部系统通过 app_secret 换取的 JWT，用于调用内置 API。
     // 校验应用启用 API 且状态为 ACTIVE，设置 ctx.state.application（不设 user），

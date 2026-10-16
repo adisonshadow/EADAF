@@ -26,13 +26,7 @@ const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSe
 const ssoSession = require('../utils/ssoSession');
 const oauthService = require('../services/sso/oauthService');
 const refreshRotation = require('../services/sso/refreshRotation');
-
-/** 平台 issuer：优先环境变量（多域名/反代场景），否则用本次请求的 origin */
-function issuerFromContext(ctx) {
-  const configured = String(process.env.SSO_ISSUER || '').trim().replace(/\/+$/, '');
-  if (configured) return configured;
-  return `${ctx.request.protocol}://${ctx.request.host}`;
-}
+const { issuerFromContext } = require('../utils/ssoIssuer');
 
 function oauthError(ctx, status, error, description) {
   ctx.status = status;
@@ -303,6 +297,7 @@ class OAuthController {
     const rotation = await refreshRotation.rotateRefreshToken({
       presentedToken: refreshToken,
       applicationIdHint: application?.application_id || null,
+      issuer,
     });
 
     if (!rotation.ok) {

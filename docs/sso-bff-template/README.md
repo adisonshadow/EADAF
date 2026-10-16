@@ -68,3 +68,4 @@ node docs/sso-bff-template/server.mjs
 | `GET {EADAF_API}/.well-known/jwks.json` | 公钥（本地验签） |
 | `GET {EADAF_API}/.well-known/openid-configuration` | 发现文档 |
 | `{EADAF_FRONTEND}/auth/logout` | 登出中转（撤销 sid，级联该设备所有应用） |
+| 本模板 `POST /auth/backchannel-logout` | EADAF 撤销会话时主动推送签名的 `logout_token`，模板验签后按 `sid` 清本地会话（配在应用的 `backchannel_logout_uri`） |

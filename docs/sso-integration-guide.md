@@ -504,6 +504,78 @@ async function verifyEadafToken(token, { eadafBaseUrl, applicationId }) {
 
 ---
 
+## 14. 单点登出（SLO）与弃用时间表
+
+### 14.1 RP-Initiated Logout（应用发起，推荐）
+
+BFF 清掉自己的会话后，把浏览器送到 EADAF：
+
+```http
+GET {eadaf}/api/v1/auth/end-session
+      ?id_token_hint={授权码流程拿到的 id_token}
+      &post_logout_redirect_uri={应用登录页}
+      &state={opaque}
+```
+
+- 带 `id_token_hint`：EADAF **验签后服务端直接撤销会话**（不依赖浏览器里还有令牌），
+  并按 §14.2 通知该设备上用过的每个应用；然后 302 回 `post_logout_redirect_uri`（附 `state` 与 `logged_out=1`）；
+- 不带 hint：兼容 Phase 0 的浏览器侧流程（管理台 `/auth/logout` 页撤销 + 回跳白名单校验），行为见 §7.1；
+- `post_logout_redirect_uri` 必须与应用登记的 `redirect_uri`（含 DEV 那套）或 `frontend_url` **同源**，否则 400；
+- 伪造/过期 hint 不会撤销任何会话（只记日志并按回跳处理）。
+
+### 14.2 Back-Channel Logout（EADAF 主动通知应用）
+
+在管理台该应用的 SSO 配置里填 **`backchannel_logout_uri`**（应用 BFF 的接收地址）。EADAF 撤销会话时会向它发：
+
+```http
+POST {backchannel_logout_uri}
+Content-Type: application/x-www-form-urlencoded
+
+logout_token=<RS256 签名的 JWT>
+```
+
+应用侧**必须**逐项校验，然后按 `sid` 清掉本地会话并返回 200：
+
+1. 用 JWKS 公钥验签，且限定 `algorithms: ['RS256']`；
+2. `iss` 等于 EADAF 的 issuer、`aud` 等于自己的 `application_id`、未过期；
+3. 必须带 `events["http://schemas.openid.net/event/backchannel-logout"]`；
+4. **不能带 `nonce`**（否则等于允许把 ID Token 当 logout token 重放）；
+5. 校验失败返回 400，别清会话。
+
+参考实现（可直接抄）：
+
+- 示例应用 BFF：[`app_example/server/index.mjs`](../app_example/server/index.mjs) 的 `/auth/backchannel-logout`
+- 通用 BFF 模板：[`docs/sso-bff-template/server.mjs`](./sso-bff-template/server.mjs) 的同名端点
+
+> 实测效果：在 EADAF 侧撤销会话后，应用 BFF **无需轮询**即清掉会话，`/auth/me` 立刻 401。
+
+### 14.3 老流程弃用时间表
+
+老流程 = `GET {eadaf_frontend}/auth/login?app=` + 用**应用密钥**签发的用户 JWT（§2–§12）。
+新接入一律走 §13 的授权码 + PKCE。
+
+| 阶段 | 状态 | 老流程 | 新流程 |
+|------|------|--------|--------|
+| 当前（开发版） | 双栈 | 可用（会返回弃用响应头） | 可用，推荐 |
+| 下一个大版本 | 弃用期 | 可用，文档标注弃用，新接入必须走新流程 | 唯一推荐 |
+| 再下一个大版本 | 停用 | **停用**（`?app=` 不再作为验签依据） | — |
+
+**怎么观测还有多少存量调用**：只有"应用密钥签发的用户 JWT"会带上这些响应头——
+
+```http
+Deprecation: true
+Warning: 299 - "EADAF SSO: legacy flow (?app= + app-secret-signed user JWT) is deprecated; ..."
+Link: <.../docs/sso-integration-guide.md>; rel="deprecation"
+```
+
+后端同时会打限流 warn 日志（默认 1 分钟一条，含 `application_id`），可以用来盘出还需要迁移的应用。
+
+**迁移步骤**：按 §13 接授权码 + PKCE；BFF 可直接对照
+[`app_example/server/index.mjs`](../app_example/server/index.mjs)（示例应用已按 BFF 形态改造）
+或 [`docs/sso-bff-template`](./sso-bff-template/README.md)。
+
+---
+
 > **文档版本**：2026-08-09  
 > **适用**：当前 EADAF 开发版  
 > **相关**：AI 调用约定见 [`docs/eadaf-api-skill/SKILL.md`](./eadaf-api-skill/SKILL.md)

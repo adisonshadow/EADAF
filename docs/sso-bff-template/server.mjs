@@ -119,6 +119,17 @@ async function getJwks() {
  * 用 EADAF 的 JWKS 公钥本地验签（不依赖共享密钥）。
  * 这里用 Node 自带的 crypto 验签，避免为模板引入依赖。
  */
+/** 校验 logout token：必须带 back-channel 事件且不能带 nonce（防 ID Token 重放） */
+async function verifyLogoutToken(token) {
+  const payload = await verifyAccessToken(token);
+  const events = payload.events || {};
+  if (!events['http://schemas.openid.net/event/backchannel-logout']) {
+    throw new Error('缺少 back-channel-logout 事件声明');
+  }
+  if (payload.nonce) throw new Error('logout token 不应带 nonce');
+  return payload;
+}
+
 async function verifyAccessToken(token) {
   const [headerPart, payloadPart, signaturePart] = String(token).split('.');
   if (!signaturePart) throw new Error('令牌格式错误');
@@ -143,6 +154,39 @@ async function verifyAccessToken(token) {
   if (payload.exp && payload.exp < now) throw new Error('令牌已过期');
   if (payload.aud && CLIENT_ID && payload.aud !== CLIENT_ID) throw new Error('aud 不匹配');
   return payload;
+}
+
+
+/**
+ * Back-Channel Logout 接收端点（OIDC Back-Channel Logout 1.0）
+ *
+ * EADAF 撤销会话时会主动 POST 到这里（`application/x-www-form-urlencoded` 的 `logout_token`），
+ * 我们验签 + 校验 iss/aud/events 后按 `sid` 清掉本地会话 —— 用户不必等下一次请求才发现自己已登出。
+ */
+async function handleBackChannelLogout(req, res) {
+  const params = new URLSearchParams(req.bodyRaw || '');
+  const logoutToken = params.get('logout_token');
+  if (!logoutToken) {
+    return sendJson(res, 400, { error: 'invalid_request', error_description: '缺少 logout_token' });
+  }
+  let claims;
+  try {
+    claims = await verifyLogoutToken(logoutToken);
+  } catch (error) {
+    return sendJson(res, 400, { error: 'invalid_token', error_description: error.message });
+  }
+  if (!claims.sid) {
+    return sendJson(res, 400, { error: 'invalid_token', error_description: 'logout token 缺少 sid' });
+  }
+  let removed = 0;
+  for (const [id, session] of sessions) {
+    if (session.sid === claims.sid) {
+      sessions.delete(id);
+      removed += 1;
+    }
+  }
+  console.log(`[bff] back-channel logout：sid=${claims.sid} 清掉 ${removed} 个会话`);
+  return sendJson(res, 200, { ok: true, removed });
 }
 
 /* ------------------------------ 路由 ------------------------------ */
@@ -284,6 +328,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/auth/callback') return await handleCallback(req, res, url);
     if (url.pathname === '/auth/me') return await handleMe(req, res, session);
     if (url.pathname === '/auth/logout') return await handleLogout(req, res, session);
+    if (url.pathname === '/auth/backchannel-logout') return await handleBackChannelLogout(req, res);
     if (url.pathname.startsWith('/api/')) return await handleProxy(req, res, url, session);
     return sendJson(res, 404, { error: 'not_found' });
   } catch (error) {

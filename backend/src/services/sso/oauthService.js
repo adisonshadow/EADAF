@@ -118,6 +118,31 @@ function signIdToken({ userId, sid, applicationId, issuer, nonce, authTime }) {
   );
 }
 
+/**
+ * Back-Channel Logout Token（OIDC Back-Channel Logout 1.0）
+ *
+ * 平台在撤销会话时主动 POST 给应用 BFF，应用据此立刻清掉自己的会话，
+ * 不必等下一次请求才发现失效。`events` 声明是协议要求；`sid`/`sub` 让应用对号入座。
+ */
+function signLogoutToken({ userId, sid, applicationId, issuer }) {
+  return jwt.sign(
+    {
+      sub: userId,
+      sid,
+      jti: crypto.randomUUID(),
+      events: { 'http://schemas.openid.net/event/backchannel-logout': {} },
+    },
+    getPrivateKey(),
+    {
+      algorithm: 'RS256',
+      keyid: getKeyId(),
+      expiresIn: 120,
+      issuer,
+      audience: applicationId,
+    },
+  );
+}
+
 /** OIDC 发现文档（够用即可：只声明本平台真正实现的部分） */
 function buildDiscoveryDocument(issuer) {
   return {
@@ -126,6 +151,8 @@ function buildDiscoveryDocument(issuer) {
     token_endpoint: `${issuer}/api/v1/oauth/token`,
     jwks_uri: `${issuer}/.well-known/jwks.json`,
     end_session_endpoint: `${issuer}/api/v1/auth/end-session`,
+    backchannel_logout_supported: true,
+    backchannel_logout_session_supported: true,
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256', 'plain'],
@@ -143,6 +170,7 @@ module.exports = {
   consumeAuthorizationCode,
   signUserAccessToken,
   signIdToken,
+  signLogoutToken,
   buildDiscoveryDocument,
   base64UrlSha256,
 };

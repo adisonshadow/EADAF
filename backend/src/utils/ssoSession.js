@@ -28,6 +28,7 @@ const USER_SIDS_PREFIX = 'sso:user:';
 const REFRESH_PREFIX = 'sso:rt:';
 const REVOKED_PREFIX = 'sso:revoked:';
 const USER_SIDS_SUFFIX = ':sids';
+const SESSION_APPS_SUFFIX = ':apps';
 
 /**
  * 解析 '15m' / '24h' / '7d' / 纯秒数 → 秒
@@ -63,6 +64,7 @@ const REFRESH_TTL_SECONDS = parseDurationToSeconds(
 );
 
 const userSidsKey = (userId) => `${USER_SIDS_PREFIX}${userId}${USER_SIDS_SUFFIX}`;
+const sessionAppsKey = (sid) => `${SESSION_PREFIX}${sid}${SESSION_APPS_SUFFIX}`;
 
 function newSessionId() {
   return crypto.randomUUID();
@@ -141,14 +143,34 @@ async function touchSession(sid) {
   });
 }
 
-/** 把刷新令牌绑定到会话（刷新/登出时靠它找回 sid，不必依赖 access token） */
+/**
+ * 把刷新令牌绑定到会话（刷新/登出时靠它找回 sid，不必依赖 access token）。
+ *
+ * 顺带把"这个应用用过这条会话"记进集合 —— Phase 3 的 back-channel logout 要据此
+ * 找出"该设备上还有哪些应用需要被通知退出"。
+ */
 async function bindRefreshToken(token, { sid, userId, applicationId = null } = {}) {
   if (!token || !sid) return null;
-  return withRedis('bindRefreshToken', (client) => client.set(
-    REFRESH_PREFIX + token,
-    JSON.stringify({ sid, user_id: userId || '', application_id: applicationId || '' }),
-    { EX: REFRESH_TTL_SECONDS },
-  ));
+  return withRedis('bindRefreshToken', async (client) => {
+    const stored = await client.set(
+      REFRESH_PREFIX + token,
+      JSON.stringify({ sid, user_id: userId || '', application_id: applicationId || '' }),
+      { EX: REFRESH_TTL_SECONDS },
+    );
+    if (applicationId) {
+      const appsKey = sessionAppsKey(sid);
+      await client.sAdd(appsKey, applicationId);
+      await client.expire(appsKey, REFRESH_TTL_SECONDS);
+    }
+    return stored;
+  });
+}
+
+/** 该会话涉及过哪些应用（用于 back-channel logout 通知） */
+async function listSessionApplications(sid) {
+  if (!sid) return [];
+  const apps = await withRedis('listSessionApplications', (client) => client.sMembers(sessionAppsKey(sid)));
+  return apps || [];
 }
 
 /** 由刷新令牌反查会话 */
@@ -189,6 +211,7 @@ async function revokeSession(sid, reason = 'logout') {
     });
     const info = await client.hGetAll(SESSION_PREFIX + sid);
     await client.del(SESSION_PREFIX + sid);
+    // 注意：apps 集合故意**不删** —— 撤销时调用方还要用它找 back-channel 通知对象
     if (info?.user_id) await client.sRem(userSidsKey(info.user_id), sid);
     return true;
   });
@@ -252,4 +275,5 @@ module.exports = {
   isSessionRevoked,
   isSessionStoreAvailable,
   listSessions,
+  listSessionApplications,
 };

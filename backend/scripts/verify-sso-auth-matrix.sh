@@ -19,6 +19,9 @@ set -uo pipefail
 BASE="${EADAF_BASE:-http://localhost:29526/api/v1}"
 # 平台 origin（well-known / 发现文档挂在根路径）
 EADAF_ORIGIN="${EADAF_ORIGIN:-$(printf '%s' "$BASE" | sed -E 's#/api/v1/?$##')}"
+# Phase 3 用：应用的登记回调（授权码流程要完全匹配）与登出回跳目标
+REDIRECT_PLACEHOLDER="${EADAF_APP_REDIRECT_URI:-http://localhost:29529/auth/callback}"
+ENCODED_POST_LOGOUT=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1], safe=''))" "${EADAF_POST_LOGOUT_URI:-http://localhost:29529/auth/login}")
 APP="${EADAF_APP_ID:-1e71c653-630f-4006-b6df-081172b15752}"
 APP_SECRET="${EADAF_APP_SECRET:-}"
 OTHER="${EADAF_OTHER_APP_ID:-}"
@@ -328,6 +331,92 @@ PY
   else
     printf '  ❌ %-56s %s\n' "OIDC 发现文档" "$(printf '%s' "$DISC" | head -c 100)"; fail=$((fail+1))
   fi
+fi
+
+echo "== 11. Phase 3：RP-Initiated Logout（id_token_hint）与 back-channel logout =="
+if [ -z "$APP_SECRET" ]; then
+  skip_case "Phase 3 登出" "未设 EADAF_APP_SECRET"
+else
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  BC_PORT="${EADAF_BACKCHANNEL_PORT:-4111}"
+  BC_LOG="/tmp/eadaf-bc-$$.log"
+  rm -f "$BC_LOG"
+
+  # 本地接收器：把收到的 logout_token 落盘（测完删）
+  node "$SCRIPT_DIR/test-backchannel-receiver.mjs" "$BC_PORT" "$BC_LOG" >/dev/null 2>&1 &
+  BC_PID=$!
+  sleep 1
+
+  P3_ADMIN=$(curl -s -X POST "$BASE/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\",\"dev\":true}" \
+    | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("token",""))')
+
+  # 临时给该应用配 back-channel 接收地址（测完还原成 null）
+  curl -s -X PUT "$BASE/applications/$APP" -H "Authorization: Bearer $P3_ADMIN" -H 'Content-Type: application/json' \
+    -d "{\"sso_config\":{\"backchannel_logout_uri\":\"http://localhost:$BC_PORT/backchannel-logout\"}}" -o /dev/null
+
+  P3_VERIFIER=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')
+  P3_CHALLENGE=$(python3 -c 'import hashlib,base64,sys;print(base64.urlsafe_b64encode(hashlib.sha256(sys.argv[1].encode()).digest()).rstrip(b"=").decode())' "$P3_VERIFIER")
+  P3_CODE=$(curl -s -X POST "$BASE/oauth/authorize" -H "Authorization: Bearer $P3_ADMIN" -H 'Content-Type: application/json' \
+    -d "{\"client_id\":\"$APP\",\"redirect_uri\":\"$REDIRECT_PLACEHOLDER\",\"code_challenge\":\"$P3_CHALLENGE\",\"code_challenge_method\":\"S256\"}" \
+    | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("code",""))')
+
+  P3_TOKENS=$(curl -s -X POST "$BASE/oauth/token" -H 'Content-Type: application/json' \
+    -d "{\"grant_type\":\"authorization_code\",\"code\":\"$P3_CODE\",\"redirect_uri\":\"$REDIRECT_PLACEHOLDER\",\"client_id\":\"$APP\",\"client_secret\":\"$APP_SECRET\",\"code_verifier\":\"$P3_VERIFIER\"}")
+  P3_AT=$(echo "$P3_TOKENS" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("access_token",""))')
+  P3_ID=$(echo "$P3_TOKENS" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id_token",""))')
+
+  if [ -n "$P3_ID" ] && [ -n "$P3_AT" ]; then
+    printf '  ✅ %-56s\n' "授权码流程拿到 id_token"; pass=$((pass+1))
+  else
+    printf '  ❌ %-56s %s\n' "授权码流程拿到 id_token" "$(printf '%s' "$P3_TOKENS" | head -c 100)"; fail=$((fail+1))
+  fi
+
+  # RP-Initiated Logout：只带 id_token_hint 也应服务端撤会话
+  P3_STATE="bye-$RANDOM"
+  P3_LOC=$(curl -s -o /dev/null -D - "$BASE/auth/end-session?id_token_hint=$P3_ID&post_logout_redirect_uri=$ENCODED_POST_LOGOUT&state=$P3_STATE" \
+    | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}')
+  if printf '%s' "$P3_LOC" | grep -q "state=$P3_STATE" && printf '%s' "$P3_LOC" | grep -q 'logged_out=1'; then
+    printf '  ✅ %-56s %s\n' "id_token_hint 登出：302 带 state/logged_out" "$P3_STATE"; pass=$((pass+1))
+  else
+    printf '  ❌ %-56s Location=%s\n' "id_token_hint 登出回跳" "${P3_LOC:-无}"; fail=$((fail+1))
+  fi
+  assert_error_code "id_token_hint 登出后访问令牌立即失效" SESSION_REVOKED "$BASE/ai/models" -H "Authorization: Bearer $P3_AT"
+
+  # back-channel：接收器应收到可验签的 logout token
+  sleep 2
+  if [ -s "$BC_LOG" ]; then
+    BC_RESULT=$(cd "$SCRIPT_DIR/.." && node -e '
+const jwt = require("jsonwebtoken");
+const keys = require("./src/utils/ssoKeys");
+try {
+  const line = require("fs").readFileSync(process.argv[1], "utf8").trim().split("\n").pop();
+  const payload = jwt.verify(JSON.parse(line).token, keys.getPublicKey(), { algorithms: ["RS256"] });
+  const events = Object.keys(payload.events || {}).length;
+  console.log([payload.aud, payload.sid || "", events].join("|"));
+} catch (error) { console.log("FAIL:" + error.message); }
+' "$BC_LOG" 2>/dev/null | grep -v "connected to database")
+    if printf '%s' "$BC_RESULT" | grep -q "^$APP|" && printf '%s' "$BC_RESULT" | grep -q '|1$'; then
+      printf '  ✅ %-56s aud=%s events=1\n' "back-channel logout 投递并验签通过" "${APP:0:8}…"; pass=$((pass+1))
+    else
+      printf '  ❌ %-56s %s\n' "back-channel logout token 校验" "${BC_RESULT:-无}"; fail=$((fail+1))
+    fi
+  else
+    printf '  ❌ %-56s 接收器未收到任何请求\n' "back-channel logout 投递"; fail=$((fail+1))
+  fi
+
+  # 还原应用配置 + 收尾（会改用户环境，必须自证还原成功）
+  P3_RESTORE=$(curl -s -X PUT "$BASE/applications/$APP" -H "Authorization: Bearer $P3_ADMIN" -H 'Content-Type: application/json' \
+    -d '{"sso_config":{"backchannel_logout_uri":null}}' -w '|%{http_code}')
+  P3_RESTORED=$(curl -s "$BASE/applications/$APP" -H "Authorization: Bearer $P3_ADMIN" \
+    | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("sso_config",{}).get("backchannel_logout_uri"))')
+  if [ "$P3_RESTORED" = "None" ] || [ -z "$P3_RESTORED" ]; then
+    printf '  ✅ %-56s\n' "测试后已还原应用的 backchannel_logout_uri"; pass=$((pass+1))
+  else
+    printf '  ❌ %-56s 仍为 %s（PUT=%s）\n' "还原 backchannel_logout_uri" "$P3_RESTORED" "$P3_RESTORE"; fail=$((fail+1))
+  fi
+  kill "$BC_PID" 2>/dev/null
+  rm -f "$BC_LOG"
 fi
 
 echo
