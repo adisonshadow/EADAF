@@ -168,12 +168,29 @@ EADAF 侧按顺序挑验签密钥，因此**同一个 token 带不带 `?app=` �
 | `error_code` | 含义 | 客户端建议动作 |
 |--------------|------|----------------|
 | `TOKEN_EXPIRED` | 访问令牌过期 | 静默刷新一次；失败则重新登录 |
-| `TOKEN_INVALID` | 验签失败 / 载荷不合法 / 应用令牌无效 | 清应用会话 → 回登录页 |
-| `SESSION_REVOKED` | 会话被撤销（Phase 1 起） | 清应用会话 → 回登录页 |
+| `TOKEN_INVALID` | 验签失败 / 载荷不合法 / 应用令牌无效 / 刷新令牌已轮换 | 清应用会话 → 回登录页 |
+| `SESSION_REVOKED` | 会话已被撤销（登出、退出所有设备、刷新令牌重放） | 清应用会话 → 回登录页 |
 | `AUTH_MISSING` / `AUTH_MALFORMED` | 没带 / 格式不对的 Authorization 头 | 清应用会话 → 回登录页 |
 | `APP_CONTEXT_INVALID` | `?app=` 指向的应用不可用于 SSO | **不要清会话**：这是配置/接口问题，提示并联系管理员 |
 
 > 401 一律当"掉登录"是历史坑（见 §10）；接口级问题请只提示、不清登录态。
+
+### 6.5 会话（`sid`）与「退出所有设备」
+
+一次登录会产生一个**会话**（`sid`），该设备上所有应用共用它：
+
+- `POST /api/v1/auth/login` 响应里带 `sid`；后续登录（包括业务应用的 SSO 登录，由管理台前端发起）带上同一个 `sid` 即并入同一会话；
+- 访问令牌里带 `sid`，`auth` 中间件每次请求都检查会话是否被撤销 —— **撤销后令牌即使没过期也立即 401 `SESSION_REVOKED`**，这就是"登出立即级联该设备所有应用"的实现；
+- 会话状态存在 Redis（`sso:sess:<sid>` / `sso:revoked:<sid>`）。**Redis 不可用时 fail-open**：撤销查不到就放行，退化为"等 access 过期"，可用性优先；
+- 刷新令牌是**不透明随机串**（`rt_…`，46 字符），客户端只回传、不要解码；轮换时旧令牌置 REVOKED，重放（超过 60s 宽限）会撤销整条会话；
+- `POST /api/v1/auth/refresh` **不再要求有效 access token**（访问令牌过期后必须还能刷新），凭据是刷新令牌本身。
+
+| 接口 | 用途 |
+|------|------|
+| `GET /api/v1/auth/sessions` | 当前用户的活跃会话（"登录设备"）；`store_available=false` 表示 Redis 不可用、列表查不到 |
+| `DELETE /api/v1/auth/sessions/{sid}` | 撤销指定会话（只能撤自己的） |
+| `DELETE /api/v1/auth/sessions` | 退出所有设备（含当前会话，前端随后回登录页） |
+| `POST /api/v1/auth/logout` `{ all: true }` | 同上；需能确认身份（有效令牌或刷新令牌），否则 401 `AUTH_MISSING` |
 
 
 ---
@@ -208,7 +225,7 @@ EADAF 侧按顺序挑验签密钥，因此**同一个 token 带不带 `?app=` �
 GET {eadaf}/api/v1/auth/end-session?app={application_id}&post_logout_redirect_uri={url}&state={opaque}
 ```
 
-**阶段边界**（见 [方案计划](./SSO会话与登出方案计划.md)）：Phase 0 的登出只会撤当前会话的 refresh 并清**本浏览器**的令牌，其它已登录应用要等它下次探测到会话失效才回登录页；Phase 1 引入 `sid` 后，撤销即让该设备上所有应用立即失效；Phase 3 的 back-channel logout 让应用无需探测、1 秒内回登录页。
+**阶段边界**（见 [方案计划](./SSO会话与登出方案计划.md)）：Phase 0 的登出只撤当前会话的 refresh 并清**本浏览器**的令牌，其它已登录应用要等下次探测才回登录页；**Phase 1 起**该设备上所有应用共用一个 `sid`，撤销即让它们的令牌**立刻**失效（§6.5）；Phase 3 的 back-channel logout 让应用无需探测、1 秒内回登录页。
 
 前端登录入口推荐：
 
@@ -332,6 +349,14 @@ GET {eadaf}/api/v1/auth/end-session?app={application_id}&post_logout_redirect_ur
 ```
 
 说明见 §7.1（回跳地址必须与应用同源，否则 400）。
+
+### 11.7 会话（登录设备）
+
+```http
+GET    {eadaf}/api/v1/auth/sessions            # 列出（需认证）
+DELETE {eadaf}/api/v1/auth/sessions/{sid}      # 撤销指定会话（需认证）
+DELETE {eadaf}/api/v1/auth/sessions            # 退出所有设备（需认证）
+```
 
 ---
 

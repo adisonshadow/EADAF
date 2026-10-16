@@ -128,6 +128,10 @@ export async function postAuthLogout(
   body: {
     /** 刷新令牌 */
     refresh_token?: string;
+    /** 会话 ID：撤销它 = 该设备上所有应用一起退出（前端 localStorage 的 eadaf_sid） */
+    sid?: string;
+    /** 为 true 时同时撤销该用户的全部会话（退出所有设备） */
+    all?: boolean;
   },
   options?: { [key: string]: any },
 ) {

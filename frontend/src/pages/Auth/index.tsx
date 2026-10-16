@@ -11,7 +11,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import SliderCaptchaComponent, { SliderCaptchaRef } from '@/components/SliderCaptcha';
 import loadingLottie from '@/assets/lotties/loading.json';
 import './index.scss';
-import { saveAuth, saveSsoAuth, getSsoAuth, clearSsoAuth, clearAuth, checkTokenValid, parseAuthUser } from '@/utils/auth';
+import { saveAuth, saveSsoAuth, getSsoAuth, clearSsoAuth, clearAuth, checkTokenValid, parseAuthUser, getSsoSid, saveSsoSid } from '@/utils/auth';
 import { getApiErrorMessage } from '@/utils/apiResponse';
 import { normalizeUploadFileId } from '@/utils/image';
 import {
@@ -534,9 +534,14 @@ const LoginPage: React.FC = () => {
       const urlParams = new URL(window.location.href).searchParams;
       const appId = urlParams.get('app');
       const loginPayload = appId
-        ? { ...loginData, application_id: appId }
-        : loginData;
+        ? { ...loginData, application_id: appId, sid: getSsoSid() || undefined }
+        : { ...loginData, sid: getSsoSid() || undefined };
       const msg = await postAuthLogin(loginPayload) as LoginResponse;
+
+      // 后端把这次登录并入（或新建）该浏览器的会话；存下来供下次登录/登出复用
+      if ((msg.data as { sid?: string } | undefined)?.sid) {
+        saveSsoSid((msg.data as { sid?: string }).sid);
+      }
 
       if (msg.data?.token) {
         message.success('登录成功！');

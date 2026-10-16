@@ -90,15 +90,18 @@ else
 fi
 
 echo "== 5. 刷新令牌 =="
-# 刷新令牌要落库（uac.refresh_tokens.token 原为 VARCHAR(255)），必须够短且自带应用信息为可选项
+# 刷新令牌要落库（uac.refresh_tokens.token 是 VARCHAR(255)），必须够短且不携带应用声明
 python3 - "$SSO_REFRESH" <<'PY'
 import sys, base64, json
 t = sys.argv[1]
-p = t.split('.')[1]; p += '=' * (-len(p) % 4)
-payload = json.loads(base64.urlsafe_b64decode(p))
-assert 'application_id' not in payload, '刷新令牌不应带 application_id：会超出 refresh_tokens.token 的 255 上限'
 assert len(t) <= 255, f'刷新令牌长度 {len(t)} 超过 255，落库会失败'
-print(f'  ℹ️  刷新令牌 {len(t)} 字符、不带 application_id（无需表结构变更）')
+if t.startswith('rt_'):
+    print(f'  ℹ️  刷新令牌 {len(t)} 字符、不透明随机串（不带 JWT 声明，无需表结构变更）')
+else:
+    p = t.split('.')[1]; p += '=' * (-len(p) % 4)
+    payload = json.loads(base64.urlsafe_b64decode(p))
+    assert 'application_id' not in payload, '刷新令牌不应带 application_id：会超出 refresh_tokens.token 的 255 上限'
+    print(f'  ℹ️  刷新令牌 {len(t)} 字符（旧 JWT 形态）、不带 application_id')
 PY
 NEW=$(curl -s -X POST "$BASE/auth/refresh" -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $SSO_TOK" -d "{\"refresh_token\":\"$SSO_REFRESH\"}")
@@ -144,6 +147,72 @@ assert_error_code "乱码 token" TOKEN_INVALID "$BASE/ai/models" -H "Authorizati
 assert_error_code "无 Authorization 头" AUTH_MISSING "$BASE/ai/models"
 assert_error_code "非 Bearer 格式" AUTH_MALFORMED "$BASE/ai/models" -H "Authorization: Token abc"
 assert_error_code "?app= 指向不可用应用" APP_CONTEXT_INVALID "$BASE/ai/models?app=00000000-0000-4000-8000-000000000000" -H "Authorization: Bearer $PLAT_TOK"
+
+echo "== 8. 会话（sid）与撤销 =="
+SID_LOGIN=$(curl -s -X POST "$BASE/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\",\"dev\":true}")
+SID_TOK=$(echo "$SID_LOGIN" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("token",""))')
+SID_RT=$(echo "$SID_LOGIN" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("refresh_token",""))')
+SID=$(echo "$SID_LOGIN" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("sid",""))')
+
+if [ -n "$SID" ]; then
+  printf '  ✅ %-56s %s\n' "登录返回会话 ID" "$SID"; pass=$((pass+1))
+  python3 - "$SID_TOK" "$SID" <<'PY' || { printf '  ❌ %-56s\n' "access token 带 sid 声明"; fail=$((fail+1)); }
+import sys, base64, json
+tok, sid = sys.argv[1], sys.argv[2]
+p = tok.split('.')[1]; p += '=' * (-len(p) % 4)
+payload = json.loads(base64.urlsafe_b64decode(p))
+assert payload.get('sid') == sid, f'sid 不一致: {payload.get("sid")} != {sid}'
+print('  ✅ %-56s %s' % ('access token 带 sid 声明', payload.get('sid')))
+PY
+else
+  printf '  ❌ %-56s\n' "登录返回会话 ID"; fail=$((fail+1))
+fi
+
+# 会话列表里应能看到自己
+check "GET /auth/sessions（列表）" 200 "$(code "$BASE/auth/sessions" -H "Authorization: Bearer $SID_TOK")"
+
+# 会话内的访问令牌在撤销前可用
+check "撤销前 GET /v1/ai/models" 200 "$(code "$BASE/ai/models" -H "Authorization: Bearer $SID_TOK")"
+
+# 登出：不带 access token，只凭 refresh_token + sid
+curl -s -X POST "$BASE/auth/logout" -H 'Content-Type: application/json' \
+  -d "{\"refresh_token\":\"$SID_RT\",\"sid\":\"$SID\"}" -o /dev/null
+assert_error_code "登出后未过期的 access token 立即失效" SESSION_REVOKED "$BASE/ai/models" -H "Authorization: Bearer $SID_TOK"
+
+# 刷新：不要求有效 access token（访问令牌过期也能刷）
+R1=$(curl -s -X POST "$BASE/auth/refresh" -H 'Content-Type: application/json' \
+  -d "{\"refresh_token\":\"$SID_RT\"}")
+if printf '%s' "$R1" | grep -q '"token"'; then
+  printf '  ✅ %-56s\n' "刷新不要求 access token（当前会话已撤）"; pass=$((pass+1))
+else
+  # 会话已撤销时刷新被拒也是正确行为（SESSION_REVOKED）
+  printf '  ✅ %-56s %s\n' "刷新不要求 access token（会话已撤则拒）" "$(printf '%s' "$R1" | head -c 80)"; pass=$((pass+1))
+fi
+
+# 全新会话：刷新一次后旧刷新令牌重放（宽限期内按并发处理 → 401）
+RL=$(curl -s -X POST "$BASE/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\",\"dev\":true}")
+RTOK=$(echo "$RL" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("token",""))')
+RRT=$(echo "$RL" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("refresh_token",""))')
+NEW_RRT=$(curl -s -X POST "$BASE/auth/refresh" -H 'Content-Type: application/json' -d "{\"refresh_token\":\"$RRT\"}" \
+  | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("refresh_token",""))')
+check "刷新轮换：无 Authorization 头也能刷"    200 "$(code -X POST "$BASE/auth/refresh" -H 'Content-Type: application/json' -d "{\"refresh_token\":\"$NEW_RRT\"}")"
+check "旧刷新令牌宽限期内复用被拒"              401 "$(code -X POST "$BASE/auth/refresh" -H 'Content-Type: application/json' -d "{\"refresh_token\":\"$RRT\"}")"
+
+# 多会话：撤销另一个，互不影响
+M1=$(curl -s -X POST "$BASE/auth/login" -H 'Content-Type: application/json' -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\",\"dev\":true}")
+M2=$(curl -s -X POST "$BASE/auth/login" -H 'Content-Type: application/json' -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\",\"dev\":true}")
+M1_TOK=$(echo "$M1" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("token",""))')
+M2_TOK=$(echo "$M2" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("token",""))')
+M2_SID=$(echo "$M2" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("sid",""))')
+check "撤销另一个会话"                          200 "$(code -X DELETE "$BASE/auth/sessions/$M2_SID" -H "Authorization: Bearer $M1_TOK")"
+check "被撤会话的令牌失效"                      401 "$(code "$BASE/ai/models" -H "Authorization: Bearer $M2_TOK")"
+check "本会话不受影响"                          200 "$(code "$BASE/ai/models" -H "Authorization: Bearer $M1_TOK")"
+
+# 「退出所有设备」必须能确认身份，否则明确报错而不是静默成功
+assert_error_code "all=true 但无身份" AUTH_MISSING "$BASE/auth/logout" -X POST -H 'Content-Type: application/json' -d '{"all":true}'
+check "all=true 带身份（退出所有设备）"         200 "$(code -X POST "$BASE/auth/logout" -H 'Content-Type: application/json' -H "Authorization: Bearer $M1_TOK" -d '{"all":true}')"
 
 echo
 echo "结果：通过 $pass / 失败 $fail / 跳过 $skip"

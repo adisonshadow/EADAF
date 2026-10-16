@@ -3,6 +3,7 @@ const config = require('../config');
 const logger = require('../utils/logger');
 const Application = require('../models/application');
 const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSecret');
+const ssoSession = require('../utils/ssoSession');
 
 /**
  * 查一个可用于验签的 SSO 应用。
@@ -271,6 +272,25 @@ module.exports = async (ctx, next) => {
         code: 401,
         message: '认证令牌已过期',
         error_code: 'TOKEN_EXPIRED',
+        data: null
+      };
+      return;
+    }
+
+    // 会话撤销校验：登出/重放撤销会话后，access token 即使没过期也立即失效。
+    // Redis 不可用时 fail-open（isSessionRevoked 返回 false），退化为"等 access 过期"。
+    if (payload.sid && await ssoSession.isSessionRevoked(payload.sid)) {
+      logger.warn('认证失败：会话已撤销', {
+        method: ctx.method,
+        url: ctx.url,
+        user_id: payload.user_id,
+        sid: payload.sid,
+      });
+      ctx.status = 401;
+      ctx.body = {
+        code: 401,
+        message: '会话已退出，请重新登录',
+        error_code: 'SESSION_REVOKED',
         data: null
       };
       return;

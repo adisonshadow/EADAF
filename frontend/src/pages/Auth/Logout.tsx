@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Spin, Typography } from 'antd';
 import { history } from '@/utils/navigation';
-import { clearAllSsoAuth, clearAuth, getAuth } from '@/utils/auth';
+import { clearAllSsoAuth, clearAuth, clearSsoSid, getAuth, getSsoSid } from '@/utils/auth';
 import { postAuthLogout } from '@/services/UAC/api/auth';
 
 /**
@@ -36,18 +36,24 @@ export default function Logout() {
       const state = params.get('state');
 
       const { refreshToken } = getAuth();
-      if (refreshToken) {
+      const sid = getSsoSid();
+      if (refreshToken || sid) {
         try {
-          await postAuthLogout({ refresh_token: refreshToken }, { skipErrorHandler: true });
+          // 带上 sid：撤销的是"该设备上所有应用"共用的那个会话（Phase 1）
+          await postAuthLogout(
+            { refresh_token: refreshToken || undefined, sid: sid || undefined },
+            { skipErrorHandler: true },
+          );
         } catch (error) {
           // 撤销失败不影响本地登出：本地清干净 + 令牌自然过期
-          console.warn('登出时撤销刷新令牌失败（已忽略）:', error);
+          console.warn('登出时撤销会话失败（已忽略）:', error);
         }
       }
 
-      // 平台会话位 + 所有应用的 SSO 令牌一起清：管理台一次登出不该留下任何登录态
+      // 平台会话位 + 所有应用的 SSO 令牌 + 会话 ID 一起清：管理台一次登出不该留下任何登录态
       clearAuth();
       clearAllSsoAuth();
+      clearSsoSid();
 
       if (appId && postLogoutRedirect) {
         setMessage('正在返回应用…');

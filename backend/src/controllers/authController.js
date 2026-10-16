@@ -4,6 +4,10 @@ const { Op } = require('sequelize');
 const config = require('../config');
 const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSecret');
 const { resolveSsoRedirectUri, requestHostInfo, isPlatformDevMode, isAllowedPostLogoutRedirect } = require('../utils/ssoRedirectUri');
+const ssoSession = require('../utils/ssoSession');
+
+/** 刷新令牌轮换的宽限期：这段时间内的重复提交按并发处理，超过则判定为重放 */
+const REFRESH_REUSE_GRACE_MS = 60 * 1000;
 const { isLoginVerifyRequired } = require('../utils/ssoLoginVerify');
 const logger = require('../utils/logger');
 const User = require('../models/user');
@@ -248,26 +252,32 @@ class AuthController {
         }
       }
 
-      // 生成访问令牌
+      // 会话（sid）：同一浏览器复用同一个 sid —— 管理台与各业务应用的 SSO 登录都由
+      // 管理台前端发起，它把 localStorage 里的 eadaf_sid 带进来，因此"该设备上所有应用"
+      // 共用一个会话，登出时撤销它即可级联（见 docs/SSO会话与登出方案计划.md）
+      const sid = await ssoSession.reuseOrCreateSession({
+        requestedSid: ctx.request.body.sid,
+        userId: user.user_id,
+        applicationId: tokenAppId,
+        platform: !tokenAppId,
+        req: ctx,
+      });
+
+      // 生成访问令牌（带 sid：中间件每次请求校验会话是否已撤销）
       const token = jwt.sign(
         {
           user_id: user.user_id,
           username: user.username,
           ...(tokenAppId ? { application_id: tokenAppId } : {}),
+          ...(sid ? { sid } : {}),
         },
         jwtSecret,
         { expiresIn: config.api.security.jwtExpiresIn }
       );
       
-      // 生成刷新令牌
-      // 注意：不往刷新令牌里塞 application_id —— 它要落库（uac.refresh_tokens.token
-      // 是 VARCHAR(255)），加声明会把长度顶过上限，而升级包不跑表结构迁移。
-      // 刷新时用「请求上下文里的应用」（见 refreshToken）保持应用会话不变。
-      const refreshToken = jwt.sign(
-        { user_id: user.user_id },
-        jwtSecret,
-        { expiresIn: '7d' }
-      );
+      // 生成刷新令牌（不透明随机串：JWT 同秒会签出同一串，且带声明会超 255 列宽；
+      // sid/应用的映射放 Redis，见 utils/ssoSession）
+      const refreshToken = ssoSession.newRefreshToken();
 
       // 保存刷新令牌到数据库
       await RefreshToken.create({
@@ -275,6 +285,13 @@ class AuthController {
         token: refreshToken,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天后过期
         status: 'ACTIVE'
+      });
+
+      // 会话 ↔ 刷新令牌双向可达：刷新/登出时不必依赖（可能已过期的）access token
+      await ssoSession.bindRefreshToken(refreshToken, {
+        sid,
+        userId: user.user_id,
+        applicationId: tokenAppId,
       });
 
       // 准备返回数据
@@ -288,6 +305,8 @@ class AuthController {
         expires_in: config.api.security.jwtExpiresIn,
         user_id: user.user_id,
         must_change_password: !!fullUser?.must_change_password,
+        // 会话 ID：调用方（管理台前端）保存下来，下次登录/登出带上，实现"同设备共用一个会话"
+        ...(sid ? { sid } : {}),
       };
 
       // 如果找到了应用，添加SSO配置到响应中
@@ -387,11 +406,23 @@ class AuthController {
         return;
       }
 
-      // app 显式声明优先；否则用本次请求鉴权时匹配到的应用（auth 中间件写入
-      // ctx.state.ssoApplicationId）。刷新令牌本身不带应用信息，否则会超过
-      // uac.refresh_tokens.token 的 255 上限。
-      // 两者都没有才退回平台密钥，避免把应用会话刷成平台会话。
-      const refreshAppId = app || ctx.state?.ssoApplicationId || null;
+      // 会话/应用信息：优先 Redis（刷新令牌 → sid + 应用），再回退 body 的 app。
+      // 路由已不再要求有效 access token（访问令牌过期也能刷新），所以不能用 ctx.state 兜底。
+      const boundInfo = await ssoSession.resolveRefreshToken(refresh_token);
+      const sid = boundInfo?.sid || null;
+      const refreshAppId = app || boundInfo?.application_id || null;
+
+      // 会话已被撤销（登出/重放）：不再签发任何令牌
+      if (sid && await ssoSession.isSessionRevoked(sid)) {
+        ctx.status = 401;
+        ctx.body = {
+          code: 401,
+          message: '会话已退出，请重新登录',
+          error_code: 'SESSION_REVOKED',
+          data: null
+        };
+        return;
+      }
 
       let jwtSecret = config.api.security.jwtSecret;
       let tokenAppId = null;
@@ -421,11 +452,10 @@ class AuthController {
         logger.debug('Using SSO app secret for token refresh', { application_id: refreshAppId });
       }
 
-      // 查找刷新令牌
+      // 查找刷新令牌（连已撤销的一起查：用来做轮换重放检测）
       const tokenRecord = await RefreshToken.findOne({
         where: {
           token: refresh_token,
-          status: 'ACTIVE',
           expires_at: {
             [Op.gt]: new Date()
           }
@@ -437,6 +467,40 @@ class AuthController {
         ctx.body = {
           code: 401,
           message: '刷新令牌无效或已过期',
+          error_code: 'TOKEN_INVALID',
+          data: null
+        };
+        return;
+      }
+
+      if (tokenRecord.status !== 'ACTIVE') {
+        // 已轮换的刷新令牌被再次使用 = 重放（RFC 9700 建议撤销整条会话）。
+        // 留一个短宽限，避免前端并发/StrictMode 双提交把正常用户踢下线。
+        const rotatedAt = boundInfo?.rotated_at ? Date.parse(boundInfo.rotated_at) : NaN;
+        const reusedAfterGrace = Number.isFinite(rotatedAt)
+          && Date.now() - rotatedAt > REFRESH_REUSE_GRACE_MS;
+
+        if (reusedAfterGrace) {
+          if (sid) await ssoSession.revokeSession(sid, 'refresh-token-reuse');
+          logger.warn('检测到刷新令牌重放，已撤销该会话', {
+            user_id: tokenRecord.user_id,
+            sid,
+          });
+          ctx.status = 401;
+          ctx.body = {
+            code: 401,
+            message: '刷新令牌已被使用过，会话已退出，请重新登录',
+            error_code: 'SESSION_REVOKED',
+            data: null
+          };
+          return;
+        }
+
+        ctx.status = 401;
+        ctx.body = {
+          code: 401,
+          message: '刷新令牌无效或已过期',
+          error_code: 'TOKEN_INVALID',
           data: null
         };
         return;
@@ -453,38 +517,43 @@ class AuthController {
         ctx.body = {
           code: 401,
           message: '用户不存在或已被禁用',
+          error_code: 'TOKEN_INVALID',
           data: null
         };
         return;
       }
 
-      // 生成新的访问令牌
+      // 生成新的访问令牌（带 sid，刷新后仍受会话撤销约束）
       const token = jwt.sign(
         {
           user_id: user.user_id,
           username: user.username,
           ...(tokenAppId ? { application_id: tokenAppId } : {}),
+          ...(sid ? { sid } : {}),
         },
         jwtSecret,
         { expiresIn: config.api.security.jwtExpiresIn }
       );
 
-      // 生成新的刷新令牌
-      const newRefreshToken = jwt.sign(
-        {
-          user_id: user.user_id,
-          ...(tokenAppId ? { application_id: tokenAppId } : {}),
-        },
-        jwtSecret,
-        { expiresIn: '7d' }
-      );
+      // 生成新的刷新令牌（不透明随机串，每次轮换必然不同）
+      const newRefreshToken = ssoSession.newRefreshToken();
 
-      // 更新刷新令牌记录
-      await tokenRecord.update({
+      // 轮换：旧记录置 REVOKED（保留痕迹供重放检测），新记录另起一行
+      await tokenRecord.update({ status: 'REVOKED' });
+      await RefreshToken.create({
+        user_id: user.user_id,
         token: newRefreshToken,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天后过期
         status: 'ACTIVE'
       });
+
+      await ssoSession.markRefreshTokenRotated(refresh_token, { rotatedTo: newRefreshToken, sid });
+      await ssoSession.bindRefreshToken(newRefreshToken, {
+        sid,
+        userId: user.user_id,
+        applicationId: tokenAppId,
+      });
+      await ssoSession.touchSession(sid);
 
       ctx.status = 200;
       ctx.body = {
@@ -493,7 +562,8 @@ class AuthController {
         data: {
           token,
           refresh_token: newRefreshToken,
-          expires_in: config.api.security.jwtExpiresIn
+          expires_in: config.api.security.jwtExpiresIn,
+          ...(sid ? { sid } : {}),
         }
       };
     } catch (error) {
@@ -513,43 +583,85 @@ class AuthController {
   }
 
   /**
-   * 用户登出
+   * 用户登出（撤销会话）
+   *
+   * 不再要求有效的 access token（令牌过期时也必须能登出），主体由刷新令牌/会话 ID 证明：
+   *   - `refresh_token`：撤销这条刷新令牌 + 它所属会话；
+   *   - `sid`：撤销该会话（管理台前端 localStorage 里的 eadaf_sid，覆盖该设备上所有应用）；
+   *   - `all: true`：再撤销该用户的全部会话（退出所有设备）。
    */
   static async logout(ctx) {
     try {
-      const { refresh_token } = ctx.request.body;
+      const { refresh_token, sid: bodySid, all } = ctx.request.body || {};
+
+      let sid = bodySid || null;
+      let userId = ctx.state?.user?.user_id || null;
+      let username = ctx.state?.user?.username || null;
+
+      // 有效令牌里也带 sid：没显式传 sid 时用它（该设备上的会话）
+      if (!sid && ctx.state?.user?.sid) sid = ctx.state.user.sid;
 
       if (refresh_token) {
         // 使刷新令牌失效
-        await RefreshToken.update(
-          { status: 'REVOKED' },
-          {
-            where: {
-              token: refresh_token,
-              status: 'ACTIVE'
-            }
+        const tokenRecord = await RefreshToken.findOne({ where: { token: refresh_token } });
+        if (tokenRecord) {
+          userId = userId || tokenRecord.user_id;
+          if (!sid) {
+            const bound = await ssoSession.resolveRefreshToken(refresh_token);
+            sid = bound?.sid || null;
           }
-        );
+          await tokenRecord.update({ status: 'REVOKED' });
+        }
+      }
+
+      // `all` 必须知道是谁：否则会"看起来成功、其实什么都没撤"
+      if (all && !userId) {
+        ctx.status = 401;
+        ctx.body = {
+          code: 401,
+          message: '无法确认身份：退出所有设备需要携带有效令牌或刷新令牌',
+          error_code: 'AUTH_MISSING',
+          data: null,
+        };
+        return;
+      }
+
+      if (sid) {
+        await ssoSession.revokeSession(sid, 'logout');
+        logger.debug('已撤销 SSO 会话', { sid, user_id: userId });
+      }
+
+      let revokedAll = 0;
+      if (all && userId) {
+        revokedAll = await ssoSession.revokeAllSessions(userId, 'logout-all');
+      }
+
+      if (!username && userId) {
+        const user = await User.findByPk(userId, { attributes: ['username'] });
+        username = user?.username || null;
       }
 
       // 登出成功钩子事件（fire-and-forget，不阻塞响应）
       emitHookEvent('auth.user.logout', {
-        user_id: ctx.state?.user?.user_id || null,
-        username: ctx.state?.user?.username || null,
+        user_id: userId,
+        username,
         ip: ctx.ip,
         logout_at: new Date().toISOString(),
       });
 
       ctx.state.auditContext = {
-        resource_id: ctx.state?.user?.user_id,
-        resource_name: ctx.state?.user?.username || null,
-        target_user_id: ctx.state?.user?.user_id || null,
+        resource_id: userId,
+        resource_name: username,
+        target_user_id: userId,
       };
 
       ctx.body = {
         code: 200,
         message: '登出成功',
-        data: null
+        data: {
+          revoked_session: !!sid,
+          ...(all ? { revoked_sessions: revokedAll } : {}),
+        }
       };
     } catch (error) {
       logger.error('登出失败', { error: error.message });
@@ -559,6 +671,82 @@ class AuthController {
         message: '登出失败',
         error: error.message
       };
+    }
+  }
+
+  /**
+   * 当前用户的活跃会话（"登录设备"）
+   */
+  static async listSessions(ctx) {
+    try {
+      const userId = ctx.state.user?.user_id;
+      const currentSid = ctx.state.user?.sid || null;
+      const [sessions, available] = await Promise.all([
+        ssoSession.listSessions(userId),
+        ssoSession.isSessionStoreAvailable(),
+      ]);
+
+      ctx.body = {
+        code: 200,
+        message: 'success',
+        data: {
+          // Redis 不可用时列表必为空：明确告诉前端是"查不到"而不是"没有会话"
+          store_available: available,
+          items: sessions.map((item) => ({
+            sid: item.sid,
+            application_id: item.application_id || null,
+            platform: item.platform === '1',
+            ip: item.ip || null,
+            user_agent: item.user_agent || null,
+            created_at: item.created_at || null,
+            last_seen_at: item.last_seen_at || null,
+            current: item.sid === currentSid,
+          })),
+        },
+      };
+    } catch (error) {
+      logger.error('获取登录设备列表失败', { error: error.message });
+      ctx.status = 500;
+      ctx.body = { code: 500, message: '获取登录设备列表失败', data: null };
+    }
+  }
+
+  /**
+   * 撤销指定会话（只能撤自己的）
+   */
+  static async revokeSession(ctx) {
+    try {
+      const { sid } = ctx.params;
+      const userId = ctx.state.user?.user_id;
+      const sessions = await ssoSession.listSessions(userId);
+
+      if (!sessions.some((item) => item.sid === sid)) {
+        ctx.status = 404;
+        ctx.body = { code: 404, message: '会话不存在或不属于当前用户', data: null };
+        return;
+      }
+
+      await ssoSession.revokeSession(sid, 'revoked-by-user');
+      ctx.body = { code: 200, message: '已撤销该会话', data: { sid } };
+    } catch (error) {
+      logger.error('撤销会话失败', { error: error.message });
+      ctx.status = 500;
+      ctx.body = { code: 500, message: '撤销会话失败', data: null };
+    }
+  }
+
+  /**
+   * 撤销该用户全部会话（退出所有设备；含当前这一个，前端需回登录页）
+   */
+  static async revokeAllSessions(ctx) {
+    try {
+      const userId = ctx.state.user?.user_id;
+      const revoked = await ssoSession.revokeAllSessions(userId, 'revoked-by-user');
+      ctx.body = { code: 200, message: '已退出所有设备', data: { revoked_sessions: revoked } };
+    } catch (error) {
+      logger.error('退出所有设备失败', { error: error.message });
+      ctx.status = 500;
+      ctx.body = { code: 500, message: '退出所有设备失败', data: null };
     }
   }
 

@@ -141,6 +141,35 @@ function readTokenApplicationId(token: string): string {
   }
 }
 
+/** SSO 会话 ID（sid）。一个浏览器一个 sid：管理台与各业务应用都用它，
+ *  这样在管理台登出 = 撤销该会话 = 该设备上所有应用一起失效（见 SSO 方案计划 Phase 1）。 */
+export const SSO_SID_KEY = 'eadaf_sid';
+
+export function getSsoSid(): string | null {
+  try {
+    return localStorage.getItem(SSO_SID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveSsoSid(sid?: string | null): void {
+  if (!sid) return;
+  try {
+    localStorage.setItem(SSO_SID_KEY, sid);
+  } catch {
+    /* 隐私模式等场景忽略 */
+  }
+}
+
+export function clearSsoSid(): void {
+  try {
+    localStorage.removeItem(SSO_SID_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** iframe / 第三方嵌入：从 URL 写入本域 token，并去掉敏感 query，保留 embed、app、theme */
 export function consumeEmbedAuthFromUrl() {
   if (typeof window === 'undefined') return;
