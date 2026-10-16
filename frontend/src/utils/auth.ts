@@ -1,6 +1,7 @@
 import { history } from '@/utils/navigation';
 import { message } from '@/utils/antdAppApis';
 import { getAuthCheck } from '@/services/UAC/api/auth';
+import { saveSsoAuth } from './ssoTokenStore';
 
 import { getApiData } from './apiResponse';
 import { normalizeUploadFileId } from './image';
@@ -121,6 +122,25 @@ export const clearAuth = () => {
   console.log('认证信息已清除');
 };
 
+/**
+ * 只读 JWT 负载里的 application_id（**不验签**，仅用于选存储位/选验签密钥）。
+ * 平台会话 token 不带这个声明；应用密钥签发的用户 JWT 带（新版后端签发时写入）。
+ */
+function readTokenApplicationId(token: string): string {
+  try {
+    const segment = token.split('.')[1];
+    if (!segment) return '';
+    const base64 = segment.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as { application_id?: unknown };
+    return typeof payload?.application_id === 'string' ? payload.application_id : '';
+  } catch {
+    return '';
+  }
+}
+
 /** iframe / 第三方嵌入：从 URL 写入本域 token，并去掉敏感 query，保留 embed、app、theme */
 export function consumeEmbedAuthFromUrl() {
   if (typeof window === 'undefined') return;
@@ -128,7 +148,16 @@ export function consumeEmbedAuthFromUrl() {
   const token = url.searchParams.get('access_token') || url.searchParams.get('token');
   const refreshToken = url.searchParams.get('refresh_token') || undefined;
   if (!token) return;
-  saveAuth(token, refreshToken);
+
+  // 应用密钥签发的 token（SSO 登录得到的用户 JWT）必须存进 sso_token:<app_id>，
+  // 绝不能占平台会话位：管理台拿平台密钥验签必然 401 → 清会话 → 回登录页。
+  const appId = url.searchParams.get('app') || readTokenApplicationId(token);
+  if (appId) {
+    saveSsoAuth(appId, token, refreshToken);
+  } else {
+    saveAuth(token, refreshToken);
+  }
+
   url.searchParams.delete('access_token');
   url.searchParams.delete('token');
   url.searchParams.delete('refresh_token');

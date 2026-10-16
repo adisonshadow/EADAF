@@ -5,6 +5,7 @@ import {
   type XRequestOptions,
 } from '@ant-design/x-sdk';
 import { extractAiChatErrorMessage } from '../utils/formatAiChatError';
+import { withEadafAppParam } from '../utils/eadafAppParam';
 import type { AssistantSegment } from './chatToolSteps';
 
 type SseChunk = { data?: string };
@@ -124,9 +125,15 @@ export class EADAFChatProvider extends AbstractChatProvider<EADAFChatMessage, EA
   }
 }
 
-export function createEADAFChatProvider(apiBase: string, getToken: () => string | null) {
+export function createEADAFChatProvider(
+  apiBase: string,
+  getToken: () => string | null,
+  applicationId?: string,
+) {
+  // SSO 用户 JWT 是按应用密钥签发的，EADAF 要靠 ?app= 选验签密钥（否则 401）
+  const endpoint = withEadafAppParam(`${apiBase}/v1/ai/chat/completions`, applicationId);
   return new EADAFChatProvider({
-    request: XRequest<EADAFChatInput, SseChunk, EADAFChatMessage>(`${apiBase}/v1/ai/chat/completions`, {
+    request: XRequest<EADAFChatInput, SseChunk, EADAFChatMessage>(endpoint, {
       manual: true,
       headers: { 'Content-Type': 'application/json' },
       middlewares: {

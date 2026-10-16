@@ -209,8 +209,8 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
   const { client, autoNavigate, toolConcurrency, decisionPreference } = useAIChatLayout();
   const config = useEffectiveAIChatConfig();
   const provider = useMemo(
-    () => createEADAFChatProvider(config.apiBase, config.getToken),
-    [config.apiBase, config.getToken],
+    () => createEADAFChatProvider(config.apiBase, config.getToken, config.applicationId),
+    [config.apiBase, config.applicationId, config.getToken],
   );
   const [selectedSlug, setSelectedSlug] = useState<string>();
   const [skills, setSkills] = useState<AIBaseSkill[]>([]);
@@ -880,6 +880,7 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
               signal: abortRef.current?.signal,
               apiBase: config.apiBase,
               getToken: config.getToken,
+              applicationId: config.applicationId,
               turnId,
             },
             ({ content, reasoningContent }) => {

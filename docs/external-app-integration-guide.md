@@ -691,6 +691,7 @@ public class EadafClient {
 | 频繁换 Token | Token 默认 24h 有效，建议缓存并在到期前 5 分钟刷新 |
 | 用户 SSO 登录后又回登录页 | 见 [SSO 故障速查](./sso-integration-guide.md#10-常见故障速查)：Hash 回调格式、StrictMode、check 误清 token |
 | SSO `check` 总是 401 | 验签密钥须与「密钥管理」一致，且请求带 `?app={application_id}` |
+| 业务应用一发 EADAF 请求就掉登录 | 该接口的 401 被当成会话失效：SSO 用户 JWT（应用密钥签发）调 AI / DataAPI 等接口时漏带 `?app=` 必然 401。见 [SSO §6.3 验签密钥怎么选](./sso-integration-guide.md#63-验签密钥怎么选app-与令牌自述)，并让 401 先复核 `/auth/check?app=` 再清登录态 |
 | DataAPI 403 但用户已登录 | 缺的是**应用 Token / 域授权**，与用户 SSO JWT 无关 |
 
 ### 权限相关
