@@ -69,7 +69,7 @@ export function isAuthCheckSuccess(response: unknown): boolean {
 export const loginPath = '/auth/login';
 
 // 认证相关页面
-export const authPages = ['/auth/login', '/auth/reset-password'];
+export const authPages = ['/auth/login', '/auth/logout', '/auth/reset-password', '/oauth/authorize'];
 
 // 检查是否是认证页面
 export const isAuthPage = (pathname: string) => authPages.includes(pathname);
@@ -138,6 +138,35 @@ function readTokenApplicationId(token: string): string {
     return typeof payload?.application_id === 'string' ? payload.application_id : '';
   } catch {
     return '';
+  }
+}
+
+/** SSO 会话 ID（sid）。一个浏览器一个 sid：管理台与各业务应用都用它，
+ *  这样在管理台登出 = 撤销该会话 = 该设备上所有应用一起失效（见 SSO 方案计划 Phase 1）。 */
+export const SSO_SID_KEY = 'eadaf_sid';
+
+export function getSsoSid(): string | null {
+  try {
+    return localStorage.getItem(SSO_SID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveSsoSid(sid?: string | null): void {
+  if (!sid) return;
+  try {
+    localStorage.setItem(SSO_SID_KEY, sid);
+  } catch {
+    /* 隐私模式等场景忽略 */
+  }
+}
+
+export function clearSsoSid(): void {
+  try {
+    localStorage.removeItem(SSO_SID_KEY);
+  } catch {
+    /* ignore */
   }
 }
 

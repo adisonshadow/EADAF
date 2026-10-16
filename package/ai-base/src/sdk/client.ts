@@ -17,10 +17,13 @@ function resolveBaseUrl(baseUrl?: string) {
 export class AIBaseClient {
   private baseUrl: string;
   private getToken: () => string | null;
+  /** 老令牌兼容：令牌不带 application_id 声明时，用它补 ?app= */
+  private ssoApplicationId?: string;
 
   constructor(options: AIBaseClientOptions = {}) {
     this.baseUrl = resolveBaseUrl(options.baseUrl);
     this.getToken = options.getToken || (() => localStorage.getItem('token'));
+    this.ssoApplicationId = options.ssoApplicationId;
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -35,10 +38,13 @@ export class AIBaseClient {
       headers.set('X-AIBase-TurnId', turnId);
     }
 
-    const response = await fetch(withEadafAppParamForToken(`${this.baseUrl}${path}`, token), {
-      ...init,
-      headers,
-    });
+    const response = await fetch(
+      withEadafAppParamForToken(`${this.baseUrl}${path}`, token, this.ssoApplicationId),
+      {
+        ...init,
+        headers,
+      },
+    );
 
     const json = await response.json();
     if (!response.ok || json.error) {

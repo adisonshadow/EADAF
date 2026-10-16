@@ -1,4 +1,4 @@
-const salesDemoDb = require('../demo/salesDemoDb');
+const salesData = require('../demo/salesDataService');
 const materializationService = require('../businessData/materializationService');
 const materializedTableBrowseService = require('../businessData/materializedTableBrowseService');
 const { executeToolWithEnvelope } = require('./executeToolWithEnvelope');
@@ -54,26 +54,26 @@ const BUILTIN_HANDLERS = {
   },
   sales_get_order: async (args) => {
     const orderNo = args.orderNo || args.order_no || args.orderId || args.order_id;
-    const order = salesDemoDb.getOrderByOrderNo(orderNo);
+    const order = await salesData.getOrderByOrderNo(orderNo);
     if (!order) {
       return { found: false, orderNo, message: '未找到订单' };
     }
     return { found: true, order };
   },
-  sales_search_orders: async (args) => salesDemoDb.searchOrders(args),
-  sales_order_stats_by_status: async () => salesDemoDb.orderStatsByStatus(),
-  sales_order_stats_by_period: async (args) => salesDemoDb.orderStatsByPeriod(args),
-  sales_list_complaints: async (args) => salesDemoDb.listComplaints(args),
+  sales_search_orders: async (args) => salesData.searchOrders(args),
+  sales_order_stats_by_status: async () => salesData.orderStatsByStatus(),
+  sales_order_stats_by_period: async (args) => salesData.orderStatsByPeriod(args),
+  sales_list_complaints: async (args) => salesData.listComplaints(args),
   sales_get_complaint: async (args) => {
     const id = args.id || args.complaintId || args.complaint_id;
-    const complaint = salesDemoDb.getComplaintById(id);
+    const complaint = await salesData.getComplaintById(id);
     if (!complaint) {
       return { found: false, id, message: '未找到投诉记录' };
     }
     return { found: true, complaint };
   },
-  sales_complaint_stats_by_type: async () => salesDemoDb.complaintStatsByType(),
-  sales_complaint_stats_by_status: async () => salesDemoDb.complaintStatsByStatus(),
+  sales_complaint_stats_by_type: async () => salesData.complaintStatsByType(),
+  sales_complaint_stats_by_status: async () => salesData.complaintStatsByStatus(),
   bizdata_preview_materialization: async (args) => materializationService.buildPreview({
     entityIds: args.entityIds || args.entity_ids,
     targetSchema: args.targetSchema || args.target_schema,

@@ -119,9 +119,9 @@ if [[ "$*" == *"--with-aibase-seed"* ]]; then
     PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/aibase-ai-seed.sql" || { echo "导入 AIBase AI 权威种子失败"; exit 1; }
     echo "AIBase 种子数据导入完成"
 
-    echo "开始初始化销售 Demo SQLite..."
-    (cd "$PROJECT_ROOT" && node scripts/init-sales-demo-db.js) || { echo "初始化销售 Demo SQLite 失败"; exit 1; }
-    echo "销售 Demo SQLite 初始化完成"
+    echo "开始对齐销售 Demo AI 工具（改为读 EADAF 物化表）..."
+    PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-sales-tools-materialized.sql" || { echo "销售 Demo AI 工具迁移失败"; exit 1; }
+    echo "销售 Demo AI 工具对齐完成"
 fi
 
 if [[ "$*" == *"--with-mock"* ]]; then

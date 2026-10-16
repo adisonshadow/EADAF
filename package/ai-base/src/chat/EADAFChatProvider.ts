@@ -125,7 +125,11 @@ export class EADAFChatProvider extends AbstractChatProvider<EADAFChatMessage, EA
   }
 }
 
-export function createEADAFChatProvider(apiBase: string, getToken: () => string | null) {
+export function createEADAFChatProvider(
+  apiBase: string,
+  getToken: () => string | null,
+  ssoApplicationId?: string,
+) {
   return new EADAFChatProvider({
     request: XRequest<EADAFChatInput, SseChunk, EADAFChatMessage>(`${apiBase}/v1/ai/chat/completions`, {
       manual: true,
@@ -137,9 +141,12 @@ export function createEADAFChatProvider(apiBase: string, getToken: () => string 
             ...(init.headers as Record<string, string>),
           };
           if (token) headers.Authorization = `Bearer ${token}`;
-          // SSO 用户 JWT 是按应用密钥签发的，按令牌自述的 application_id 补 ?app=
+          // 按令牌自述的 application_id 补 ?app=（老令牌用 ssoApplicationId 兜底）
           const requestUrl = typeof url === 'string' ? url : String(url);
-          return [withEadafAppParamForToken(requestUrl, token), { ...init, headers }] as [string, typeof init];
+          return [
+            withEadafAppParamForToken(requestUrl, token, ssoApplicationId),
+            { ...init, headers },
+          ] as [string, typeof init];
         },
       },
       params: { stream: true },

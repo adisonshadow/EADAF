@@ -21,7 +21,6 @@
     "init-db-with-aibase-seed": "bash scripts/initdb.sh --with-aibase-seed",
     "export-eadaf-ai-skills": "node scripts/export-eadaf-ai-skills.js",
     "migrate-eadaf-ai-skills": "bash scripts/apply-eadaf-ai-skills.sh",
-    "init-sales-demo-db": "node scripts/init-sales-demo-db.js",
     "db:maintenance": "bash scripts/db-maintenance.sh",
     "db:vacuum": "bash scripts/db-maintenance.sh VACUUM",
     "db:analyze": "bash scripts/db-maintenance.sh ANALYZE",

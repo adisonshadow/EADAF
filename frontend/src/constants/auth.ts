@@ -14,7 +14,10 @@ export const NO_TOKEN_APIS = [
 // 认证相关的页面路径
 export const AUTH_PAGES = [
   '/auth/login',
+  '/auth/logout',
   '/auth/reset-password',
+  // 授权码中转页：页面自己负责"未登录先登录"与跳转，交给统一的 401 处置会丢掉原始 query
+  '/oauth/authorize',
 ] as const;
 
 // 登录页面路径

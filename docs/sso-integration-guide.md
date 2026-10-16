@@ -159,7 +159,47 @@ EADAF 侧按顺序挑验签密钥，因此**同一个 token 带不带 `?app=` �
 - 用户 JWT（应用密钥签发）与**应用 Token**（`POST /applications/token`，平台密钥签发）是两把密钥，过去靠「URL 上有没有 `?app=`」区分，客户端漏带/多带都会 401 —— 业务侧若把 401 当会话失效，用户就会「一发请求就掉登录」。
 - 客户端的稳妥做法仍是**显式带 `?app={application_id}`**（兼容旧后端与旧令牌）；`@eadaf/ai-base` 会自动读**令牌自述的 `application_id`** 补上它。
 - ⚠️ **别把「AI 归属应用」当 SSO 应用**：ai-base 配置里的 `applicationId`（EADAF 控制台用的是内置应用 `EADAF`，它并未启用 SSO）只用于 Skill/Scope 归属，把它塞进 `?app=` 会得到 401「无效的第三方应用认证」。`?app=` 只能是**签发该用户 JWT 的那个应用**。
-- 旧版本签发的用户 JWT 不带 `application_id` 声明，重新登录一次即可；在此之前请带 `?app=`。
+- 旧版本签发的用户 JWT 不带 `application_id` 声明：ai-base 支持用 `ssoApplicationId` 显式声明"本前端的令牌由哪个 SSO 应用签发"（示例应用已配）。**注意它和 `applicationId` 不是一个东西**，别把归属应用配进去。
+
+### 6.4 401 的可编程错误码
+
+`auth` 中间件的 401 响应带 `error_code`，客户端据此区分「该刷新/重新登录」还是「只是这个接口没权限」：
+
+| `error_code` | 含义 | 客户端建议动作 |
+|--------------|------|----------------|
+| `TOKEN_EXPIRED` | 访问令牌过期 | 静默刷新一次；失败则重新登录 |
+| `TOKEN_INVALID` | 验签失败 / 载荷不合法 / 应用令牌无效 / 刷新令牌已轮换 | 清应用会话 → 回登录页 |
+| `SESSION_REVOKED` | 会话已被撤销（登出、退出所有设备、刷新令牌重放） | 清应用会话 → 回登录页 |
+| `AUTH_MISSING` / `AUTH_MALFORMED` | 没带 / 格式不对的 Authorization 头 | 清应用会话 → 回登录页 |
+| `APP_CONTEXT_INVALID` | `?app=` 指向的应用不可用于 SSO | **不要清会话**：这是配置/接口问题，提示并联系管理员 |
+
+> 401 一律当"掉登录"是历史坑（见 §10）；接口级问题请只提示、不清登录态。
+
+### 6.5 会话（`sid`）与「退出所有设备」
+
+一次登录会产生一个**会话**（`sid`），该设备上所有应用共用它：
+
+- `POST /api/v1/auth/login` 响应里带 `sid`；后续登录（包括业务应用的 SSO 登录，由管理台前端发起）带上同一个 `sid` 即并入同一会话；
+- 访问令牌里带 `sid`，`auth` 中间件每次请求都检查会话是否被撤销 —— **撤销后令牌即使没过期也立即 401 `SESSION_REVOKED`**，这就是"登出立即级联该设备所有应用"的实现；
+- 会话状态存在 Redis（`sso:sess:<sid>` / `sso:revoked:<sid>`）。**Redis 不可用时 fail-open**：撤销查不到就放行，退化为"等 access 过期"，可用性优先；
+- 刷新令牌是**不透明随机串**（`rt_…`，46 字符），客户端只回传、不要解码；轮换时旧令牌置 REVOKED，重放（超过 60s 宽限）会撤销整条会话；
+- `POST /api/v1/auth/refresh` **不再要求有效 access token**（访问令牌过期后必须还能刷新），凭据是刷新令牌本身。
+
+| 接口 | 用途 |
+|------|------|
+| `GET /api/v1/auth/sessions` | 当前用户的活跃会话（"登录设备"）；`store_available=false` 表示 Redis 不可用、列表查不到 |
+| `DELETE /api/v1/auth/sessions/{sid}` | 撤销指定会话（只能撤自己的） |
+| `DELETE /api/v1/auth/sessions` | 退出所有设备（含当前会话，前端随后回登录页） |
+| `POST /api/v1/auth/logout` `{ all: true }` | 同上；需能确认身份（有效令牌或刷新令牌），否则 401 `AUTH_MISSING` |
+
+管理台入口：**个人中心 → 登录设备**（列表 / 撤销单台 / 退出所有设备）。
+
+### 6.6 访问令牌有效期与静默刷新
+
+- 访问令牌有效期由 `SSO_ACCESS_TOKEN_TTL` 决定（如 `15m`）；**不设时沿用 `JWT_EXPIRES_IN`**（默认 `24h`）—— 还没实现刷新的老接入方不会被突然收紧；
+- 收紧前请确认接入方已按 401 `TOKEN_EXPIRED` 做**静默刷新再重放**（`POST /api/v1/auth/refresh`，凭刷新令牌本身，不需要有效 access token）；
+- 令牌快过期/已过期时刷新即可，不必重新登录；`SESSION_REVOKED` / `TOKEN_INVALID` 则必须重新登录；
+- 参考实现：管理台 `frontend/src/utils/request.ts`（axios 拦截器 + 单飞刷新）、示例应用 `app_example/src/auth/auth.ts`（fetch 层拦截器，覆盖数据请求与 AI 助手）。
 
 
 ---
@@ -174,7 +214,27 @@ EADAF 侧按顺序挑验签密钥，因此**同一个 token 带不带 `?app=` �
 | `GET` 或 `POST /auth/callback` | 接 EADAF 回调；与应用配置的 `redirect_mode` 一致 |
 | `GET /auth/check` | 校验用户 JWT（见 §6） |
 | `GET /auth/me` | 可选，返回当前用户声明 |
-| `POST /auth/logout` | 可选；用户态清理由前端完成即可 |
+| `POST /auth/logout` | 可选；**优先走 EADAF 登出中转页**，见 §7.1 |
+
+### 7.1 单点登出（RP-Initiated Logout）
+
+只清应用本地令牌**不叫退出**：EADAF 的 IdP 会话还在，用户下次点登录会被静默 SSO 登回来（看起来像"没退出成功"）。应用退出时应把浏览器交给 EADAF 的登出中转页：
+
+```text
+{eadaf_frontend_url}/auth/logout?app={application_id}&post_logout_redirect_uri={应用登录页}&state={opaque}
+```
+
+中转页会做三件事：① 撤销本地 refresh 令牌；② 清掉平台令牌与**所有应用**的 `sso_token:<app_id>`；③ 带 `logged_out=1` 与 `state` 回跳 `post_logout_redirect_uri`。
+
+- `post_logout_redirect_uri` 必须与应用的 `redirect_uri`（含 DEV 那套）或 `frontend_url` **同源**，否则 EADAF 返回 400（防开放重定向）；
+- 应用登录页收到 `logged_out=1` 应显示"已退出"，并且**不要自动跳 SSO**，必须等用户主动点击，否则会被登回去；
+- 纯服务端场景（无浏览器）可直接调后端中转，由它校验并 302：
+
+```http
+GET {eadaf}/api/v1/auth/end-session?app={application_id}&post_logout_redirect_uri={url}&state={opaque}
+```
+
+**阶段边界**（见 [方案计划](./SSO会话与登出方案计划.md)）：Phase 0 的登出只撤当前会话的 refresh 并清**本浏览器**的令牌，其它已登录应用要等下次探测才回登录页；**Phase 1 起**该设备上所有应用共用一个 `sid`，撤销即让它们的令牌**立刻**失效（§6.5）；Phase 3 的 back-channel logout 让应用无需探测、1 秒内回登录页。
 
 前端登录入口推荐：
 
@@ -219,6 +279,8 @@ GET {eadaf}/api/v1/applications-sso/{application_id}
 | 现象 | 优先排查 |
 |------|----------|
 | 登录后又回登录页 | Hash 回调格式错误；StrictMode 双跑；check 误清 token；回跳路径写成了 `/login` |
+| **应用里退出后，一点登录又自动登进去** | 只清了应用本地令牌，没退 EADAF 的 IdP 会话。退出要走登出中转页（§7.1），登录页收到 `logged_out=1` 时不要自动跳 SSO |
+| **EADAF 退出后，应用仍停着 / 只报"无效的令牌"** | Phase 0 的能力边界：其它应用要等自己下次探测（`/auth/check` 返回 401）才回登录页；Phase 1 起 `sid` 撤销即时生效，Phase 3 back-channel 后无需探测 |
 | **一发后端请求就掉登录** | 客户端把 401 一律当会话失效：某些接口（AI / DataAPI / 存储）漏带 `?app=` 时必然 401。先复核 `/auth/check?app=` 再决定是否清 token（见 §8.3）；`@eadaf/ai-base` 会按令牌自述的 `application_id` 自动补 `?app=` |
 | 401 **无效的第三方应用认证** | `?app=` 指向的应用不可用于 SSO：不存在 / 非 `ACTIVE` / `sso_enabled=false` / 没生成统一密钥。常见误用是把「AI 归属应用」（如控制台的内置应用 EADAF）塞进了 `?app=`，以及把「AI 归属应用」和「签发该 JWT 的应用」混为一谈 |
 | 回调 400「缺少 token」 | `redirect_mode` / 参数名与 BFF 不一致（EADAF 下发的是 `access_token`） |
@@ -281,6 +343,30 @@ Content-Type: application/json
 
 详见 [外部应用接入指南](./external-app-integration-guide.md)。
 
+### 11.6 单点登出
+
+浏览器（应用退出按钮用这个）：
+
+```text
+{eadaf_frontend}/auth/logout?app={application_id}&post_logout_redirect_uri={应用登录页}&state={opaque}
+```
+
+服务端/无浏览器（校验回跳地址后 302）：
+
+```http
+GET {eadaf}/api/v1/auth/end-session?app={application_id}&post_logout_redirect_uri={url}&state={opaque}
+```
+
+说明见 §7.1（回跳地址必须与应用同源，否则 400）。
+
+### 11.7 会话（登录设备）
+
+```http
+GET    {eadaf}/api/v1/auth/sessions            # 列出（需认证）
+DELETE {eadaf}/api/v1/auth/sessions/{sid}      # 撤销指定会话（需认证）
+DELETE {eadaf}/api/v1/auth/sessions            # 退出所有设备（需认证）
+```
+
 ---
 
 ## 12. 时序（推荐 HEADER_REDIRECT）
@@ -300,6 +386,193 @@ sequenceDiagram
   EADAF-->>BFF: 用户信息
   BFF-->>FE: ok
 ```
+
+---
+
+## 13. 新接入（推荐）：授权码 + PKCE
+
+> **Phase 2 起新增的接入方式，也是后续唯一推荐的方式。** §2–§12 描述的老流程
+> （`/auth/login?app=` 把令牌放进 URL / POST body、用应用密钥签用户 JWT）进入**弃用窗口**：
+> 保留 2 个版本，之后停用。老应用无需立刻改造，但新应用请走本节。
+
+### 13.1 和老的相比，好在哪
+
+| 维度 | 老流程 | 授权码 + PKCE |
+|------|--------|----------------|
+| 令牌是否进浏览器地址栏 | 是（`?access_token=...` / 表单） | **否**，浏览器只拿一次性 `code` |
+| 令牌签名密钥 | 应用统一密钥（分发到每个应用） | **平台私钥 RS256**，应用用 JWKS 公钥验签 |
+| 验签是否需要 `?app=` | 需要（漏带就 401） | **不需要**（`iss`/`aud`/`azp`/`sid` 都在令牌里） |
+| 刷新令牌存放 | 浏览器 localStorage | **只落 BFF**（服务端会话） |
+| CSRF / 重放防护 | `state` 仅透传 | `state` + PKCE(S256) + 一次性 code（120s） |
+
+### 13.2 准备（管理台）
+
+1. 三方应用 → 该应用 → **SSO**：启用 SSO，`redirect_uri` 填 **BFF 的回调**（如 `http://localhost:4100/auth/callback`）；
+2. **密钥管理**：生成应用统一密钥（= OAuth `client_secret`，只放 BFF）。
+
+### 13.3 端点
+
+| 端点 | 谁调用 | 说明 |
+|------|--------|------|
+| `GET {eadaf_frontend}/oauth/authorize?client_id=&redirect_uri=&scope=&state=&nonce=&code_challenge=&code_challenge_method=S256` | 浏览器（跳转） | 管理台授权页；未登录会先去登录，登录后自动继续 |
+| `POST {eadaf}/api/v1/oauth/token` | BFF（服务端） | `grant_type=authorization_code` 或 `refresh_token`；客户端认证 `client_secret_post` / `client_secret_basic` |
+| `GET {eadaf}/.well-known/jwks.json` | BFF | 平台公钥（RS256），用于本地验签 |
+| `GET {eadaf}/.well-known/openid-configuration` | BFF | 发现文档 |
+| `{eadaf}/api/v1/auth/end-session` | 浏览器 | RP-Initiated Logout（§7.1） |
+| `GET/POST {eadaf_frontend}/auth/logout` | 浏览器 | 登出中转页（§7.1） |
+
+`POST /api/v1/oauth/token` 返回**标准 OAuth 扁平结构**（不套 `{code,message,data}`）：
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "refresh_token": "rt_...",
+  "id_token": "eyJhbGciOiJSUzI1NiIs...",
+  "scope": "openid profile",
+  "sid": "…"
+}
+```
+
+令牌 claims：`iss`（平台 origin）、`sub`（user_id）、`aud`/`azp`（application_id）、`sid`（会话）、`scope`、`jti`、`exp`。
+
+### 13.4 时序
+
+```mermaid
+sequenceDiagram
+  participant B as 浏览器
+  participant BFF as 应用 BFF
+  participant OP as EADAF
+  B->>BFF: GET /login
+  BFF->>BFF: 生成 state + code_verifier（存会话）
+  BFF-->>B: 302 {eadaf_frontend}/oauth/authorize?...&code_challenge=...
+  OP->>OP: 未登录 → 登录页（登录后自动继续）
+  OP-->>B: 302 {BFF}/auth/callback?code=...&state=...
+  B->>BFF: GET /auth/callback
+  BFF->>BFF: 校验 state
+  BFF->>OP: POST /api/v1/oauth/token (code + code_verifier + client_secret)
+  OP-->>BFF: access_token / refresh_token / id_token
+  BFF->>BFF: 建服务端会话（令牌只落服务端）
+  BFF-->>B: Set-Cookie: app_session=...; 302 /dashboard
+```
+
+### 13.5 BFF 侧要点（含 JWKS 本地验签）
+
+1. `code_verifier` 用随机串（43–128 字符），`code_challenge = BASE64URL(SHA256(verifier))`，`code_challenge_method=S256`；`state` 存会话并在回调时**严格比对**；
+2. 回调里立刻用 `code` + `code_verifier` + `client_secret` 换票；**授权码一次性**，失败不要重试同一个码，重新走授权；
+3. 访问令牌**不要下发给前端**；前端用 BFF 的 httpOnly 会话 Cookie；
+4. 验签：用 JWKS 公钥本地验（无需共享密钥），并校验 `iss`/`aud`/`exp`：
+
+```js
+// 依赖：jsonwebtoken（Node 内置 crypto 足够处理 JWK）
+const jwt = require('jsonwebtoken');
+
+let cachedJwks = null;
+async function getSigningKey(kid, eadafBaseUrl) {
+  if (!cachedJwks) {
+    cachedJwks = await (await fetch(`${eadafBaseUrl}/.well-known/jwks.json`)).json();
+  }
+  const jwk = cachedJwks.keys.find((k) => k.kid === kid) || cachedJwks.keys[0];
+  if (!jwk) throw new Error('JWKS 中没有可用公钥');
+  return require('crypto').createPublicKey({ key: jwk, format: 'jwk' });
+}
+
+async function verifyEadafToken(token, { eadafBaseUrl, applicationId }) {
+  const { kid } = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
+  const publicKey = await getSigningKey(kid, eadafBaseUrl);
+  return jwt.verify(token, publicKey, {
+    algorithms: ['RS256'],          // 必须限定算法，防算法混淆
+    issuer: eadafBaseUrl,
+    audience: applicationId,
+  });
+}
+```
+
+5. 刷新：`grant_type=refresh_token`（带 `client_id`/`client_secret`）→ 轮换后的新令牌；**刷新令牌会轮换**，务必存新的。401 `TOKEN_EXPIRED` 时刷新一次再重放原请求；`SESSION_REVOKED`/`TOKEN_INVALID` 则清会话回登录页（§6.4）；
+6. 登出：清 BFF 会话 + 跳 §7.1 的登出中转页（可带 `post_logout_redirect_uri` 回应用登录页）。
+
+### 13.6 常见错误
+
+| 现象 | 原因 |
+|------|------|
+| 授权页报"redirect_uri 未在该应用中登记" | 必须与应用登记的回调**完全一致**（含端口与路径）；两套地址见 §2 的 DEV 专用重定向 |
+| 换票 400 `invalid_grant` | 授权码已用过/超时（120s）；`redirect_uri` 与授权时不一致；`code_verifier` 与 `code_challenge` 不匹配 |
+| 换票 401 `invalid_client` | `client_secret` 不对（注意用「密钥管理」里生成的那把） |
+| 授权页提示"授权码存储不可用" | 平台 Redis 不可用（授权码必须一次性，宁可不发） |
+| 本地验签总失败 | 忘了限定 `algorithms: ['RS256']`、`iss` 与实际访问地址不一致（可用 `SSO_ISSUER` 固定）、容器重建换了密钥（生产用 `SSO_JWT_PRIVATE_KEY` 固定） |
+
+---
+
+## 14. 单点登出（SLO）与弃用时间表
+
+### 14.1 RP-Initiated Logout（应用发起，推荐）
+
+BFF 清掉自己的会话后，把浏览器送到 EADAF：
+
+```http
+GET {eadaf}/api/v1/auth/end-session
+      ?id_token_hint={授权码流程拿到的 id_token}
+      &post_logout_redirect_uri={应用登录页}
+      &state={opaque}
+```
+
+- 带 `id_token_hint`：EADAF **验签后服务端直接撤销会话**（不依赖浏览器里还有令牌），
+  并按 §14.2 通知该设备上用过的每个应用；然后 302 回 `post_logout_redirect_uri`（附 `state` 与 `logged_out=1`）；
+- 不带 hint：兼容 Phase 0 的浏览器侧流程（管理台 `/auth/logout` 页撤销 + 回跳白名单校验），行为见 §7.1；
+- `post_logout_redirect_uri` 必须与应用登记的 `redirect_uri`（含 DEV 那套）或 `frontend_url` **同源**，否则 400；
+- 伪造/过期 hint 不会撤销任何会话（只记日志并按回跳处理）。
+
+### 14.2 Back-Channel Logout（EADAF 主动通知应用）
+
+在管理台该应用的 SSO 配置里填 **`backchannel_logout_uri`**（应用 BFF 的接收地址）。EADAF 撤销会话时会向它发：
+
+```http
+POST {backchannel_logout_uri}
+Content-Type: application/x-www-form-urlencoded
+
+logout_token=<RS256 签名的 JWT>
+```
+
+应用侧**必须**逐项校验，然后按 `sid` 清掉本地会话并返回 200：
+
+1. 用 JWKS 公钥验签，且限定 `algorithms: ['RS256']`；
+2. `iss` 等于 EADAF 的 issuer、`aud` 等于自己的 `application_id`、未过期；
+3. 必须带 `events["http://schemas.openid.net/event/backchannel-logout"]`；
+4. **不能带 `nonce`**（否则等于允许把 ID Token 当 logout token 重放）；
+5. 校验失败返回 400，别清会话。
+
+参考实现（可直接抄）：
+
+- 示例应用 BFF：[`app_example/server/index.mjs`](../app_example/server/index.mjs) 的 `/auth/backchannel-logout`
+- 通用 BFF 模板：[`docs/sso-bff-template/server.mjs`](./sso-bff-template/server.mjs) 的同名端点
+
+> 实测效果：在 EADAF 侧撤销会话后，应用 BFF **无需轮询**即清掉会话，`/auth/me` 立刻 401。
+
+### 14.3 老流程弃用时间表
+
+老流程 = `GET {eadaf_frontend}/auth/login?app=` + 用**应用密钥**签发的用户 JWT（§2–§12）。
+新接入一律走 §13 的授权码 + PKCE。
+
+| 阶段 | 状态 | 老流程 | 新流程 |
+|------|------|--------|--------|
+| 当前（开发版） | 双栈 | 可用（会返回弃用响应头） | 可用，推荐 |
+| 下一个大版本 | 弃用期 | 可用，文档标注弃用，新接入必须走新流程 | 唯一推荐 |
+| 再下一个大版本 | 停用 | **停用**（`?app=` 不再作为验签依据） | — |
+
+**怎么观测还有多少存量调用**：只有"应用密钥签发的用户 JWT"会带上这些响应头——
+
+```http
+Deprecation: true
+Warning: 299 - "EADAF SSO: legacy flow (?app= + app-secret-signed user JWT) is deprecated; ..."
+Link: <.../docs/sso-integration-guide.md>; rel="deprecation"
+```
+
+后端同时会打限流 warn 日志（默认 1 分钟一条，含 `application_id`），可以用来盘出还需要迁移的应用。
+
+**迁移步骤**：按 §13 接授权码 + PKCE；BFF 可直接对照
+[`app_example/server/index.mjs`](../app_example/server/index.mjs)（示例应用已按 BFF 形态改造）
+或 [`docs/sso-bff-template`](./sso-bff-template/README.md)。
 
 ---
 

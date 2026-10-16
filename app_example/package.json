@@ -9,7 +9,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "gen:sales-demo": "node scripts/gen-sales-demo-sql.cjs"
+    "gen:sales-demo": "node scripts/gen-sales-demo-sql.cjs",
+    "dev:bff": "node --env-file=.env server/index.mjs",
+    "dev:all": "node scripts/dev-all.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.5",

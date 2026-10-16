@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { Button, Layout, Menu, Space, Typography } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { clearAuth } from '@/auth/auth';
+import { logout } from '@/auth/auth';
 import './AppShell.css';
 
 const { Header, Content } = Layout;
@@ -53,8 +53,8 @@ export default function AppShell() {
           icon={<LogoutOutlined />}
           style={{ color: '#fff' }}
           onClick={() => {
-            clearAuth();
-            navigate('/auth/login');
+            // 真登出：BFF 清服务端会话 → 跳 EADAF 登出中转页撤销 sid（级联该设备所有应用）
+            void logout();
           }}
         >
           退出

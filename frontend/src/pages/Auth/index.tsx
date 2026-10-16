@@ -4,14 +4,14 @@ import { getApplicationsSsoId } from '@/services/UAC/api/applicationsSso';
 import { getCaptcha } from '@/services/UAC/api/captcha';
 import { history } from '@/utils/navigation';
 import { useInitialState } from '@/providers/InitialStateProvider';
-import { Modal, Form, Input, Button, Card, Space, Spin, Result } from 'antd';
+import { Modal, Form, Input, Button, Card, Space, Spin, Result, Alert } from 'antd';
 import { message, modal } from '@/utils/antdAppApis';
 import Lottie from 'react-lottie-player';
 import React, { useState, useRef, useEffect } from 'react';
 import SliderCaptchaComponent, { SliderCaptchaRef } from '@/components/SliderCaptcha';
 import loadingLottie from '@/assets/lotties/loading.json';
 import './index.scss';
-import { saveAuth, saveSsoAuth, getSsoAuth, clearSsoAuth, clearAuth, checkTokenValid, parseAuthUser } from '@/utils/auth';
+import { saveAuth, saveSsoAuth, getSsoAuth, clearSsoAuth, clearAuth, checkTokenValid, parseAuthUser, getSsoSid, saveSsoSid } from '@/utils/auth';
 import { getApiErrorMessage } from '@/utils/apiResponse';
 import { normalizeUploadFileId } from '@/utils/image';
 import {
@@ -106,6 +106,9 @@ const LoginPage: React.FC = () => {
   const captchaRef = useRef<SliderCaptchaRef>(null);
   const ssoRedirectStartedRef = useRef(false);
   const { refresh, initialState } = useInitialState();
+
+  /** 刚从登出中转页过来：显示"已退出"，且不自动 SSO（见 SSO 方案计划 现象 1） */
+  const loggedOut = new URLSearchParams(window.location.search).get('logged_out') === '1';
 
   // 独立的SSO回调方法（显式传入 SSO 应用信息，避免闭包读取到过期的 applicationInfo）
   const submitSsoCallback = (
@@ -348,6 +351,11 @@ const LoginPage: React.FC = () => {
     const checkUserLoginStatus = async () => {
       try {
         setIsCheckingAuth(true);
+        // 刚从 /auth/logout 中转过来（或应用登出带 logged_out=1）：明确是「已退出」状态，
+        // 不要再判定"已登录"，否则会被静默 SSO 登回去（见 SSO 方案计划 现象 1）
+        if (new URLSearchParams(window.location.search).get('logged_out') === '1') {
+          return;
+        }
         const urlParams = new URL(window.location.href).searchParams;
         const appId = urlParams.get('app');
         // SSO 页：本地若是应用密钥签发的 token，check 必须带 app
@@ -373,6 +381,10 @@ const LoginPage: React.FC = () => {
 
   // 已登录用户的 SSO / 管理台跳转（等待 applicationInfo 加载完成且无 SSO 错误后再执行）
   useEffect(() => {
+    // 已退出（logged_out=1）：停在登录表单，等用户主动发起登录
+    if (new URLSearchParams(window.location.search).get('logged_out') === '1') {
+      return;
+    }
     if (!isLoggedIn || isCheckingAuth || ssoRedirectStartedRef.current || ssoError) {
       return;
     }
@@ -522,9 +534,14 @@ const LoginPage: React.FC = () => {
       const urlParams = new URL(window.location.href).searchParams;
       const appId = urlParams.get('app');
       const loginPayload = appId
-        ? { ...loginData, application_id: appId }
-        : loginData;
+        ? { ...loginData, application_id: appId, sid: getSsoSid() || undefined }
+        : { ...loginData, sid: getSsoSid() || undefined };
       const msg = await postAuthLogin(loginPayload) as LoginResponse;
+
+      // 后端把这次登录并入（或新建）该浏览器的会话；存下来供下次登录/登出复用
+      if ((msg.data as { sid?: string } | undefined)?.sid) {
+        saveSsoSid((msg.data as { sid?: string }).sid);
+      }
 
       if (msg.data?.token) {
         message.success('登录成功！');
@@ -718,6 +735,15 @@ const LoginPage: React.FC = () => {
     <AuthPageContainer>
       <Card className="auth-card" variant="borderless">
         <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+          {loggedOut ? (
+            <Alert
+              type="success"
+              showIcon
+              message="您已退出登录"
+              description="如需继续使用，请重新登录。"
+            />
+          ) : null}
+
           <div className="auth-header">
             <img src={pageLogo} alt={pageTitle} className="logo" />
             <div className="title">{pageTitle}</div>

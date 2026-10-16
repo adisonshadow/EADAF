@@ -31,9 +31,16 @@ export default defineConfig({
     watch: {
       ignored: ['!**/package/ai-base/src/**'],
     },
+    // 前端不再直连 EADAF：/api 与 /auth 都交给本仓库的 BFF（app_example/server/index.mjs）。
+    // 这样浏览器只面对一个源（同源 httpOnly 会话 Cookie），令牌只存在于 BFF。
+    // BFF 端口可用 BFF_PORT 覆盖；先启动：pnpm --filter ./app_example dev:bff
     proxy: {
       '/api': {
-        target: 'http://localhost:29526',
+        target: `http://localhost:${process.env.BFF_PORT || 29530}`,
+        changeOrigin: true,
+      },
+      '/auth': {
+        target: `http://localhost:${process.env.BFF_PORT || 29530}`,
         changeOrigin: true,
       },
     },

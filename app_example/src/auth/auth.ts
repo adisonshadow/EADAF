@@ -1,96 +1,90 @@
-const TOKEN_KEY = 'token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
-
-export function saveAuth(token: string, refreshToken?: string) {
-  localStorage.setItem(TOKEN_KEY, token);
-  if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-}
-
-export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function clearAuth() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-}
-
-export function isAuthenticated() {
-  return Boolean(getToken());
-}
-
 /**
- * 向 EADAF 复核会话：只有明确的 401 才算「会话无效」。
- * 网络抖动 / 5xx 返回 unknown —— 调用方不得据此清登录态。
+ * 示例应用的会话客户端（**BFF 形态**）。
  *
- * EADAF 按 URL 里的 ?app=<application_id> 选验签密钥（SSO 用户 JWT 是应用密钥签的），
- * 所以复核也必须带上，否则会把「好 token」误判成无效。
+ * 前端不持有任何令牌：
+ *   - 登录：跳 BFF 的 `/auth/login`（BFF 生成 PKCE 并跳 EADAF 授权页）；
+ *   - 会话：`GET /auth/me` 由 BFF 用 JWKS 本地验签后返回用户；
+ *   - 业务请求：走 `/api/*`，BFF 负责带令牌、过期自动刷新；
+ *   - 退出：`POST /auth/logout` 清 BFF 会话，再跳 EADAF 登出中转页撤销 sid（级联该设备所有应用）。
+ *
+ * 所以这里没有 localStorage、没有 Authorization 头、没有 `?app=`，也没有前端刷新逻辑 ——
+ * 那些都在 BFF 里（见 app_example/server/index.mjs）。
  */
-async function verifySession(): Promise<'valid' | 'invalid' | 'unknown'> {
-  const token = getToken();
-  if (!token) return 'invalid';
+
+export interface SessionUser {
+  user_id: string | null;
+  username: string | null;
+  name: string;
+  avatar: string | null;
+}
+
+export interface SessionInfo {
+  user: SessionUser;
+  sid: string | null;
+  azp: string | null;
+  /** BFF 是否用 JWKS 公钥本地验签通过 */
+  verifiedLocally: boolean;
+}
+
+export type SessionStatus = 'authenticated' | 'unauthenticated' | 'unknown';
+
+/** 询问 BFF：当前浏览器是否已登录（unknown = 网络/5xx，不要据此清会话） */
+export async function fetchSession(): Promise<{ status: SessionStatus; session?: SessionInfo }> {
   try {
-    const base = import.meta.env.VITE_API_BASE || '/api';
-    const res = await fetch(withApp(`${base}/v1/auth/check`), {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) return 'valid';
-    if (res.status === 401) {
-      // 明确无效/过期：清掉本地登录态，别让坏 token 继续挂在请求头里
-      clearAuth();
-      return 'invalid';
+    const res = await fetch('/auth/me', { credentials: 'same-origin' });
+    if (res.ok) {
+      const json = await res.json();
+      return {
+        status: 'authenticated',
+        session: {
+          user: {
+            user_id: json?.user?.user_id ?? null,
+            username: json?.user?.username ?? null,
+            name: json?.user?.name || json?.user?.username || '未知用户',
+            avatar: json?.user?.avatar ?? null,
+          },
+          sid: json?.sid ?? null,
+          azp: json?.azp ?? null,
+          verifiedLocally: Boolean(json?.verified_locally),
+        },
+      };
     }
-    return 'unknown';
+    if (res.status === 401) return { status: 'unauthenticated' };
+    return { status: 'unknown' };
   } catch {
-    return 'unknown';
+    return { status: 'unknown' };
   }
 }
 
-export async function checkAuth(): Promise<boolean> {
-  return (await verifySession()) === 'valid';
+/** 开始登录（可选 redirect：登录后回到站内某个路径） */
+export function startLogin(redirect?: string): void {
+  const target = redirect && redirect.startsWith('/') && redirect !== '/login'
+    ? `/auth/login?redirect=${encodeURIComponent(redirect)}`
+    : '/auth/login';
+  window.location.href = target;
 }
 
-/** 是否已经在登录/回调相关页面上（避免重复跳转、避免打断回调） */
-function onAuthPage(): boolean {
-  return window.location.pathname.startsWith('/auth/');
-}
-
-let verifying = false;
-
-/**
- * 令牌失效时的统一处置：**先复核会话**，确认无效才清登录态 → 跳 `/auth/login`。
- *
- * 不能一见到 401 就清：401 也可能来自某个接口本身（例如漏带 `?app=`、后端权限或
- * 应用未授权），那时会话还是好的 —— 直接清就会表现为「一发起后端交互就掉登录」。
- * 见 `docs/sso-integration-guide.md` §8.3。
- *
- * 幂等：并发请求同时 401 时只复核一次；确认无效后保持标记，避免重复跳转。
- */
-export async function handleUnauthorized(): Promise<void> {
-  if (verifying || onAuthPage()) return;
-  verifying = true;
-
-  const state = await verifySession();
-  if (state === 'invalid') {
-    clearAuth();
-    window.location.replace('/auth/login');
-    return;
+/** 退出：清 BFF 会话 → 跳 EADAF 登出中转页（撤销 sid，该设备所有应用一起退出） */
+export async function logout(): Promise<void> {
+  try {
+    const res = await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    const json = await res.json().catch(() => ({}));
+    if (json?.end_session_url) {
+      window.location.href = json.end_session_url;
+      return;
+    }
+  } catch (error) {
+    console.warn('退出时清理服务端会话失败（已忽略）:', error);
   }
-  // valid：该接口的 401 与会话无关；unknown：网络/5xx，都不清登录态
-  verifying = false;
+  window.location.href = '/login?logged_out=1';
 }
 
 /** 拦截器安装标记（StrictMode 下 main.tsx 可能被执行两次） */
-const INTERCEPTOR_FLAG = '__ysUnauthorizedInterceptorInstalled';
+const INTERCEPTOR_FLAG = '__ys401InterceptorInstalled';
 
 /**
- * 全局 401 拦截：给 `window.fetch` 包一层，任何请求拿到 401 都走
- * {@link handleUnauthorized}。
- *
- * 为什么放在这一层：本示例的数据请求（storeApi）和 AI 助手请求（`@eadaf/ai-base`
- * 的 client）走的是两套封装，逐个改容易漏；令牌过期恰恰最常先在 AI 助手面板暴露成
- * 一句「无效的令牌」。在 fetch 这一层收口，两套都覆盖到。
- * 只读 `res.status`，不消费响应体。
+ * 401 拦截：BFF 已经负责"令牌过期就刷新"，所以业务请求再拿到 401 只可能是
+ * **会话真的没了**（登出/被撤销/刷新失败）→ 回登录页，而不是把「无效的令牌」留在页面上。
  */
 export function installUnauthorizedInterceptor(): void {
   const w = window as unknown as Record<string, unknown>;
@@ -100,25 +94,11 @@ export function installUnauthorizedInterceptor(): void {
   const original = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const res = await original(input, init);
-    // 只读 res.status，不消费响应体；是否真的掉登录由 handleUnauthorized 复核后决定
-    if (res.status === 401) void handleUnauthorized();
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.pathname : input.url;
+    const onLoginPage = window.location.pathname.startsWith('/login');
+    if (res.status === 401 && url.includes('/api/') && !onLoginPage) {
+      window.location.replace('/login?expired=1');
+    }
     return res;
   };
-}
-
-/**
- * 给 EADAF 请求补上 ?app=<application_id>。
- * 带 SSO 应用密钥签发的用户 JWT 调 EADAF 时必须带它，否则验签用的是平台密钥。
- */
-export function withApp(url: string): string {
-  const appId = import.meta.env.VITE_SSO_APPLICATION_ID;
-  if (!appId) return url;
-  const sep = url.includes('?') ? '&' : '?';
-  return `${url}${sep}app=${encodeURIComponent(appId)}`;
-}
-
-export function buildSsoLoginUrl(applicationId?: string) {
-  const appId = applicationId || import.meta.env.VITE_SSO_APPLICATION_ID;
-  const EADAFFrontend = import.meta.env.VITE_SSO_EADAF_FRONTEND || 'http://localhost:29527';
-  return `${EADAFFrontend}/auth/login?app=${appId}`;
 }

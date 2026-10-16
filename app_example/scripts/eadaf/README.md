@@ -5,7 +5,7 @@
 
 ```
 provision.mjs   ① 专用存储桶 ② 数据模型（实体/字段/枚举/关系） ③ 物化 ④ API 服务 + 发布
-load-data.mjs   把演示数据（会员/伞品/订单/明细/售后）灌进物化表
+load-data.mjs   解析 scripts/sales-demo-db.sql，把演示数据（会员/伞品/订单/明细/售后）灌进物化表（不经过任何本地库）
 ```
 
 ## 前置条件
@@ -22,15 +22,12 @@ load-data.mjs   把演示数据（会员/伞品/订单/明细/售后）灌进物
 | `EADAF_APP_ID` | 示例应用 ID | 换 Token / 建桶时归属 |
 | `EADAF_APP_SECRET` | 示例应用密钥 | 换取应用 Token |
 | `EADAF_MYSQL_CMD` | 空 | `load-data.mjs` 灌库命令；空则只生成 SQL |
-| `SALES_DEMO_DB_PATH` | `backend/data/sales-demo.db` | 演示数据源（SQLite） |
+| `YS_SEED_SQL_FILE` | `app_example/scripts/sales-demo-db.sql` | 演示数据源（直接解析的 SQL） |
 
 ## 用法
 
 ```bash
 cd app_example
-
-# 0) 先把权威演示数据载入 SQLite（本示例的数据源头）
-pnpm --filter ./backend init-sales-demo-db
 
 # 1) 建桶 + 建模型 + 物化 + 建 API 服务（可反复跑）
 node scripts/eadaf/provision.mjs
@@ -78,28 +75,32 @@ Authorization: Bearer <用户 JWT>
 | `api_data_scope.domainCodes` | `["YS"]` | **决定 API 服务是否出现在 `/api/v1/applications-public/YS/apis.json`**；空则一个都不给 |
 | `bizdata_scope_codes` | `["YS"]` | 存储按 Scope 授权、应用导出/导入时选哪些实体 |
 
-## AI 侧现状与待办（交接）
+## AI 侧现状：Tool 与页面同源（已落地）
 
-**现状**：示例应用的 AI 助手能正常对话，但它用的 `sales-*` 系列 Tool（`订单状态统计`、
-`搜索订单`、`查询订单详情`、`投诉列表`…）是 EADAF 后端里 **`server_builtin` 的硬编码实现**，
-读的是旧 SQLite 演示库 `backend/data/sales-demo.db`，**不是上面这套物化表**。
+示例应用的 AI 助手用的 `sales-*` 系列 Tool（`订单状态统计`、`搜索订单`、`查询订单详情`、
+`投诉列表`…）是后端 `server_builtin` 实现，**直接查物化表 `bizdata_mat.ys_*`**
+（[`backend/src/services/demo/salesDataService.js`](../../../backend/src/services/demo/salesDataService.js)），
+与页面/API 服务是**同一份数据**。
 
-因为两边都由同一份 `scripts/sales-demo-db.sql` 生成，**当前数据内容是一致的**（20/20/60/118/10）；
-但它们是**两个存储**，写入不会互相同步。
+- 连接与表名由平台物化元数据解析（默认连接），未物化/连接被删会明确报错，不会悄悄读到一份过期副本；
+- 入参里的主键是物化表的 UUID（不再是旧的整数 ID）：`sales_get_complaint` 接受投诉 UUID 或订单号，
+  `sales_search_orders` 的 `userId` 接受会员 UUID 或姓名；
+- 趋势类 Tool 的 `days` 上限 10 年，窗口内无数据时会返回数据实际时间范围（示例种子固定在 2025 年）。
 
-**为什么不能靠配置解决**：`aibase.tools` 只支持 `execution_type` = `server_builtin` / `client`，
-**没有「绑定到某条 API 服务」这种类型**（也没有 `apiServiceId` 字段）。所以要把 AI 指到 API 服务，
-只能二选一：
+自检（AI 工具 ↔ 页面数据 API 逐项对齐）：
 
-- **(a) 改代码**：把 `backend/src/services/ai/toolInvokeService.js` 里 `sales_*` 的实现
-  从 `salesDemoDb.*` 换成走 `bizdata_mat.ys_*`（或直接调 `apiServiceInvokeService`）。
-  注意这些 Tool 挂在共享的 `sales-demo` scope 上，会影响其他引用了该 scope 的应用。
-- **(b) 接受双存储**：两者同源同内容，只读演示完全够用；真要做写操作演示再上 (a)。
+```bash
+node backend/scripts/verify-sales-tools-materialized.js
+```
+
+> 这些 Tool 挂在共享的 `sales-demo` scope 上，会影响其他引用该 scope 的应用；
+> 若要把示例应用的 AI 也指到这个 scope，把 `.env` 的 `VITE_DEMO_SCOPE_SLUG` 从 `YS` 改成
+> `sales-demo` 即可（当前 `YS` scope 并不存在，见下）。
 
 **另一个发现**：示例的 `VITE_DEMO_SCOPE_SLUG=YS` 指向的 **AI Scope `YS` 并不存在**
 （`GET /api/v1/ai/scopes/YS/tools` → `SCOPE_NOT_FOUND`）。不过 ai-base 的启动链路只调
 `/v1/ai/capabilities`（服务端不做 scope 过滤），`getScopeTools` 从未被调用，所以**目前不影响运行**；
-要让这个变量名副其实，就在管理台建一个 slug 为 `YS` 的 AI Scope，并把上面那 6 个 `sales-*` Tool 归到它下面。
+要让这个变量名副其实，可以改用 `sales-demo`（已有上面这 8 个 Tool），或在管理台建 slug 为 `YS` 的 Scope。
 
 ## 已知的平台侧修复
 

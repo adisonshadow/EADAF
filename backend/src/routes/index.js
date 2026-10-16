@@ -16,7 +16,6 @@ const adminSkillRoutes = require('./adminSkillRoutes');
 const adminAiRequestLogRoutes = require('./adminAiRequestLogRoutes');
 const adminOperationLogRoutes = require('./adminOperationLogRoutes');
 const aiRoutes = require('./aiRoutes');
-const demoSalesRoutes = require('./demoSalesRoutes');
 const businessDataRoutes = require('./businessDataRoutes');
 const storageRoutes = require('./storageRoutes');
 const apiServiceAdminRoutes = require('./apiServiceAdminRoutes');
@@ -30,6 +29,8 @@ const systemRoutes = require('./systemRoutes');
 const appTransferRoutes = require('./appTransferRoutes');
 const platformTransferRoutes = require('./platformTransferRoutes');
 const appDeploymentRoutes = require('./appDeploymentRoutes');
+const oauthRoutes = require('./oauthRoutes');
+const OAuthController = require('../controllers/oauthController');
 const automationHookRoutes = require('./automationHookRoutes');
 
 const router = new Router();
@@ -446,7 +447,6 @@ router.use(adminSkillRoutes.routes());
 router.use(adminAiRequestLogRoutes.routes());
 router.use(adminOperationLogRoutes.routes());
 router.use(aiRoutes.routes());
-router.use(demoSalesRoutes.routes());
 router.use(businessDataRoutes.routes());
 router.use(storageRoutes.routes());
 router.use(apiServiceAdminRoutes.routes());
@@ -459,6 +459,12 @@ router.use(exceptionResponseRoutes.routes());
 router.use(systemRoutes.routes());
 router.use(appTransferRoutes.routes());
 router.use(platformTransferRoutes.routes());
+router.use(oauthRoutes.routes());
+
+// OIDC 发现与 JWKS：按约定挂在根路径（不带 /api/v1 前缀），公开只读
+router.get('/.well-known/jwks.json', OAuthController.jwks);
+router.get('/.well-known/openid-configuration', OAuthController.discovery);
+
 router.use(appDeploymentRoutes.routes());
 router.use(automationHookRoutes.routes());
 

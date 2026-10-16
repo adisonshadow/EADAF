@@ -3,6 +3,8 @@ const config = require('../config');
 const logger = require('../utils/logger');
 const Application = require('../models/application');
 const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSecret');
+const ssoSession = require('../utils/ssoSession');
+const { getPublicKey } = require('../utils/ssoKeys');
 
 /**
  * 查一个可用于验签的 SSO 应用。
@@ -29,40 +31,91 @@ async function findSsoSigningApp(applicationId) {
  * 候选验签密钥顺序（纯函数，自检见 scripts/verify-auth-secret-candidates.js）。
  *
  * 顺序决定「哪类令牌能被接受」，因此不能只按 `?app=` 判断：
- *   1. 带 `?app=`：应用密钥优先（SSO 用户 JWT），平台密钥兜底
+ *   1. 带 `?app=`：应用密钥优先（老流程的 SSO 用户 JWT），平台密钥兜底
  *      （应用 Token 是平台密钥签发的，客户端多带了个 app 也不该 401）
  *   2. 应用 Token（`type=application`，平台密钥签发）：平台密钥优先
- *   3. 其余（SSO 用户 JWT）：令牌自述的 application_id 优先
+ *   3. 其余（SSO 用户 JWT / Phase 2 授权码换来的平台签发令牌）：令牌自述 application_id 优先
+ *
+ * 平台候选有两把：HS256 的平台密钥（平台会话 JWT、应用 Token）与 RS256 的公钥
+ * （Phase 2 起由 `/oauth/token` 签发的用户令牌）。
  *
  * @param {object} input
  * @param {{application: object|null, secret: string}|null} [input.queryApp] `?app=` 解析出的应用
  * @param {{application: object|null, secret: string}|null} [input.claimedApp] 令牌自述 application_id 解析出的应用
- * @param {string} input.platformSecret 平台 JWT 密钥
+ * @param {string} input.platformSecret 平台 JWT 对称密钥
+ * @param {string} [input.platformPublicKey] 平台 RS256 公钥（PEM）
  * @param {boolean} [input.isApplicationToken] 令牌为应用 Token（type=application）
- * @returns {Array<{application: object|null, secret: string}>}
+ * @returns {Array<{key: string, algorithms: string[], application: object|null, source: 'app'|'platform'}>}
  */
-function buildSecretCandidates({ queryApp, claimedApp, platformSecret, isApplicationToken }) {
-  const platformCandidate = { application: null, secret: platformSecret };
-  const candidates = [];
+function buildSecretCandidates({
+  queryApp,
+  claimedApp,
+  platformSecret,
+  platformPublicKey,
+  isApplicationToken,
+}) {
+  const HMAC_ALGS = ['HS256', 'HS384', 'HS512'];
 
+  const platformCandidates = [
+    {
+      key: platformSecret,
+      algorithms: HMAC_ALGS,
+      application: null,
+      source: 'platform',
+    },
+    ...(platformPublicKey
+      ? [{
+          key: platformPublicKey,
+          algorithms: ['RS256'],
+          application: null,
+          source: 'platform',
+        }]
+      : []),
+  ];
+
+  /** 应用密钥签发的令牌（老流程，HMAC） */
+  const appCandidate = (entry) => (entry && entry.secret
+    ? {
+        key: entry.secret,
+        algorithms: HMAC_ALGS,
+        application: entry.application || null,
+        source: 'app',
+      }
+    : null);
+
+  const candidates = [];
   const add = (candidate) => {
-    if (!candidate || !candidate.secret) return;
-    if (candidates.some((item) => item.secret === candidate.secret)) return;
+    if (!candidate || !candidate.key) return;
+    if (candidates.some((item) => item.key === candidate.key)) return;
     candidates.push(candidate);
   };
 
   if (queryApp) {
-    add(queryApp);
-    add(platformCandidate);
+    add(appCandidate(queryApp));
+    platformCandidates.forEach(add);
   } else if (isApplicationToken) {
-    add(platformCandidate);
-    add(claimedApp);
+    platformCandidates.forEach(add);
+    add(appCandidate(claimedApp));
   } else {
-    add(claimedApp);
-    add(platformCandidate);
+    add(appCandidate(claimedApp));
+    platformCandidates.forEach(add);
   }
 
   return candidates;
+}
+
+/** 旧流程使用情况的限流日志（避免每个请求一条） */
+const LEGACY_LOG_COOLDOWN_MS = 60 * 1000;
+let lastLegacyLogAt = 0;
+function noteLegacyUsage(ctx) {
+  const now = Date.now();
+  if (now - lastLegacyLogAt < LEGACY_LOG_COOLDOWN_MS) return;
+  lastLegacyLogAt = now;
+  logger.warn('仍在使用 SSO 旧流程（?app= + 应用密钥签发的用户 JWT）；该路径保留 2 个版本后停用，请迁移到授权码 + PKCE', {
+    method: ctx.method,
+    url: ctx.url,
+    application_id: ctx.query?.app || null,
+  });
 }
 
 /**
@@ -88,6 +141,7 @@ module.exports = async (ctx, next) => {
     ctx.body = {
       code: 401,
       message: '未提供认证令牌',
+      error_code: 'AUTH_MISSING',
       data: null
     };
     return;
@@ -106,6 +160,7 @@ module.exports = async (ctx, next) => {
     ctx.body = {
       code: 401,
       message: '认证令牌格式错误，请使用 Bearer 格式',
+      error_code: 'AUTH_MALFORMED',
       data: null
     };
     return;
@@ -124,6 +179,7 @@ module.exports = async (ctx, next) => {
     ctx.body = {
       code: 401,
       message: '认证令牌不能为空',
+      error_code: 'AUTH_MISSING',
       data: null
     };
     return;
@@ -153,6 +209,7 @@ module.exports = async (ctx, next) => {
         ctx.body = {
           code: 401,
           message: '无效的第三方应用认证',
+          error_code: 'APP_CONTEXT_INVALID',
           data: null
         };
         return;
@@ -181,6 +238,7 @@ module.exports = async (ctx, next) => {
       queryApp,
       claimedApp,
       platformSecret,
+      platformPublicKey: getPublicKey(),
       isApplicationToken,
     });
 
@@ -190,7 +248,7 @@ module.exports = async (ctx, next) => {
     let expiredError = null;
     for (const candidate of secretCandidates) {
       try {
-        payload = jwt.verify(token, candidate.secret);
+        payload = jwt.verify(token, candidate.key, { algorithms: candidate.algorithms });
         matchedCandidate = candidate;
         break;
       } catch (error) {
@@ -200,8 +258,19 @@ module.exports = async (ctx, next) => {
     }
     if (!matchedCandidate) throw expiredError || lastError || new Error('invalid token');
 
-    // 用应用密钥验过的用户令牌即 SSO 认证（平台密钥签发的平台会话 / 应用 Token 都不算）
-    const isSsoAuth = matchedCandidate.secret !== platformSecret;
+    // 用应用密钥验过的用户令牌即 SSO 认证（平台签发/平台会话/应用 Token 都不算）。
+    // 这条路径已弃用（保留 2 个版本）：通过响应头暴露给接入方/运维，便于观测存量并排期迁移。
+    const isSsoAuth = matchedCandidate.source === 'app';
+    if (isSsoAuth) {
+      // 注意：HTTP 头只能是 ASCII（中文会让 Node 抛 Invalid character in header content）
+      ctx.set('Deprecation', 'true');
+      ctx.set(
+        'Warning',
+        '299 - "EADAF SSO: legacy flow (?app= + app-secret-signed user JWT) is deprecated; migrate to /oauth/authorize + PKCE (docs/sso-integration-guide.md section 13)"',
+      );
+      ctx.set('Link', '<https://github.com/adisonshadow/UAC2/blob/main/docs/sso-integration-guide.md>; rel="deprecation"');
+      noteLegacyUsage(ctx);
+    }
 
     // 应用令牌（type=application）：外部系统通过 app_secret 换取的 JWT，用于调用内置 API。
     // 校验应用启用 API 且状态为 ACTIVE，设置 ctx.state.application（不设 user），
@@ -217,7 +286,7 @@ module.exports = async (ctx, next) => {
           application_id: payload.application_id,
         });
         ctx.status = 401;
-        ctx.body = { code: 401, message: '无效的应用令牌', data: null };
+        ctx.body = { code: 401, message: '无效的应用令牌', error_code: 'TOKEN_INVALID', data: null };
         return;
       }
       ctx.state.application = application;
@@ -233,7 +302,12 @@ module.exports = async (ctx, next) => {
       return;
     }
 
-    // 用户令牌：确保 payload 包含必要的用户信息
+    // 用户令牌：确保 payload 包含必要的用户信息。
+    // Phase 2 的平台签发令牌用 OIDC 的 `sub`，这里统一映射成 `user_id` 供下游使用。
+    if (payload && !payload.user_id && payload.sub) {
+      payload.user_id = payload.sub;
+    }
+
     if (!payload || !payload.user_id) {
       logger.warn('认证失败：令牌载荷无效', {
         method: ctx.method,
@@ -246,6 +320,7 @@ module.exports = async (ctx, next) => {
       ctx.body = {
         code: 401,
         message: '无效的令牌',
+        error_code: 'TOKEN_INVALID',
         data: null
       };
       return;
@@ -265,6 +340,26 @@ module.exports = async (ctx, next) => {
       ctx.body = {
         code: 401,
         message: '认证令牌已过期',
+        error_code: 'TOKEN_EXPIRED',
+        data: null
+      };
+      return;
+    }
+
+    // 会话撤销校验：登出/重放撤销会话后，access token 即使没过期也立即失效。
+    // Redis 不可用时 fail-open（isSessionRevoked 返回 false），退化为"等 access 过期"。
+    if (payload.sid && await ssoSession.isSessionRevoked(payload.sid)) {
+      logger.warn('认证失败：会话已撤销', {
+        method: ctx.method,
+        url: ctx.url,
+        user_id: payload.user_id,
+        sid: payload.sid,
+      });
+      ctx.status = 401;
+      ctx.body = {
+        code: 401,
+        message: '会话已退出，请重新登录',
+        error_code: 'SESSION_REVOKED',
         data: null
       };
       return;
@@ -310,6 +405,8 @@ module.exports = async (ctx, next) => {
     ctx.body = {
       code: 401,
       message: errorMessage,
+      // 机器可读：客户端据此区分「该刷新还是该重新登录」
+      error_code: error.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'TOKEN_INVALID',
       data: null
     };
   }

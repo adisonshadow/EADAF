@@ -1,6 +1,7 @@
 const Router = require('koa-router');
 const authController = require('../controllers/authController');
 const auth = require('../middlewares/auth');
+const optionalAuth = require('../middlewares/optionalAuth');
 const { operationAudit } = require('../middlewares/operationAudit');
 const { skipLoginAudit } = require('../services/operationAudit/skipLoginAudit');
 
@@ -69,6 +70,14 @@ const router = new Router({ prefix: '/api/v1/auth' });
  *                     format: uuid
  *                     description: 验证码ID，从验证码接口获取
  *                     example: "550e8400-e29b-41d4-a716-446655440000"
+ *               sid:
+ *                 type: string
+ *                 format: uuid
+ *                 description: |
+ *                   浏览器会话 ID（可选）。带上它时本次登录并入同一会话 —— 管理台与各业务
+ *                   应用的 SSO 登录都带同一个 sid，登出时撤销该会话即"该设备所有应用一起退出"。
+ *                   不传则新建会话。响应里会回传最终使用的 sid。
+ *                 example: "3f2504e0-4f89-11d3-9a0c-0305e82c3301"
  *     responses:
  *       200:
  *         description: 登录成功
@@ -90,6 +99,10 @@ const router = new Router({ prefix: '/api/v1/auth' });
  *                       type: string
  *                       description: 访问令牌，用于后续API调用认证
  *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     sid:
+ *                       type: string
+ *                       format: uuid
+ *                       description: 本次登录所属的会话 ID（下次登录/登出带上它）
  *                     refresh_token:
  *                       type: string
  *                       description: 刷新令牌，用于获取新的访问令牌
@@ -389,7 +402,9 @@ router.post(
  *                   type: null
  *                   example: null
  */
-router.post('/refresh', auth, authController.refreshToken);
+// 刷新：不要求有效 access token —— 访问令牌过期后必须还能刷新，
+// 凭据是刷新令牌本身（轮换 + 重放检测见 authController.refreshToken）
+router.post('/refresh', authController.refreshToken);
 
 /**
  * @swagger
@@ -412,6 +427,13 @@ router.post('/refresh', auth, authController.refreshToken);
  *                 type: string
  *                 description: 刷新令牌
  *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *               sid:
+ *                 type: string
+ *                 format: uuid
+ *                 description: 会话 ID；撤销它 = 该设备上所有应用一起退出（管理台前端 localStorage 的 eadaf_sid）
+ *               all:
+ *                 type: boolean
+ *                 description: 为 true 时同时撤销该用户的**全部**会话（退出所有设备）。需要能确认身份（有效令牌或刷新令牌）
  *     responses:
  *       200:
  *         description: 登出成功
@@ -462,17 +484,124 @@ router.post('/refresh', auth, authController.refreshToken);
  *                   type: null
  *                   example: null
  */
+// 登出：不要求有效 access token（令牌过期时也必须能登出），凭据是刷新令牌 / 会话 ID；
+// optionalAuth 只在令牌有效时补上"当前是谁"，用于 `all: true` 退出所有设备
 router.post(
   '/logout',
-  auth,
+  optionalAuth,
   operationAudit({
     domain: 'auth',
     operationType: 'LOGOUT',
     resourceType: 'user',
-    resourceId: (ctx) => ctx.state.user?.user_id,
+    resourceId: (ctx) => ctx.state.auditContext?.resource_id || ctx.state.user?.user_id,
   }),
   authController.logout,
 );
+
+/**
+ * @swagger
+ * /api/v1/auth/sessions:
+ *   get:
+ *     tags: [Auth]
+ *     summary: 当前用户的活跃会话（登录设备）[需要认证]
+ *     description: |
+ *       列出该用户由 Redis 记录的 SSO 会话。`store_available=false` 表示会话存储（Redis）
+ *       不可用，此时列表必为空 —— 是"查不到"，不是"没有会话"。
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 会话列表
+ *   delete:
+ *     tags: [Auth]
+ *     summary: 退出所有设备（撤销全部会话）[需要认证]
+ *     description: 会连当前会话一起撤销，前端应随后回登录页。
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 已退出所有设备
+ * /api/v1/auth/sessions/{sid}:
+ *   delete:
+ *     tags: [Auth]
+ *     summary: 撤销指定会话 [需要认证]
+ *     description: 只能撤销属于当前用户的会话（否则 404）。
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sid
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: 已撤销
+ *       404:
+ *         description: 会话不存在或不属于当前用户
+ */
+// 登录设备（会话）：列出 / 撤销单个 / 撤销全部
+// 撤销都要进操作日志（Phase 3 §3.3：全局登出策略与审计）
+router.get('/sessions', auth, authController.listSessions);
+router.delete(
+  '/sessions/:sid',
+  auth,
+  operationAudit({
+    domain: 'auth',
+    operationType: 'LOGOUT',
+    resourceType: 'session',
+    resourceId: (ctx) => ctx.params.sid,
+  }),
+  authController.revokeSession,
+);
+router.delete(
+  '/sessions',
+  auth,
+  operationAudit({
+    domain: 'auth',
+    operationType: 'LOGOUT_ALL',
+    resourceType: 'user',
+    resourceId: (ctx) => ctx.state.user?.user_id,
+  }),
+  authController.revokeAllSessions,
+);
+
+/**
+ * @swagger
+ * /api/v1/auth/end-session:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: 单点登出中转（RP-Initiated Logout）
+ *     description: |
+ *       业务应用登出后由浏览器跳到本接口，校验回跳地址并 302 回应用。
+ *       回跳地址必须与应用配置的 `redirect_uri`（含 DEV 那套）或 `frontend_url` **同源**，
+ *       否则返回 400（防开放重定向）。
+ *
+ *       本接口**不要求认证**，也不直接撤销令牌：Phase 0 的刷新令牌在浏览器侧，
+ *       由管理台 `/auth/logout` 页面先调 `POST /api/v1/auth/logout` 撤销再跳到这里。
+ *     parameters:
+ *       - in: query
+ *         name: app
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: 应用 ID
+ *       - in: query
+ *         name: post_logout_redirect_uri
+ *         required: true
+ *         schema: { type: string }
+ *         description: 登出后回跳地址（需与应用同源）
+ *       - in: query
+ *         name: state
+ *         required: false
+ *         schema: { type: string }
+ *         description: 原样回传（防 CSRF / 保留应用上下文）
+ *     responses:
+ *       302:
+ *         description: 回跳到 post_logout_redirect_uri（附带 logged_out=1 与 state）
+ *       400:
+ *         description: app 或回跳地址不合法
+ */
+router.get('/end-session', authController.endSession);
 
 /**
  * @swagger

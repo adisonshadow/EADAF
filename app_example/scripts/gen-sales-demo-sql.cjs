@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * 生成销售 Demo（SQLite）种子 SQL：**雨伞品牌厂商的电商独立站销售管理系统**
+ * 生成销售 Demo 种子 SQL：**雨伞品牌厂商的电商独立站销售管理系统**
  *
- * 该 SQL 由 backend/scripts/init-sales-demo-db.js 载入，落到 backend/data/sales-demo.db，
- * 供 EADAF 仍读 SQLite 的 **AI Tool** 使用（app_example 页面已改为调 EADAF 物化表上的
- * API 服务 /api/v1/data/YS/*，数据由本 SQL 灌入 bizdata_mat.ys_*，见 /tmp/ys-load.mjs 一路的做法）。
+ * 这份 SQL 是演示数据的**唯一源头**：`scripts/eadaf/load-data.mjs` 直接解析它，
+ * 派生确定性 UUID 后灌进 EADAF 物化表 `bizdata_mat.ys_*`。
+ * 页面（`/api/v1/data/YS/*` → API 服务）与 AI 助手（`sales-*` Tool）都读这批物化表，
+ * **不再有本地 SQLite 演示库**。
  *
  * 用法：
  *   node scripts/gen-sales-demo-sql.cjs            # 写入 scripts/sales-demo-db.sql
@@ -211,7 +212,7 @@ function buildSql() {
   const complaints = buildComplaints(orders);
 
   const lines = [];
-  lines.push('-- 雨伞品牌厂商 · 电商独立站销售管理系统 —— 销售 Demo（SQLite）种子数据');
+  lines.push('-- 雨伞品牌厂商 · 电商独立站销售管理系统 —— 销售 Demo 种子数据（灌入 EADAF 物化表 bizdata_mat.ys_*）');
   lines.push('-- 会员 20 | 伞品 20 | 订单 60 | 订单明细 | 售后工单 10');
   lines.push('-- 由 app_example/scripts/gen-sales-demo-sql.cjs 生成；订单金额 = 明细单价 × 数量之和');
   lines.push('');
