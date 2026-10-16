@@ -1061,6 +1061,7 @@ class ImportContext {
     // 所有带连接信息的实体(无论是否带行数据)都参与物化,保证目标端物理表就绪
     const byConnection = new Map(); // targetConnId -> [{entityId, version, entityCode}]
     const skippedEntities = [];
+    const missingEntityCodes = [];
     for (const item of entityData) {
       if (!item.connectionSourceId) {
         skippedEntities.push(item.entityCode);
@@ -1075,12 +1076,20 @@ class ImportContext {
       const entityId = this.idMap.entities.get(
         (this.file.entities?.items || []).find((e) => e.code === item.entityCode)?.id,
       );
-      if (!entityId) continue;
+      // 结构节没落到目标(节失败回滚/实体缺口)时这里会全部命中:以前静默 continue,
+      // 报告里既没物化也没报错,看起来像「导入成功但目标没有表」。
+      if (!entityId) {
+        missingEntityCodes.push(item.entityCode);
+        continue;
+      }
       if (!byConnection.has(conn.id)) byConnection.set(conn.id, []);
       byConnection.get(conn.id).push({ entityId, version: item.entityVersion, entityCode: item.entityCode });
     }
     if (skippedEntities.length) {
       section.errors.push(`以下实体因连接未匹配/无法创建未安排物化(其行数据也将失败): ${skippedEntities.join(', ')}`);
+    }
+    if (missingEntityCodes.length) {
+      section.errors.push(`以下实体在目标库未找到(结构节可能未成功): ${missingEntityCodes.join(', ')},未安排物化`);
     }
     try {
       for (const [connId, entries] of byConnection) {
@@ -1993,7 +2002,7 @@ async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
   }
 
   if (file.options?.includeAi || (file.ai && Array.isArray(file.ai.providers) && file.ai.providers.length)) {
-    result.warnings.push('文件含实例级 AI 目录,应用导入已忽略;请到「EADAF 平台导出/导入」页迁移平台能力');
+    result.warnings.push('文件含实例级 AI 目录,应用导入已忽略;请到「EADAF数据导出/导入」页迁移平台能力');
   }
 
   result.includeUac = ctx.includeUac;

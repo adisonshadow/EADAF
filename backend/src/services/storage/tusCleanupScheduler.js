@@ -3,6 +3,7 @@ const fsp = require('fs/promises');
 const path = require('path');
 const cron = require('node-cron');
 const logger = require('../../utils/logger');
+const { reportDependencyError } = require('../../utils/dependencyDiagnostics');
 const { getTusServer } = require('./tusServer');
 const { getTusDir } = require('./storageService');
 const {
@@ -102,7 +103,7 @@ async function runTusCleanup() {
       });
     }
   } catch (error) {
-    logger.error('tus 清理任务失败', { message: error.message, stack: error.stack });
+    reportDependencyError('tus 清理任务失败', error);
   } finally {
     running = false;
   }
@@ -112,12 +113,12 @@ function startTusCleanupScheduler() {
   if (scheduledJob) return;
   scheduledJob = cron.schedule('*/15 * * * *', () => {
     runTusCleanup().catch((error) => {
-      logger.error('tus 清理调度异常', { message: error.message });
+      reportDependencyError('tus 清理调度异常', error);
     });
   });
   logger.info('tus 过期清理调度已启动', { cron: '*/15 * * * *' });
   runTusCleanup().catch((error) => {
-    logger.warn('tus 启动清理推迟', { message: error.message });
+    reportDependencyError('tus 启动清理推迟', error);
   });
 }
 

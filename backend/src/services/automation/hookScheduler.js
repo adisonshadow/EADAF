@@ -7,6 +7,7 @@
 const cron = require('node-cron');
 const { Op } = require('sequelize');
 const logger = require('../../utils/logger');
+const { reportDependencyError } = require('../../utils/dependencyDiagnostics');
 const { AutomationHook, AutomationHookRun } = require('../../models');
 const { getRedisClient } = require('../../utils/redisClient');
 const { emit } = require('./eventDispatcher');
@@ -123,7 +124,7 @@ async function startHookScheduler() {
   try {
     await registerCronJobs();
   } catch (error) {
-    logger.error('钩子调度器启动失败', { error: error.message });
+    reportDependencyError('钩子调度器启动失败', error);
   }
   if (!cleanupJob) {
     cleanupJob = cron.schedule('0 3 * * *', () => {

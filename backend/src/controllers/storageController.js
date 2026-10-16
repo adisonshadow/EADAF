@@ -6,7 +6,7 @@ const { assertObjectAccess } = require('../services/storage/storageAccessService
 const { getSession, isOwner } = require('../services/storage/tusProgressStore');
 const StorageBucket = require('../models/storage_bucket');
 const StorageObject = require('../models/storage_object');
-const logger = require('../utils/logger');
+const { reportDependencyError } = require('../utils/dependencyDiagnostics');
 
 class StorageController {
   static async listBuckets(ctx) {
@@ -317,7 +317,10 @@ class StorageController {
   }
 
   static sendError(ctx, error, fallbackStatus = 500) {
-    logger.error('Storage API error', { message: error.message, stack: error.stack });
+    // MinIO 不可用时每个请求都会失败：只报一次，之后同类错误只进文件
+    reportDependencyError('Storage API error', error, {
+      fallbackKey: error.status === 503 ? 'minio' : null,
+    });
     ctx.status = error.status || fallbackStatus;
     ctx.body = {
       code: ctx.status,

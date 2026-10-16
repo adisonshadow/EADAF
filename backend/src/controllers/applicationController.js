@@ -12,6 +12,7 @@ const {
   validateSsoRedirectUriConfig,
   resolveSsoRedirectUri,
   requestHostInfo,
+  isPlatformDevMode,
 } = require('../utils/ssoRedirectUri');
 const { getPublicApiCatalog } = require('../services/applicationApiCatalogService');
 const { getPublicApiOpenApi } = require('../services/applicationApiOpenApiService');
@@ -1029,7 +1030,10 @@ class ApplicationController {
         currentTimestamp,
         secret,
         protocol: application.sso_config.protocol || "OIDC",
-        redirect_uri: resolveSsoRedirectUri(application.sso_config, requestHostInfo(ctx)),
+        // 登录页据此跳转：开发模式且应用启用 DEV 重定向时，返回 DEV 地址
+        redirect_uri: resolveSsoRedirectUri(application.sso_config, requestHostInfo(ctx), {
+          isDevMode: isPlatformDevMode(),
+        }),
         redirect_uri_use_system_host: !!application.sso_config.redirect_uri_use_system_host,
         redirect_mode: redirectMode,
         // 该应用的登录页是否要求人类验证（滑块）；未配置时跟随平台全局开关

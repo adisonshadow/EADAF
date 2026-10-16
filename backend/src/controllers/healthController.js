@@ -2,6 +2,10 @@ const os = require('os');
 const packageJson = require('../../package.json');
 const sequelize = require('../config/database');
 const logger = require('../utils/logger');
+const {
+  reportDependencyError,
+  noteDependencyUp,
+} = require('../utils/dependencyDiagnostics');
 
 class HealthController {
   static async check(ctx) {
@@ -9,16 +13,13 @@ class HealthController {
       const uptime = process.uptime();
       const memoryUsage = process.memoryUsage();
       
-      // 检查数据库连接
+      // 检查数据库连接（健康检查会被轮询：依赖不可用只报一次，避免刷屏）
       let dbStatus = 'ok';
       try {
         await sequelize.authenticate();
+        noteDependencyUp('postgres');
       } catch (dbError) {
-        logger.error('数据库连接检查失败', {
-          name: dbError.name,
-          message: dbError.message,
-          stack: dbError.stack
-        });
+        reportDependencyError('数据库连接检查失败', dbError, { fallbackKey: 'postgres' });
         dbStatus = 'error';
       }
       

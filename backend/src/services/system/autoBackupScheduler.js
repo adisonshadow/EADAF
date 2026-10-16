@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const logger = require('../../utils/logger');
+const { reportDependencyError } = require('../../utils/dependencyDiagnostics');
 
 /**
  * 自动备份调度器：按 system_features 里的 autoBackupEnabled / autoBackupCron
@@ -66,7 +67,7 @@ function startAutoBackupScheduler() {
   getSystemFeatures()
     .then((features) => applyAutoBackupSchedule(features))
     .catch((error) => {
-      logger.warn('Auto backup scheduler init deferred', { message: error.message });
+      reportDependencyError('Auto backup scheduler init deferred', error);
     });
 }
 

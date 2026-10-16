@@ -82,6 +82,9 @@ coverage/
 *.swp
 *.swo
 *~
+# AI / 编辑器原子写盘的暂存目录与临时文件（写完即删；进程被强杀时可能残留）
+*.tmpdir/
+*.tmp
 
 # --- Editors ---
 .idea/

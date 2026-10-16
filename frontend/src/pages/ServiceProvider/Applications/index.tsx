@@ -25,7 +25,7 @@ import {
 } from '@ant-design/pro-components';
 import { UrlSyncedProTable } from '@/components/UrlSyncedProTable';
 import { useSetState } from "ahooks";
-import { Button, Modal, Space, Form, Typography, Tabs, Checkbox, Col, Input } from 'antd';
+import { Button, Modal, Space, Form, Typography, Tabs, Checkbox, Col, Collapse, Input, Tooltip } from 'antd';
 import { message, modal } from '@/utils/antdAppApis';
 import { LinkOutlined } from '@ant-design/icons';
 import React, { useRef, useState, useMemo, useEffect } from "react";
@@ -108,83 +108,169 @@ function previewSystemHostRedirectUri(suffix: string): string {
   return `${protocol}//${hostname}/${uri.replace(/^\//, '')}`;
 }
 
+/**
+ * 表单项标题行：标题 + 问号提示 + 额外控件（如「启用DEV专用重定向」勾选框）。
+ * 复用 antd 的 label 类名，跟其它字段的灰色标题、必填星号保持一致。
+ */
+const SsoFieldLabel: React.FC<{
+  text: string;
+  tooltip?: React.ReactNode;
+  required?: boolean;
+  extra?: React.ReactNode;
+}> = ({ text, tooltip, required, extra }) => (
+  <div
+    className="ant-form-item-label"
+    style={{ display: 'flex', alignItems: 'center', gap: 12, maxWidth: '100%', paddingBottom: 8 }}
+  >
+    <label className={required ? 'ant-form-item-required' : undefined} title={text}>
+      {text}
+      {tooltip ? (
+        <Tooltip title={tooltip}>
+          <QuestionCircleOutlined className="ant-form-item-tooltip" />
+        </Tooltip>
+      ) : null}
+    </label>
+    {extra}
+  </div>
+);
+
+/**
+ * 一条重定向地址：输入框 + 右侧「自动跟随本系统域名/IP」+ 跟随时的完整地址预览。
+ * 生产与 DEV 两行共用，靠字段名区分。
+ */
+const SsoRedirectUriRow: React.FC<{
+  uriName: ['sso_config', string];
+  useSystemHostName: ['sso_config', string];
+  requiredMessage: string;
+}> = ({ uriName, useSystemHostName, requiredMessage }) => {
+  const form = Form.useFormInstance();
+  const useSystemHost = !!Form.useWatch(useSystemHostName);
+  const redirectUri = Form.useWatch(uriName);
+  const preview = useSystemHost ? previewSystemHostRedirectUri(redirectUri) : '';
+  const skipFirstValidate = useRef(true);
+
+  // 勾选/取消「自动跟随本系统域名/IP」后，地址的合法格式变了：重跑一次校验，别留过期的报错
+  useEffect(() => {
+    if (skipFirstValidate.current) {
+      skipFirstValidate.current = false;
+      return;
+    }
+    const value = form.getFieldValue(uriName);
+    if (value === undefined || value === null || value === '') return;
+    void form.validateFields([uriName]).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useSystemHost]);
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, width: '100%' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Form.Item
+          name={uriName}
+          rules={[
+            { required: true, message: requiredMessage },
+            {
+              validator: async (_: unknown, value: string) => {
+                const v = String(value || '').trim();
+                if (!v) return;
+                if (useSystemHost) {
+                  if (/^https?:\/\//i.test(v)) {
+                    throw new Error('已勾选「自动跟随本系统域名/IP」时，请只填端口路径或本机路径，不要填完整域名');
+                  }
+                  if (v.startsWith(':')) {
+                    if (!/^:\d{1,5}(\/[^\s]*)?$/.test(v)) {
+                      throw new Error('格式应为 :端口/路径，例如 :13303/auth/callback');
+                    }
+                    return;
+                  }
+                  if (v.startsWith('/')) return;
+                  throw new Error('请填写以 :端口 或 / 开头的路径后缀');
+                }
+                try {
+                  const u = new URL(v);
+                  if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+                    throw new Error('invalid');
+                  }
+                } catch {
+                  throw new Error('请输入完整的 http(s) 回调地址');
+                }
+              },
+            },
+          ]}
+          style={{ marginBottom: 0 }}
+        >
+          <Input
+            allowClear
+            placeholder={
+              useSystemHost
+                ? ':13303/auth/callback 或 /auth/callback'
+                : 'https://your-app.com/auth/callback'
+            }
+          />
+        </Form.Item>
+        {useSystemHost && preview ? (
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            预览（当前访问）：{' '}
+            <Typography.Text code copyable={{ text: preview }} style={{ fontSize: 12 }}>
+              {preview}
+            </Typography.Text>
+          </Typography.Text>
+        ) : null}
+      </div>
+      <Form.Item
+        name={useSystemHostName}
+        valuePropName="checked"
+        style={{ marginBottom: 0, flex: 'none' }}
+      >
+        <Checkbox style={{ whiteSpace: 'nowrap' }}>自动跟随本系统域名/IP</Checkbox>
+      </Form.Item>
+    </div>
+  );
+};
+
 const SsoRedirectUriFields: React.FC = () => {
   const useSystemHost = !!Form.useWatch(['sso_config', 'redirect_uri_use_system_host']);
-  const redirectUri = Form.useWatch(['sso_config', 'redirect_uri']);
-  const preview = useSystemHost ? previewSystemHostRedirectUri(redirectUri) : '';
+  const devEnabled = !!Form.useWatch(['sso_config', 'redirect_uri_dev_enabled']);
 
   return (
     <Col span={24}>
-      <Form.Item
-        label="重定向 URI"
-        required
-        tooltip={
-          useSystemHost
-            ? '只填端口与路径（或本机路径）。登录/跳转时按当前访问本系统的域名或 IP 自动拼完整地址，适配客户环境 IP 常变。'
-            : 'SSO 登录成功后，将携带 Token 跳转到此地址（POST 或 302 方式由跳转模式决定）'
-        }
-        style={{ marginBottom: 24 }}
-      >
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
-          <Form.Item
-            name={['sso_config', 'redirect_uri_use_system_host']}
-            valuePropName="checked"
-            style={{ marginBottom: 0 }}
-          >
-            <Checkbox>自动跟随本系统域名/IP</Checkbox>
-          </Form.Item>
-          <Form.Item
-            name={['sso_config', 'redirect_uri']}
-            rules={[
-              { required: true, message: '请输入重定向 URI' },
-              {
-                validator: async (_: unknown, value: string) => {
-                  const v = String(value || '').trim();
-                  if (!v) return;
-                  if (useSystemHost) {
-                    if (/^https?:\/\//i.test(v)) {
-                      throw new Error('已勾选「自动跟随本系统域名/IP」时，请只填端口路径或本机路径，不要填完整域名');
-                    }
-                    if (v.startsWith(':')) {
-                      if (!/^:\d{1,5}(\/[^\s]*)?$/.test(v)) {
-                        throw new Error('格式应为 :端口/路径，例如 :13303/auth/callback');
-                      }
-                      return;
-                    }
-                    if (v.startsWith('/')) return;
-                    throw new Error('请填写以 :端口 或 / 开头的路径后缀');
-                  }
-                  try {
-                    const u = new URL(v);
-                    if (u.protocol !== 'http:' && u.protocol !== 'https:') {
-                      throw new Error('invalid');
-                    }
-                  } catch {
-                    throw new Error('请输入完整的 http(s) 回调地址');
-                  }
-                },
-              },
-            ]}
-            style={{ marginBottom: 0 }}
-          >
-            <Input
-              allowClear
-              placeholder={
-                useSystemHost
-                  ? ':13303/auth/callback 或 /auth/callback'
-                  : 'https://your-app.com/auth/callback'
-              }
+      <Form.Item style={{ marginBottom: 24 }}>
+        <SsoFieldLabel
+          required
+          text="重定向 URI"
+          tooltip={
+            useSystemHost
+              ? '只填端口与路径（或本机路径）。登录/跳转时按当前访问本系统的域名或 IP 自动拼完整地址，适配客户环境 IP 常变。'
+              : 'SSO 登录成功后，将携带 Token 跳转到此地址（POST 或 302 方式由跳转模式决定）'
+          }
+          extra={
+            <Form.Item
+              name={['sso_config', 'redirect_uri_dev_enabled']}
+              valuePropName="checked"
+              noStyle
+            >
+              <Checkbox>启用DEV专用重定向</Checkbox>
+            </Form.Item>
+          }
+        />
+        <SsoRedirectUriRow
+          uriName={['sso_config', 'redirect_uri']}
+          useSystemHostName={['sso_config', 'redirect_uri_use_system_host']}
+          requiredMessage="请输入重定向 URI"
+        />
+        {devEnabled ? (
+          <div style={{ marginTop: 16 }}>
+            <SsoFieldLabel
+              required
+              text="DEV 专用重定向 URI"
+              tooltip="平台跑在开发模式（后端 NODE_ENV=development，即 npm run dev / pm2dev）时，登录成功跳到这里；服务器部署仍用上面的重定向 URI。开发机与部署环境的地址（尤其端口）常不同，两套都填好就不用每次改。"
             />
-          </Form.Item>
-          {useSystemHost && preview ? (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              预览（当前访问）：{' '}
-              <Typography.Text code copyable={{ text: preview }} style={{ fontSize: 12 }}>
-                {preview}
-              </Typography.Text>
-            </Typography.Text>
-          ) : null}
-        </Space>
+            <SsoRedirectUriRow
+              uriName={['sso_config', 'redirect_uri_dev']}
+              useSystemHostName={['sso_config', 'redirect_uri_dev_use_system_host']}
+              requiredMessage="请输入 DEV 专用重定向 URI"
+            />
+          </div>
+        ) : null}
       </Form.Item>
     </Col>
   );
@@ -386,6 +472,8 @@ const Page: React.FC = () => {
             ...record.sso_config,
             redirect_mode: record.sso_config?.redirect_mode ?? 'POST_REDIRECT',
             redirect_uri_use_system_host: !!record.sso_config?.redirect_uri_use_system_host,
+            redirect_uri_dev_enabled: !!record.sso_config?.redirect_uri_dev_enabled,
+            redirect_uri_dev_use_system_host: !!record.sso_config?.redirect_uri_dev_use_system_host,
             // 未配置过时按「需要验证」展示，与平台默认一致
             login_verify_enabled: record.sso_config?.login_verify_enabled ?? true,
             base_url: window.location.origin,
@@ -529,6 +617,8 @@ const Page: React.FC = () => {
         client_secret: currentApplication.sso_config?.client_secret
           || currentApplication.api_connect_config?.app_secret,
         redirect_uri_use_system_host: !!values.sso_config?.redirect_uri_use_system_host,
+        redirect_uri_dev_enabled: !!values.sso_config?.redirect_uri_dev_enabled,
+        redirect_uri_dev_use_system_host: !!values.sso_config?.redirect_uri_dev_use_system_host,
       };
       
       const response = await putApplicationsId(
@@ -715,7 +805,7 @@ const Page: React.FC = () => {
       </Modal>
 
       <Modal
-        title="SSO 配置"
+        title={currentApplication?.code ? `${currentApplication.code} SSO 配置` : 'SSO 配置'}
         open={ssoConfigModalVisible}
         onCancel={() => setSsoConfigModalVisible(false)}
         width={800}
@@ -745,107 +835,97 @@ const Page: React.FC = () => {
             {({ sso_enabled }) => {
               if (!sso_enabled) return null;
               return (
-                <>
-                  {/* 基础配置 */}
-                  <SsoRedirectUriFields />
-                  <ProFormSelect
-                    name={['sso_config', 'redirect_mode']}
-                    label="跳转模式"
-                    colProps={{ span: 24 }}
-                    valueEnum={{
-                      'POST_REDIRECT': 'POST 跳转',
-                      'HEADER_REDIRECT': '302 重定向 + URL参数',
-                    }}
-                    initialValue="POST_REDIRECT"
-                    tooltip="POST跳转模式：JWT信息在请求体中传递；302重定向模式：JWT信息在URL参数中传递"
-                  />
-
-                  <ProFormSwitch
-                    name={['sso_config', 'login_verify_enabled']}
-                    label="登录时验证是人类"
-                    colProps={{ span: 24 }}
-                    tooltip="开启后登录页需滑动验证通过才能登录；内部应用可关闭，登录将直接进行（密码校验与登录失败次数限制不受影响）"
-                  />
-
-                  <Col span={24}>
-                    <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
-                      登录页样式
-                    </Typography.Text>
-                  </Col>
-                  <ProFormText
-                    name={['sso_config', 'login_page', 'subtitle']}
-                    label="登录页副标题"
-                    placeholder="选填，不填则不显示"
-                    tooltip="显示在应用名称下方。不填写则不展示副标题，不会使用应用描述。"
-                    colProps={{ span: 24 }}
-                    fieldProps={{ maxLength: 80, showCount: true }}
-                  />
-                  <ProFormRadio.Group
-                    name={['sso_config', 'login_page', 'theme']}
-                    label="页面主题"
-                    radioType="button"
-                    options={[
-                      { label: '浅色', value: 'light' },
-                      { label: '深色', value: 'dark' },
-                      { label: '跟随系统', value: 'system' },
+                <Col span={24}>
+                  <Collapse
+                    defaultActiveKey={['redirect', 'login']}
+                    style={{ marginBottom: 8 }}
+                    items={[
+                      {
+                        key: 'redirect',
+                        label: '重定向',
+                        children: (
+                          <>
+                            <SsoRedirectUriFields />
+                            <ProFormSelect
+                              name={['sso_config', 'redirect_mode']}
+                              label="跳转模式"
+                              colProps={{ span: 24 }}
+                              valueEnum={{
+                                'POST_REDIRECT': 'POST 跳转',
+                                'HEADER_REDIRECT': '302 重定向 + URL参数',
+                              }}
+                              initialValue="POST_REDIRECT"
+                              tooltip="POST跳转模式：JWT信息在请求体中传递；302重定向模式：JWT信息在URL参数中传递"
+                            />
+                            <ProFormTextArea
+                              name={['sso_config', 'additional_params']}
+                              label="额外参数"
+                              placeholder='{"scope": "openid profile email", "response_type": "code"}'
+                              tooltip="其他SSO协议特定的参数，JSON格式"
+                              colProps={{ span: 24 }}
+                              rows={3}
+                            />
+                          </>
+                        ),
+                      },
+                      {
+                        key: 'login',
+                        label: '登录页面',
+                        children: (
+                          <>
+                            <ProFormSwitch
+                              name={['sso_config', 'login_verify_enabled']}
+                              label="登录时验证是人类"
+                              colProps={{ span: 24 }}
+                              tooltip="开启后登录页需滑动验证通过才能登录；内部应用可关闭，登录将直接进行（密码校验与登录失败次数限制不受影响）"
+                            />
+                            <ProFormText
+                              name={['sso_config', 'login_page', 'subtitle']}
+                              label="登录页副标题"
+                              placeholder="选填，不填则不显示"
+                              tooltip="显示在应用名称下方。不填写则不展示副标题，不会使用应用描述。"
+                              colProps={{ span: 24 }}
+                              fieldProps={{ maxLength: 80, showCount: true }}
+                            />
+                            <ProFormRadio.Group
+                              name={['sso_config', 'login_page', 'theme']}
+                              label="页面主题"
+                              radioType="button"
+                              options={[
+                                { label: '浅色', value: 'light' },
+                                { label: '深色', value: 'dark' },
+                                { label: '跟随系统', value: 'system' },
+                              ]}
+                              tooltip="SSO 登录页的配色：浅色、深色，或跟随设备系统外观"
+                              colProps={{ span: 24 }}
+                            />
+                            <ProFormRadio.Group
+                              name={['sso_config', 'login_page', 'aside_kind']}
+                              label="左侧侧边栏素材"
+                              radioType="button"
+                              options={[
+                                { label: 'Lottie 动画', value: 'lottie' },
+                                { label: '图片', value: 'image' },
+                              ]}
+                              tooltip="选择上传 Lottie JSON 动画，或静态图片（支持 SVG）"
+                              colProps={{ span: 24 }}
+                            />
+                            <SsoAsideAssetField />
+                            <Col span={24}>
+                              <Form.Item
+                                name={['sso_config', 'login_page', 'large_text']}
+                                valuePropName="checked"
+                                style={{ marginBottom: 24 }}
+                              >
+                                <Checkbox>使用更大的文字（适合 Pad 显示，文字放大一号）</Checkbox>
+                              </Form.Item>
+                            </Col>
+                          </>
+                        ),
+                      },
                     ]}
-                    tooltip="SSO 登录页的配色：浅色、深色，或跟随设备系统外观"
-                    colProps={{ span: 24 }}
                   />
-                  <ProFormRadio.Group
-                    name={['sso_config', 'login_page', 'aside_kind']}
-                    label="左侧侧边栏素材"
-                    radioType="button"
-                    options={[
-                      { label: 'Lottie 动画', value: 'lottie' },
-                      { label: '图片', value: 'image' },
-                    ]}
-                    tooltip="选择上传 Lottie JSON 动画，或静态图片（支持 SVG）"
-                    colProps={{ span: 24 }}
-                  />
-                  <SsoAsideAssetField />
-                  <Col span={24}>
-                    <Form.Item
-                      name={['sso_config', 'login_page', 'large_text']}
-                      valuePropName="checked"
-                      style={{ marginBottom: 24 }}
-                    >
-                      <Checkbox>使用更大的文字（适合 Pad 显示，文字放大一号）</Checkbox>
-                    </Form.Item>
-                  </Col>
-
-                  {/* 额外参数 */}
-                  <ProFormTextArea
-                    name={['sso_config', 'additional_params']}
-                    label="额外参数"
-                    placeholder='{"scope": "openid profile email", "response_type": "code"}'
-                    tooltip="其他SSO协议特定的参数，JSON格式"
-                    colProps={{
-                      span: 24,
-                    }}
-                    rows={3}
-                  />
-                  
-                  {/* OIDC配置 - 移到额外参数下面 */}
-                  <Col span={24}>
-                    <div style={{ marginBottom: 16 }}>
-                      <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                        客户端ID
-                      </label>
-                      <Text copyable style={{ fontSize: 14 }}>
-                        {currentApplication?.code}
-                      </Text>
-                    </div>
-                    <div style={{ marginBottom: 16 }}>
-                      <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                        发行者URL
-                      </label>
-                      <Text copyable style={{ fontSize: 14 }}>
-                        {window.location.origin}
-                      </Text>
-                    </div>
-                  </Col>
-                </>
+                </Col>
               );
             }}
           </ProFormDependency>

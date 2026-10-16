@@ -13,6 +13,11 @@ const healthRoutes = require('./routes/healthRoutes');
 const collectionIngestRoutes = require('./routes/collectionIngestRoutes');
 const { createTusKoaMiddleware } = require('./services/storage/tusKoaMiddleware');
 const { TUS_EXPOSE_HEADERS } = require('./services/storage/tusServer');
+const {
+  probeDependencies,
+  printStartupReport,
+  reportDependencyError,
+} = require('./utils/dependencyDiagnostics');
 
 // Swagger 配置
 const swaggerDefinition = {
@@ -223,19 +228,6 @@ app.use(routes.allowedMethods({ throw: true }));
 // 注册路由
 app.use(healthRoutes.routes());
 
-// 确保系统内置 Storage Bucket 存在
-if (process.env.NODE_ENV !== 'test') {
-  require('./models');
-  const { ensureSystemBucket } = require('./services/storage/systemBucketService');
-  ensureSystemBucket().catch((error) => {
-    logger.error('初始化系统 Storage Bucket 失败', { message: error.message, stack: error.stack });
-  });
-  const { ensureBucket } = require('./services/storage/objectStore');
-  ensureBucket().catch((error) => {
-    logger.error('初始化 MinIO 存储桶失败', { message: error.message, stack: error.stack });
-  });
-}
-
 // 检查服务器是否已启动
 let server = null;
 
@@ -253,51 +245,81 @@ function listLanIPv4() {
   return ips;
 }
 
-if (process.env.NODE_ENV !== 'test') {
+/**
+ * 启动前先探一次依赖（PostgreSQL / MinIO / Redis）：
+ * 本机 Docker 没启动时，这里一次说清「谁不可用、怎么修」，
+ * 后面各调用点的重复报错会被折叠进日志文件，不再刷屏。
+ */
+async function bootstrap() {
+  const dependencies = await probeDependencies();
+  printStartupReport(dependencies);
+
+  // 确保系统内置 Storage Bucket 存在
+  require('./models');
+  const { ensureSystemBucket } = require('./services/storage/systemBucketService');
+  ensureSystemBucket().catch((error) => {
+    reportDependencyError('初始化系统 Storage Bucket 失败', error, { fallbackKey: 'postgres' });
+  });
+  const { ensureBucket } = require('./services/storage/objectStore');
+  ensureBucket().catch((error) => {
+    reportDependencyError('初始化 MinIO 存储桶失败', error, { fallbackKey: 'minio' });
+  });
+
   const PORT = config.api.port || 3000;
   const HOST = config.api.host || '0.0.0.0';
-  try {
-    server = app.listen(PORT, HOST, () => {
-      logger.info(`🚀 ✅✅✅✅ API Server started on ${HOST}:${PORT}`);
-      logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
-      logger.info(`🔗 Health check: http://127.0.0.1:${PORT}/api/v1/health`);
-      listLanIPv4().forEach((ip) => {
-        logger.info(`🌐 LAN/WAN: http://${ip}:${PORT}/api/v1/health`);
-      });
-      logger.info(`📚 Swagger UI: http://127.0.0.1:${PORT}/swagger`);
-      logger.info(`📄 Swagger JSON: http://127.0.0.1:${PORT}/swagger.json`);
-
-      const { connectRedis } = require('./utils/redisClient');
-      const { startMetricScheduler } = require('./services/metrics/metricScheduler');
-      const { startAutoBackupScheduler } = require('./services/system/autoBackupScheduler');
-      const { startTusCleanupScheduler } = require('./services/storage/tusCleanupScheduler');
-      const { recoverPendingFinalizes } = require('./services/storage/finalizeTusUpload');
-      const { attachApiServiceWebSocket } = require('./services/apiService/apiServiceWebSocket');
-      const { startHookScheduler } = require('./services/automation/hookScheduler');
-      attachApiServiceWebSocket(server);
-      startAutoBackupScheduler();
-      startTusCleanupScheduler();
-      recoverPendingFinalizes().catch((error) => {
-        logger.warn('tus finalize 启动回收推迟', { message: error.message });
-      });
-      connectRedis()
-        .then(() => {
-          startMetricScheduler();
-          startHookScheduler();
-        })
-        .catch((error) => {
-          logger.warn('Metrics module init deferred', { message: error.message });
-          startMetricScheduler();
-          startHookScheduler();
-        });
+  server = app.listen(PORT, HOST, () => {
+    logger.info(`🚀 ✅✅✅✅ API Server started on ${HOST}:${PORT}`);
+    logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
+    logger.info(`🔗 Health check: http://127.0.0.1:${PORT}/api/v1/health`);
+    listLanIPv4().forEach((ip) => {
+      logger.info(`🌐 LAN/WAN: http://${ip}:${PORT}/api/v1/health`);
     });
-  } catch (error) {
+    logger.info(`📚 Swagger UI: http://127.0.0.1:${PORT}/swagger`);
+    logger.info(`📄 Swagger JSON: http://127.0.0.1:${PORT}/swagger.json`);
+
+    const { connectRedis } = require('./utils/redisClient');
+    const { startMetricScheduler } = require('./services/metrics/metricScheduler');
+    const { startAutoBackupScheduler } = require('./services/system/autoBackupScheduler');
+    const { startTusCleanupScheduler } = require('./services/storage/tusCleanupScheduler');
+    const { recoverPendingFinalizes } = require('./services/storage/finalizeTusUpload');
+    const { attachApiServiceWebSocket } = require('./services/apiService/apiServiceWebSocket');
+    const { startHookScheduler } = require('./services/automation/hookScheduler');
+    attachApiServiceWebSocket(server);
+    startAutoBackupScheduler();
+    startTusCleanupScheduler();
+    recoverPendingFinalizes().catch((error) => {
+      reportDependencyError('tus finalize 启动回收推迟', error);
+    });
+    connectRedis()
+      .then(() => {
+        startMetricScheduler();
+        startHookScheduler();
+      })
+      .catch((error) => {
+        logger.warn('Metrics module init deferred', { message: error.message });
+        startMetricScheduler();
+        startHookScheduler();
+      });
+  });
+
+  server.on('error', (error) => {
+    logger.error('❌ Server error', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    process.exit(1);
+  });
+}
+
+if (process.env.NODE_ENV !== 'test') {
+  bootstrap().catch((error) => {
     logger.error('服务器启动失败', {
       error: error.message,
       stack: error.stack
     });
     process.exit(1);
-  }
+  });
 } else {
   // 在测试环境中，创建一个服务器实例并导出
   const PORT = config.api.port || 3000;
@@ -315,17 +337,17 @@ if (process.env.NODE_ENV !== 'test') {
     });
     process.exit(1);
   }
+  server.on('error', (error) => {
+    logger.error('❌ Server error', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    process.exit(1);
+  });
 }
 
-// 添加错误处理
-server.on('error', (error) => {
-  logger.error('❌ Server error', {
-    name: error.name,
-    message: error.message,
-    stack: error.stack
-  });
-  process.exit(1);
-});
+// 添加错误处理（server.on('error') 在各启动分支里紧贴 app.listen 注册）
 
 // 添加未捕获的异常处理
 process.on('uncaughtException', (error) => {

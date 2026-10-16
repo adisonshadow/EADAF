@@ -63,6 +63,27 @@ const router = new Router();
  *             是否跟随本系统访问域名/IP。
  *             为 true 时 redirect_uri 仅填后缀，运行时用当前请求的 Host 拼完整回调地址（便于客户 IP 常变）。
  *           example: false
+ *         redirect_uri_dev_enabled:
+ *           type: boolean
+ *           default: false
+ *           description: |
+ *             是否启用「DEV 专用重定向」。
+ *             为 true 且平台跑在开发模式（后端 NODE_ENV=development，npm run dev / pm2dev）时，
+ *             登录跳转改用 redirect_uri_dev；部署环境仍用 redirect_uri。
+ *             用于开发机与部署环境回调地址不同（尤其端口）的场景。
+ *           example: false
+ *         redirect_uri_dev:
+ *           type: string
+ *           description: |
+ *             DEV 专用 SSO 回调地址（redirect_uri_dev_enabled=true 时生效，必填）。
+ *             未填时回落到 redirect_uri。也可只填端口路径，配合 redirect_uri_dev_use_system_host。
+ *           example: "http://localhost:13303/auth/callback"
+ *         redirect_uri_dev_use_system_host:
+ *           type: boolean
+ *           default: false
+ *           description: |
+ *             DEV 专用回调地址是否跟随本系统访问域名/IP（语义同 redirect_uri_use_system_host）。
+ *           example: false
  *         salt:
  *           type: string
  *           description: 旧版SSO签名盐（仅兼容历史数据；新接入使用密钥管理生成的统一密钥）

@@ -38,13 +38,58 @@ const logger = winston.createLogger({
     ]
 });
 
+/**
+ * 控制台格式：只留「时刻 级别 正文」，元数据压成 k=v，堆栈换行缩进。
+ * 旧格式（format.simple）会把 timestamp 和整段堆栈 JSON 转义拼在同一行，
+ * 排查依赖故障时几乎读不出重点。
+ */
+const CONSOLE_SKIP_KEYS = new Set(['level', 'message', 'timestamp', 'splat', 'suppressConsole']);
+
+function formatConsoleValue(value) {
+    if (typeof value === 'string') return value;
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+}
+
+const consoleFormat = winston.format.combine(
+    winston.format.colorize(),
+    winston.format.printf((info) => {
+        const time = String(info.timestamp || '').slice(11, 19);
+        const extras = [];
+        for (const [key, value] of Object.entries(info)) {
+            if (CONSOLE_SKIP_KEYS.has(key) || key === 'stack') continue;
+            if (value === undefined || value === null || value === '') continue;
+            extras.push(`${key}=${formatConsoleValue(value)}`);
+        }
+        let text = `${time ? `${time} ` : ''}${info.level}: ${info.message}`;
+        if (extras.length) text += `  ${extras.join(' ')}`;
+        if (info.stack && String(info.level).includes('error')) {
+            text += `\n${String(info.stack).split('\n').map((ln) => `    ${ln}`).join('\n')}`;
+        }
+        return text;
+    })
+);
+
+/**
+ * 带 suppressConsole 的日志只进文件：依赖不可用期间的重复报错走这条路，
+ * 控制台安静，logs/error-*.log 里的堆栈仍然完整。
+ */
+class FileOnlyConsoleTransport extends winston.transports.Console {
+    log(info, callback) {
+        if (info && info.suppressConsole) {
+            this.emit('logged', info);
+            callback();
+            return;
+        }
+        super.log(info, callback);
+    }
+}
+
 if (process.env.NODE_ENV !== 'production') {
-    logger.add(new winston.transports.Console({
-        format: winston.format.combine(
-            winston.format.colorize(),
-            winston.format.simple()
-        )
-    }));
+    logger.add(new FileOnlyConsoleTransport({ format: consoleFormat }));
 }
 
 logger.exceptions.handle(

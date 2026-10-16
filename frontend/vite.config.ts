@@ -1,10 +1,40 @@
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { APP_ENV } from './config/env';
 
 const DEV_LOG_PATH = '/__dev/ai-tool-log';
+
+/**
+ * Windows 上「原子写盘」有个绕不开的窗口：写盘方先把内容写进
+ * `.<文件名>.<pid>.<随机>.tmpdir/<文件名>.tmp`，再原子替换目标文件、删掉暂存目录。
+ * 这段窗口里 fs.watch 会抛 EBUSY（资源被占用），chokidar 把它 emit 成 error 事件——
+ * 而 Vite 没给 watcher 挂 error 监听，EventEmitter 就直接抛未捕获异常，
+ * 整个 dev server 进程退出（pnpm recursive run 随之失败，后端也被 dev-core 一起收掉）。
+ *
+ * 走「临时文件 + 替换」的写盘都会触发（编辑器保存、代码生成器、AI 改代码），
+ * 所以这里兜底：同类错误只记一条告警，绝不退出；后续事件仍由 chokidar 正常处理。
+ */
+function watchErrorGuard(): Plugin {
+  return {
+    name: 'watch-error-guard',
+    configureServer(server) {
+      const seen = new Map<string, number>();
+      server.watcher.on('error', (error: Error) => {
+        const err = error as NodeJS.ErrnoException;
+        const code = err.code || 'UNKNOWN';
+        const count = (seen.get(code) || 0) + 1;
+        seen.set(code, count);
+        if (count > 1) return; // 同类只提示一次，避免刷屏
+        server.config.logger.warn(
+          `[watch] 已忽略一次 fs.watch ${code}（${err.path || '路径未知'}）：` +
+            '原子写盘的瞬时锁冲突，不影响 HMR；后续同类错误只计数。',
+        );
+      });
+    },
+  };
+}
 
 /** pnpm 隔离下 frontend 解析不到 lodash-es，从仓库 .pnpm store 取已安装副本 */
 function resolveLodashEs(): string {
@@ -52,6 +82,7 @@ const gptVisDir = resolvePnpmDep('@antv/gpt-vis');
 export default defineConfig({
   plugins: [
     react(),
+    watchErrorGuard(),
     {
       name: 'ai-tool-dev-log',
       configureServer(server) {
@@ -151,7 +182,12 @@ export default defineConfig({
         '**/.git/**',
         '**/dist/**',
         '**/.cursor/**', // 排除Cursor AI缓存目录！非常关键
-        '**/*.log'
+        '**/*.log',
+        // 原子写盘在源码目录里造出的暂存目录/文件：没有监听价值，而且是 Windows 上
+        // fs.watch EBUSY 崩溃的主要来源（见 watchErrorGuard）。chokidar 的 ignored
+        // 支持 anymatch 语义，所以这里用正则匹配整条绝对路径。
+        /\.tmpdir([\\/]|$)/,
+        /\.tmp$/,
       ]
     },
     proxy: {

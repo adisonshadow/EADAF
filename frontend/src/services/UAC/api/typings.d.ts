@@ -606,6 +606,16 @@ declare namespace API {
      * 为 true 时 redirect_uri 存端口路径（如 :13303/auth/callback）或本机路径，运行时按请求 Host 拼完整 URL。
      */
     redirect_uri_use_system_host?: boolean;
+    /**
+     * 是否启用「DEV 专用重定向」。
+     * 为 true 且平台跑在开发模式（后端 NODE_ENV=development）时，登录跳转用 redirect_uri_dev，
+     * 部署环境仍用 redirect_uri —— 开发机与部署环境的回调地址（尤其端口）常常不同。
+     */
+    redirect_uri_dev_enabled?: boolean;
+    /** 开发模式下的 SSO 回调地址（启用 DEV 专用重定向时生效） */
+    redirect_uri_dev?: string;
+    /** DEV 地址是否跟随本系统访问域名/IP（语义同 redirect_uri_use_system_host） */
+    redirect_uri_dev_use_system_host?: boolean;
     /** SSO签名盐值，用于JWT签名（旧版兼容） */
     salt?: string;
     /** 基于currenttime、salt，使用 bcrypt 生成的Hash值 */

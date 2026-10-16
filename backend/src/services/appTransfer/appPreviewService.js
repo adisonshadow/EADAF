@@ -20,7 +20,7 @@ async function parseExportFile(filePath) {
   const payload = await openTransferPackage(filePath);
   if (payload?.format === 'eadaf-platform-export') {
     throw Object.assign(
-      new Error('这是 EADAF 平台导出文件,请到「EADAF 平台导出/导入」页导入'),
+      new Error('这是 EADAF 平台导出文件,请到「EADAF数据导出/导入」页导入'),
       { status: 400 },
     );
   }
@@ -135,7 +135,7 @@ async function previewImportFile(filePath) {
   const metadataFields = Array.isArray(metadata.fields) ? metadata.fields : [];
 
   if (options.includeAi || (ai.providers && ai.providers.length)) {
-    warnings.push('文件含实例级 AI 目录或 includeAi,应用导入已不再处理该节,请到「EADAF 平台导出/导入」页迁移平台能力');
+    warnings.push('文件含实例级 AI 目录或 includeAi,应用导入已不再处理该节,请到「EADAF数据导出/导入」页迁移平台能力');
   }
 
   const hints = getFileConnectionHints(file);

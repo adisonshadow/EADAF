@@ -11,7 +11,7 @@ async function parsePlatformExportFile(filePath) {
   const payload = await openTransferPackage(filePath);
   if (payload?.format === 'eadaf-app-export') {
     throw Object.assign(
-      new Error('这是业务应用导出文件,请到「应用导出/导入」页导入'),
+      new Error('这是业务应用导出文件,请到「应用数据导出/导入」页导入'),
       { status: 400 },
     );
   }

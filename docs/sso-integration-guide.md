@@ -31,6 +31,20 @@
 
 只读信息（如有展示）：`client_id`（应用 code）、`issuer`（当前 EADAF origin）等，一般无需业务侧手填。
 
+### 开发/部署两套回调地址（DEV 专用重定向）
+
+开发机 BFF 的端口和部署后的往往不一样（例：本机 `:13303/auth/callback`，部署后 `/auth/callback`），
+来回改 `redirect_uri` 很烦。在应用 SSO 配置里勾选 **启用DEV专用重定向** 后，可以同时存两套地址：
+
+| 配置 | 什么时候生效 |
+|------|--------------|
+| `redirect_uri`（默认） | EADAF 以部署模式运行（`NODE_ENV=production`，`npm run prod` / `pm2prod`） |
+| `redirect_uri_dev`（DEV 专用） | EADAF 跑在开发模式（`NODE_ENV=development`，`npm run dev` / `pm2dev`） |
+
+- 两套各自带 **自动跟随本系统域名/IP**（`redirect_uri_use_system_host` / `redirect_uri_dev_use_system_host`），可只填端口路径
+- 判定依据是 **EADAF 后端**的运行模式，跟浏览器用什么地址访问无关；DEV 地址没填时自动回落到默认地址
+- 登录页拿到的仍是平台解析好的完整地址，业务 BFF 侧不需要改任何东西
+
 ### 跳转模式
 
 | 值 | 行为 | 适用 |
@@ -173,6 +187,7 @@ GET {eadaf}/api/v1/applications-sso/{application_id}
 ## 9. 联调检查清单
 
 - [ ] EADAF 应用 SSO 已启用，`redirect_uri` = BFF `/auth/callback`
+- [ ] 本地开发与部署的回调地址不同时，勾选「启用DEV专用重定向」并把 DEV 地址填成本机 BFF（见 §2）
 - [ ] `redirect_mode` 与 BFF 一致（推荐 `HEADER_REDIRECT`）
 - [ ] 已在「密钥管理」生成统一密钥；BFF 验签密钥与之一致
 - [ ] BFF → 前端二次跳转格式匹配 HashRouter / BrowserRouter

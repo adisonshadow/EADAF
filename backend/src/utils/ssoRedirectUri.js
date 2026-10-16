@@ -1,8 +1,43 @@
 /**
- * SSO redirect_uri：支持「跟随本系统域名/IP」
- * - redirect_uri_use_system_host=true 时，redirect_uri 存后缀，如 `:13303/auth/callback` 或 `/callback`
- * - 登录/跳转时按请求 Host 拼出完整 URL
+ * SSO redirect_uri：
+ * - 支持「跟随本系统域名/IP」：redirect_uri_use_system_host=true 时，redirect_uri 存后缀，
+ *   如 `:13303/auth/callback` 或 `/callback`，登录/跳转时按请求 Host 拼出完整 URL。
+ * - 支持「DEV 专用重定向」：redirect_uri_dev_enabled=true 且平台跑在开发模式（NODE_ENV=development）时，
+ *   改用 redirect_uri_dev（及其跟随开关）。开发机与部署环境的回调地址常常不同（尤其端口），
+ *   两套都存下来，登录跳转时按当前模式自动选，省得每次来回改配置。
  */
+
+/** 两套重定向配置的字段名 */
+const REDIRECT_URI_FIELDS = {
+  /** 部署环境（默认） */
+  normal: { uri: 'redirect_uri', useSystemHost: 'redirect_uri_use_system_host' },
+  /** 开发模式 */
+  dev: { uri: 'redirect_uri_dev', useSystemHost: 'redirect_uri_dev_use_system_host' },
+};
+
+/**
+ * 平台是否跑在开发模式。
+ * 与 config/index.js 一致：未设置 NODE_ENV 时按 development 处理；
+ * 只有明确的 development（npm run dev / pm2dev）才算，production 及其它环境一律用默认重定向。
+ * @param {string} [env]
+ * @returns {boolean}
+ */
+function isPlatformDevMode(env = process.env.NODE_ENV) {
+  return String(env || 'development').trim().toLowerCase() === 'development';
+}
+
+/**
+ * 本次登录是否该走 DEV 专用重定向：应用启用了 + 平台在开发模式 + 确实配了地址。
+ * @param {{ redirect_uri_dev_enabled?: boolean, redirect_uri_dev?: string } | null | undefined} ssoConfig
+ * @param {{ isDevMode?: boolean }} [options]
+ * @returns {boolean}
+ */
+function shouldUseDevRedirectUri(ssoConfig, options = {}) {
+  const isDevMode = options.isDevMode === undefined ? isPlatformDevMode() : !!options.isDevMode;
+  if (!isDevMode) return false;
+  if (!ssoConfig || !ssoConfig.redirect_uri_dev_enabled) return false;
+  return !!String(ssoConfig.redirect_uri_dev || '').trim();
+}
 
 /**
  * @param {string} uri
@@ -35,53 +70,108 @@ function isAbsoluteHttpUrl(uri) {
 }
 
 /**
- * 创建/更新时校验 redirect_uri（按是否跟随本机 Host）
- * @param {{ redirect_uri?: string, redirect_uri_use_system_host?: boolean }} ssoConfig
+ * 校验单条 redirect_uri 配置（按是否跟随本机 Host）
+ * @param {string} uri
+ * @param {boolean} useSystem
+ * @param {{ requiredMessage?: string, formatMessage?: string, useSystemHostMessage?: string }} messages
  * @returns {{ ok: true } | { ok: false, message: string }}
  */
-function validateSsoRedirectUriConfig(ssoConfig) {
-  const uri = ssoConfig?.redirect_uri;
+function validateSingleRedirectUri(uri, useSystem, messages = {}) {
+  const {
+    requiredMessage = 'SSO回调地址不能为空',
+    formatMessage = 'SSO回调地址格式不正确',
+    useSystemHostMessage = '已启用「自动跟随本系统域名/IP」时，请填写端口路径（如 :13303/auth/callback）或本机路径（如 /auth/callback），不要填写完整域名',
+  } = messages;
+
   if (!uri || typeof uri !== 'string' || !uri.trim()) {
-    return { ok: false, message: 'SSO回调地址不能为空' };
+    return { ok: false, message: requiredMessage };
   }
-  const useSystem = !!ssoConfig.redirect_uri_use_system_host;
   if (useSystem) {
     if (!isValidSystemHostRedirectSuffix(uri.trim())) {
-      return {
-        ok: false,
-        message:
-          '已启用「自动跟随本系统域名/IP」时，请填写端口路径（如 :13303/auth/callback）或本机路径（如 /auth/callback），不要填写完整域名',
-      };
+      return { ok: false, message: useSystemHostMessage };
     }
     return { ok: true };
   }
   if (!isAbsoluteHttpUrl(uri.trim())) {
-    return { ok: false, message: 'SSO回调地址格式不正确' };
+    return { ok: false, message: formatMessage };
   }
   return { ok: true };
 }
 
 /**
- * @param {{ redirect_uri?: string, redirect_uri_use_system_host?: boolean } | null | undefined} ssoConfig
+ * 创建/更新时校验 redirect_uri（按是否跟随本机 Host）。
+ * 启用了 DEV 专用重定向时，DEV 地址一并校验；没启用则不校验（允许留空/旧值）。
+ * @param {{ redirect_uri?: string, redirect_uri_use_system_host?: boolean,
+ *   redirect_uri_dev_enabled?: boolean, redirect_uri_dev?: string,
+ *   redirect_uri_dev_use_system_host?: boolean }} ssoConfig
+ * @returns {{ ok: true } | { ok: false, message: string }}
+ */
+function validateSsoRedirectUriConfig(ssoConfig) {
+  const normalCheck = validateSingleRedirectUri(
+    ssoConfig?.redirect_uri,
+    !!ssoConfig?.redirect_uri_use_system_host,
+  );
+  if (!normalCheck.ok) return normalCheck;
+
+  if (!ssoConfig?.redirect_uri_dev_enabled) return { ok: true };
+
+  return validateSingleRedirectUri(
+    ssoConfig?.redirect_uri_dev,
+    !!ssoConfig?.redirect_uri_dev_use_system_host,
+    {
+      requiredMessage: '已启用「DEV 专用重定向」，请填写 DEV 专用重定向 URI',
+      formatMessage: 'DEV 专用重定向 URI 格式不正确',
+      useSystemHostMessage:
+        'DEV 行勾选了「自动跟随本系统域名/IP」时，请填写端口路径（如 :13303/auth/callback）或本机路径（如 /auth/callback），不要填写完整域名',
+    },
+  );
+}
+
+/**
+ * 把一条重定向配置拼成完整地址
+ * @param {string} uri
+ * @param {boolean} useSystemHost
  * @param {{ protocol?: string, host?: string }} req
  * @returns {string}
  */
-function resolveSsoRedirectUri(ssoConfig, req = {}) {
-  const uri = String(ssoConfig?.redirect_uri || '').trim();
-  if (!ssoConfig?.redirect_uri_use_system_host || !uri) {
-    return uri;
+function resolveSingleRedirectUri(uri, useSystemHost, req = {}) {
+  const value = String(uri || '').trim();
+  if (!useSystemHost || !value) {
+    return value;
   }
   const host = String(req.host || '').trim() || 'localhost';
   const hostname = host.split(':')[0] || 'localhost';
   const proto = req.protocol === 'https' ? 'https' : 'http';
 
-  if (uri.startsWith(':')) {
-    return `${proto}://${hostname}${uri}`;
+  if (value.startsWith(':')) {
+    return `${proto}://${hostname}${value}`;
   }
-  if (uri.startsWith('/')) {
-    return `${proto}://${host}${uri}`;
+  if (value.startsWith('/')) {
+    return `${proto}://${host}${value}`;
   }
-  return `${proto}://${hostname}/${uri.replace(/^\//, '')}`;
+  return `${proto}://${hostname}/${value.replace(/^\//, '')}`;
+}
+
+/**
+ * 取本次登录实际要用的完整回调地址：
+ * 平台在开发模式且应用启用了 DEV 重定向时用 DEV 那套，否则用默认那套。
+ * @param {{ redirect_uri?: string, redirect_uri_use_system_host?: boolean,
+ *   redirect_uri_dev_enabled?: boolean, redirect_uri_dev?: string,
+ *   redirect_uri_dev_use_system_host?: boolean } | null | undefined} ssoConfig
+ * @param {{ protocol?: string, host?: string }} req
+ * @param {{ isDevMode?: boolean }} [options]
+ * @returns {string}
+ */
+function resolveSsoRedirectUri(ssoConfig, req = {}, options = {}) {
+  const fields = shouldUseDevRedirectUri(ssoConfig, options)
+    ? REDIRECT_URI_FIELDS.dev
+    : REDIRECT_URI_FIELDS.normal;
+
+  return resolveSingleRedirectUri(
+    ssoConfig?.[fields.uri],
+    !!ssoConfig?.[fields.useSystemHost],
+    req,
+  );
 }
 
 /**
@@ -98,6 +188,8 @@ function requestHostInfo(ctx) {
 module.exports = {
   isValidSystemHostRedirectSuffix,
   isAbsoluteHttpUrl,
+  isPlatformDevMode,
+  shouldUseDevRedirectUri,
   validateSsoRedirectUriConfig,
   resolveSsoRedirectUri,
   requestHostInfo,

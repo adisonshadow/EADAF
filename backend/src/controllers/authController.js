@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const config = require('../config');
 const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSecret');
-const { resolveSsoRedirectUri, requestHostInfo } = require('../utils/ssoRedirectUri');
+const { resolveSsoRedirectUri, requestHostInfo, isPlatformDevMode } = require('../utils/ssoRedirectUri');
 const { isLoginVerifyRequired } = require('../utils/ssoLoginVerify');
 const logger = require('../utils/logger');
 const User = require('../models/user');
@@ -285,9 +285,11 @@ class AuthController {
         const redirectMode = application.sso_config.redirect_mode !== undefined
           ? application.sso_config.redirect_mode
           : config.api.sso.redirectMode.default;
+        // 平台跑在开发模式且应用配了 DEV 重定向时，这里返回的就是开发用的地址
         const resolvedRedirectUri = resolveSsoRedirectUri(
           application.sso_config,
           requestHostInfo(ctx),
+          { isDevMode: isPlatformDevMode() },
         );
 
         responseData.sso = {

@@ -5,6 +5,7 @@ const metricService = require('./metricService');
 const metricExecutor = require('./metricExecutor');
 const metricRedis = require('./metricRedis');
 const logger = require('../../utils/logger');
+const { reportDependencyError } = require('../../utils/dependencyDiagnostics');
 
 const scheduledJobs = [];
 
@@ -89,7 +90,7 @@ async function startMetricScheduler() {
   try {
     await registerCronJobs();
   } catch (error) {
-    logger.error('Failed to start metrics scheduler', { message: error.message });
+    reportDependencyError('Failed to start metrics scheduler', error);
   }
 }
 

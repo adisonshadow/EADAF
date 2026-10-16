@@ -137,7 +137,8 @@ cd frontend && pnpm dev    # 管理端，默认 29527
 
 ```bash
 cd backend
-docker compose -f docker-compose.yml up -d minio
+docker compose -f docker-compose.yml up -d          # PostgreSQL + Redis + MinIO
+docker compose -f docker-compose.yml up -d minio    # 只要 MinIO
 # 需要 MySQL 时改用：docker compose -f docker-compose_with_MySQL.yml up -d minio
 ```
 
@@ -147,7 +148,27 @@ docker compose -f docker-compose.yml up -d minio
 
 
 
-### 3.5.1 跨平台运行方式（Windows 不用装 WSL 也能 `pnpm dev`）
+### 3.5.1 启动依赖自检（Docker 忘了起时不再刷屏）
+
+后端 `pnpm dev` 会先并行探一次 PostgreSQL / MinIO / Redis 的端口，把结论打在一张表里：
+
+```
+────────────── 启动依赖自检 ──────────────
+  ✗ PostgreSQL  localhost:25432   ECONNREFUSED   必需
+  ✗ MinIO       127.0.0.1:9000    ECONNREFUSED   必需
+  ✗ Redis       localhost:26379   ECONNREFUSED   可选（降级）
+  ⚠️  2 项必需依赖不可用（PostgreSQL、MinIO）：服务仍会启动，但数据库不可用，几乎所有接口都会失败；上传 / 预览 / 导出不可用。
+  🔧 修复：cd backend && docker compose up -d   （本机 Docker 似乎没启动）
+```
+
+- 必需依赖是 PostgreSQL 与 MinIO，不可用时服务仍会启动（便于 nodemon / 前端继续连着），但相关接口会失败；Redis 不可用自动降级为「仅 PostgreSQL」，并每 30s 自动重试，起好容器后无需重启即可恢复。
+- 某个依赖判为不可用后，控制台只说一次；之后的同类报错只写 `logs/error-*.log`（完整堆栈和出现次数都在），不会每几百毫秒刷一条。
+- 依赖已恢复时日志里会补一条 `依赖已恢复：...`。
+- 探活实现见 [backend/src/utils/dependencyDiagnostics.js](./backend/src/utils/dependencyDiagnostics.js)，判定逻辑有单测：`cd backend && node --test src/utils/dependencyDiagnostics.test.js`。
+
+
+
+### 3.5.2 跨平台运行方式（Windows 不用装 WSL 也能 `pnpm dev`）
 
 `pnpm dev` 的入口是 **Node**（[scripts/dev.cjs](./scripts/dev.cjs)），不是 shell 脚本，所以 cmd / PowerShell / Git Bash / WSL 里表现一致。它会先探环境、再选 runner：
 
@@ -171,6 +192,8 @@ pnpm dev:check    # 只打印判别矩阵（平台、可用 shell、换行符、
 
 `pnpm killdev` 同样是 Node 实现（[scripts/killdev.cjs](./scripts/killdev.cjs)）：先找 dev 入口进程（`node scripts/dev.cjs`、`pnpm --filter ./backend dev`），再做**进程树闭包**，最后用 `taskkill /T /F` 结束。根进程判定是锚定匹配，不会误伤 IDE / 别的项目的 `node.exe`；改动用 `node scripts/test-killdev-matcher.cjs` 自测（29 项）。
 
+### 3.5.3 编辑代码不会再把 dev 服务弄崩（Windows 原子写盘）
+
 Windows 上如果 `scripts/dev.sh` 报这个错，是**换行符**问题而不是命令写错：
 
 ```
@@ -188,6 +211,25 @@ git add --renormalize .
 ```
 
 其它仍是 Unix-only 的脚本（`offline-deploy.sh`、`pack-*.sh`、`initdb.sh` 等）通过 [scripts/run-sh.cjs](./scripts/run-sh.cjs) 调用：有 Git Bash 就用 Git Bash；没有就明确报错并给出选项，**不会静默走 WSL 转发器**。需要走 WSL 时设 `ALLOW_WSL=1`。
+
+
+
+### 3.5.3 编辑代码不会再把 dev 服务弄崩（Windows 原子写盘）
+
+Windows 上「原子写盘」（编辑器保存、代码生成、AI 改代码）会先把内容写进
+`.<文件名>.<pid>.<随机>.tmpdir/<文件名>.tmp`，再原子替换目标文件、删掉暂存目录。这段窗口里
+`fs.watch` 会抛 `EBUSY`，chokidar 把它 emit 成 `error` 事件，而 Vite 没挂监听者 →
+Node 直接以未捕获异常退出，`pnpm recursive run` 随之失败，`dev-core` 会把 backend 一起收掉
+（现象就是「一改代码整个 dev 栈都没了」）。
+
+[frontend/vite.config.ts](./frontend/vite.config.ts) 里已经两层兜住，**不要删**：
+
+| 措施 | 作用 |
+| --- | --- |
+| `server.watch.ignored` 里的 `/\.tmpdir([\\/]\|$)/`、`/\.tmp$/` | 根本不监听暂存目录/临时文件 → 从源头消掉 EBUSY |
+| 插件 `watchErrorGuard`（给 watcher 挂 `error` 监听） | 万一还有别的瞬时锁冲突，只打一条告警，绝不退出 |
+
+排查同类问题时可以用 `usePolling: true` 彻底绕开 `fs.watch`（代价是 CPU 占用更高），但不建议长期开。
 
 
 

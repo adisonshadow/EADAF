@@ -6,6 +6,10 @@ const StorageObject = require('../../models/storage_object');
 const StorageBucket = require('../../models/storage_bucket');
 const logger = require('../../utils/logger');
 const {
+  classifyDependencyError,
+  noteDependencyDown,
+} = require('../../utils/dependencyDiagnostics');
+const {
   getSession,
   updateSession,
   listRecoverableFinalizes,
@@ -83,7 +87,13 @@ async function pump() {
       try {
         await processFinalize(uploadId);
       } catch (error) {
-        logger.error('tus finalize 失败', { uploadId, message: error.message, stack: error.stack });
+        // 依赖（DB / MinIO）不可用时只报一次，避免按会话逐条刷同样的堆栈
+        const dependencyKey = classifyDependencyError(error);
+        if (dependencyKey) {
+          noteDependencyDown(dependencyKey, error, { context: 'tus finalize 失败' });
+        } else {
+          logger.error('tus finalize 失败', { uploadId, message: error.message, stack: error.stack });
+        }
         try {
           await updateSession(uploadId, { status: 'failed', errorMessage: error.message });
         } catch (updateError) {

@@ -19,6 +19,7 @@ const models = require('../../models');
 const { decryptApiKey } = require('../../utils/encryption');
 const logger = require('../../utils/logger');
 const connectionRunner = require('../businessData/materialization/connectionRunner');
+const { buildRuntimeConfig } = require('../businessData/databaseConnectionService');
 const {
   prefixHit,
   parseApiDataScope,
@@ -593,17 +594,11 @@ async function buildExportContext(app, options) {
     }
     const conn = mat.connection;
     connectionIdSet.add(conn.id);
-    const runtime = {
-      id: conn.id,
-      name: conn.name,
-      dbType: conn.db_type,
-      host: conn.host,
-      port: conn.port,
-      username: conn.username,
-      password: conn.password_enc ? decryptApiKey(conn.password_enc) : null,
-      databaseName: conn.database_name,
-      targetSchema: mat.targetSchema || conn.target_schema,
-    };
+    // 与物化共用同一 runtime 组装:默认 PostgreSQL 连接未保存密码时回落平台库口令。
+    // 此前这里只认 password_enc,连接没密码就静默跳过所有实体的物理表结构与行数据,
+    // 导出的包会变成「结构齐、表结构和行数据全空」。
+    const runtime = buildRuntimeConfig(conn);
+    runtime.targetSchema = mat.targetSchema || runtime.targetSchema;
     const item = {
       entityCode: entity.code,
       entityVersion: entity.version,
@@ -624,7 +619,10 @@ async function buildExportContext(app, options) {
     } catch (e) {
       logger.warn(`导出实体「${entity.code}」读取物理表结构失败: ${e.message}`);
       item.rowsOmitted = true;
-      item.omitReason = `读取物理表结构失败: ${e.message}`;
+      const credentialHint = runtime.password
+        ? ''
+        : `;数据库连接「${conn.name || conn.id}」未保存密码,请到「数据库连接」页补填后重新导出`;
+      item.omitReason = `读取物理表结构失败: ${e.message}${credentialHint}`;
       entityDataItems.push(item);
       continue;
     }
@@ -774,6 +772,15 @@ function buildExportSummary(ctx, options) {
   };
   if (largeEntities.length) {
     summary.warnings.push(`以下实体行数超过 ${LARGE_ROW_THRESHOLD},导出/导入耗时可能较长: ${largeEntities.map((e) => e.entityCode).join(', ')}`);
+  }
+  // 行数据被跳过的实体必须显式告警:导入端只会拿到结构,目标表/数据为空,
+  // 以前只写进 entityDataSkipped,前端不显眼,导致「导出成功但目标没数据」。
+  const rowsSkipped = ctx.entityDataItems.filter((item) => item.rowsOmitted);
+  if (rowsSkipped.length) {
+    summary.warnings.push(
+      `有 ${rowsSkipped.length} 个实体的行数据未导出(详见 entityDataSkipped):`
+      + `导入后这些实体在目标端只有结构、没有数据。${rowsSkipped[0].omitReason || ''}`,
+    );
   }
   return summary;
 }

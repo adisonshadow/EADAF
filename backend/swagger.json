@@ -10284,7 +10284,7 @@
           "System"
         ],
         "summary": "导出 EADAF 平台 zip 包(Skill/Tool、AI 目录、数据标准、系统开关、UAC 权限目录;可选桶和文件;含明文密钥,高危) [需要认证]",
-        "description": "不含业务实体/API/行数据/用户。内置应用 EADAF 的平台能力跨实例同步,与应用导出/导入分开。勾选 includeFiles 时携带 EADAF/系统桶及其对象,不含业务应用桶。",
+        "description": "不含业务实体/API/行数据/用户。内置应用 EADAF 的平台能力跨实例同步,与应用数据导出/导入分开。勾选 includeFiles 时携带 EADAF/系统桶及其对象,不含业务应用桶。",
         "security": [
           {
             "bearerAuth": []
