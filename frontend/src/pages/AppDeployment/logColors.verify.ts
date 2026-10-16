@@ -59,7 +59,7 @@ for (const text of [
   '摘要',
   '  版本: 1.2.7（来源: package.json（仓库根））',
   '==== 完成 ====',
-  '压缩包: /srv/uac2/deploy-artifacts/EADAF/eadaf-offline-compose-patch-web-amd64-v1.2.7-20261015-0412.tar.gz',
+  '压缩包: /srv/EADAF/deploy-artifacts/EADAF/eadaf-offline-compose-patch-web-amd64-v1.2.7-20261015-0412.tar.gz',
   'docker save fpcu2-bff:v1 -> fpcu2-bff_v1.tar',
 ]) {
   assert.equal(logLineColor(stdout(text)), LOG_COLOR.normal, `stdout 普通输出应为默认色：${text}`);

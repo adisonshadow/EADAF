@@ -38,7 +38,7 @@
 
 | # | 方案断言 | 结论 | 证据 |
 |---|---|---|---|
-| 1 | 主存储 PostgreSQL，schema：`uac` / `aibase` / `bizdata`；物化在目标库 `bizdata_mat` | ⚠️ | Sequelize 默认 schema 是 `uac`（`config/database.js:16` + `config/index.js:64`）。`aibase`/`bizdata` 由各模型显式指定。物化默认 schema 是连接上的 `target_schema`（种子为 `bizdata_mat`，`bizdata-schema.sql:96,114`），**未必**在「本实例 PG」——连接可指向外部 PG/MySQL |
+| 1 | 主存储 PostgreSQL，schema：`eadaf` / `aibase` / `bizdata`；物化在目标库 `bizdata_mat` | ⚠️ | Sequelize 默认 schema 是 `eadaf`（`config/database.js:16` + `config/index.js:64`）。`aibase`/`bizdata` 由各模型显式指定。物化默认 schema 是连接上的 `target_schema`（种子为 `bizdata_mat`，`bizdata-schema.sql:96,114`），**未必**在「本实例 PG」——连接可指向外部 PG/MySQL |
 | 2 | 应用与 Scope 无关联表，`bizdata_scope_codes` JSONB 数组 | ✅ | `models/application.js:74-79` |
 | 3 | 数据域 Scope 为虚拟树，顶层 = code 首段，无独立 Scope 表 | ✅ | `bizdataScopeUtils.js`；`businessDataService.listScopes` 从实体 code 推导（`:824-834`） |
 | 4 | AI 域 `aibase.scopes` 扁平表，仅 tools/skills 的 `scope_id`，与数据域不是同一体系 | ✅ | `models/scope.js`；`models/index.js:102-106` |
@@ -149,7 +149,7 @@
 - 导出时对 `providers.api_key_encrypted`、`outbound_webhooks.auth_secret_enc`、`applications.api_connect_config.app_secret` / `sso_config.client_secret` **解密后写入文件明文段**（文件本身已是机密，Modal 警示保留）。
 - 导入时用**目标** `ENCRYPTION_KEY` 重新加密。
 - `database_connections.password_enc`：v1 不导出（见 3.1）。
-- `users.password_hash`：这是 bcrypt 哈希不是 AES，**可原样**（与密钥无关）；仅 `includeUac=true` 时带。
+- `users.password_hash`：这是 bcrypt 哈希不是 AES，**可原样**（与密钥无关）；仅 `includeEadaf=true` 时带。
 - 文件头 `options.secretsInPlaintext: true`，导入前校验，避免以后有人改回「带密文」还误以为能用。
 
 ### 3.4 P0 — 分节失败策略
@@ -159,8 +159,8 @@
 **修订：**
 
 - **依赖链上的节失败 → 终止后续节**（仍返回已完成节的计数，不回滚已提交的外部库行数据——这一点必须在结果里写清楚）。
-- 依赖链：`uac` 最小结构 → `application` → `entities`（+enums/relations/scope_docs）→ 物化 → `entityData` → `apiServices` → `collectionPipelines` → `outboundWebhooks` → `metrics` → `hooks` → `skills` → `storageBuckets`。
-- **可选节**（`includeUac` 的用户数据、`includeAi` 的 providers）失败不阻断主链，单独标红。
+- 依赖链：`eadaf` 最小结构 → `application` → `entities`（+enums/relations/scope_docs）→ 物化 → `entityData` → `apiServices` → `collectionPipelines` → `outboundWebhooks` → `metrics` → `hooks` → `skills` → `storageBuckets`。
+- **可选节**（`includeEadaf` 的用户数据、`includeAi` 的 providers）失败不阻断主链，单独标红。
 
 主库各节用一个 Sequelize 事务能包则包；物化与行数据在外部连接，**无法**与主库同事务（原文这句保留）。
 
@@ -241,7 +241,7 @@ function prefixHit(code, scopes) {
 ```jsonc
 {
   "dataMode": "structure_and_data", // | "data_only"
-  "includeUac": false,
+  "includeEadaf": false,
   "includeAi": false,
   "secretsInPlaintext": true
 }
@@ -263,7 +263,7 @@ function prefixHit(code, scopes) {
 | `hooks.items` | **新增**；`action_config` 内 http 密钥按 3.3 明文 |
 | `skills` | 默认只有 dedicated + 其 tools/aiScopes/skillApplications(本应用)。`includeAi` 才追加 global skills 与 providers/models |
 | `ai` | 仅 `includeAi` |
-| `uac` | 同原文；不勾选时只填被引用的 roles/permissions（及必要的 role_permissions 边） |
+| `eadaf` | 同原文；不勾选时只填被引用的 roles/permissions（及必要的 role_permissions 边） |
 | `storageBuckets` | **新增**元数据，无 objects |
 
 文件名仍：`eadaf-app-export-{appCode}-{yyyyMMddHHmmss}.json`。
@@ -276,7 +276,7 @@ function prefixHit(code, scopes) {
 
 | 接口 | 方法 | 行为（相对原文的改动） |
 |---|---|---|
-| 导出 | `GET` 或 `POST /export` | **响应体就是 JSON 文件**（`Content-Type: application/json`，`Content-Disposition: attachment; filename="..."`）。不要包 `{ code, data: { payload } }`。权限码见下。Body/query 仍用 `{ applicationId, dataMode, includeUac, includeAi }` |
+| 导出 | `GET` 或 `POST /export` | **响应体就是 JSON 文件**（`Content-Type: application/json`，`Content-Disposition: attachment; filename="..."`）。不要包 `{ code, data: { payload } }`。权限码见下。Body/query 仍用 `{ applicationId, dataMode, includeEadaf, includeAi }` |
 | 预览 | `POST /preview` multipart `file` | **P1 必做**。返回节条数、冲突（含第二唯一键）、连接匹配结果、跳过的 Mongo/Redis 实体、缺失引用 |
 | 导入 | `POST /import` multipart `file` + `strategy` | 同原文 1GB / 临时目录 / 只收 `.json`；超时 30 分钟。结果分节 |
 

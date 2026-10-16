@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "EADAF Platform API Documentation",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "description": "用户认证和授权系统 API 文档"
   },
   "servers": [
@@ -4651,7 +4651,7 @@
               },
               "options": {
                 "type": "object",
-                "description": "导出选项(dataMode / includeUac / includeFiles)",
+                "description": "导出选项(dataMode / includeEadaf / includeFiles / safeMode;包内 safeMode 供预览,导入默认开启安全模式退回已发布,可由导入请求 safeMode 覆盖)",
                 "properties": {}
               },
               "application": {
@@ -4767,6 +4767,26 @@
                 "description": "abort 策略下是否因冲突中止",
                 "example": false
               },
+              "safeMode": {
+                "type": "boolean",
+                "description": "实际生效的安全模式(请求可覆盖包内标记;默认 true)",
+                "example": true
+              },
+              "dataMode": {
+                "type": "string",
+                "description": "数据模式",
+                "example": "structure_and_data"
+              },
+              "includeEadaf": {
+                "type": "boolean",
+                "description": "是否导入了用户数据",
+                "example": false
+              },
+              "includeFiles": {
+                "type": "boolean",
+                "description": "是否导入了存储对象文件",
+                "example": false
+              },
               "sections": {
                 "type": "object",
                 "description": "各节执行结果 { status, counts, errors, notes }。含 databaseConnections(matched/created/failed);notes 为预期跳过说明,不算失败",
@@ -4774,7 +4794,7 @@
               },
               "chainStoppedAt": {
                 "type": "string",
-                "description": "硬依赖链终止节(uac/application/entities);连接创建/物化与行数据失败不写入此项",
+                "description": "硬依赖链终止节(eadaf/application/entities);连接创建/物化与行数据失败不写入此项",
                 "example": "entities"
               },
               "chainError": {
@@ -5710,9 +5730,31 @@
           },
           "redirect_uri": {
             "type": "string",
-            "format": "uri",
-            "description": "SSO回调地址（应为业务 BFF，勿填纯前端页）",
+            "description": "SSO回调地址（应为业务 BFF，勿填纯前端页）。\n当 redirect_uri_use_system_host=true 时，存端口路径（如 :13303/auth/callback）或本机路径（如 /auth/callback），\n登录/跳转时按当前访问 Host 拼出完整 URL。\n",
             "example": "https://hrms.example.com/auth/callback"
+          },
+          "redirect_uri_use_system_host": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否跟随本系统访问域名/IP。\n为 true 时 redirect_uri 仅填后缀，运行时用当前请求的 Host 拼完整回调地址（便于客户 IP 常变）。\n",
+            "example": false
+          },
+          "redirect_uri_dev_enabled": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否启用「DEV 专用重定向」。\n为 true 且平台跑在开发模式（后端 NODE_ENV=development，npm run dev / pm2dev）时，\n登录跳转改用 redirect_uri_dev；部署环境仍用 redirect_uri。\n用于开发机与部署环境回调地址不同（尤其端口）的场景。\n",
+            "example": false
+          },
+          "redirect_uri_dev": {
+            "type": "string",
+            "description": "DEV 专用 SSO 回调地址（redirect_uri_dev_enabled=true 时生效，必填）。\n未填时回落到 redirect_uri。也可只填端口路径，配合 redirect_uri_dev_use_system_host。\n",
+            "example": "http://localhost:13303/auth/callback"
+          },
+          "redirect_uri_dev_use_system_host": {
+            "type": "boolean",
+            "default": false,
+            "description": "DEV 专用回调地址是否跟随本系统访问域名/IP（语义同 redirect_uri_use_system_host）。\n",
+            "example": false
           },
           "salt": {
             "type": "string",
@@ -9165,7 +9207,7 @@
           "Storage"
         ],
         "summary": "创建 tus 上传会话（超大文件断点续传）[需要认证]",
-        "description": "tus 1.0 协议。Upload-Metadata 必填 bucketCode、filename；可选 contentType、md5、applicationId。\nPATCH 流式写入磁盘，完成后 GET /tus/{id}/result 取 StorageObject。\n轻量接口 POST /objects/upload 上限 100MB；本通道可传小文件，上限见 Tus-Max-Size（默认 5GB）。\n",
+        "description": "tus 1.0 协议。Upload-Metadata 必填 bucketCode、filename；可选 contentType、md5、applicationId。\nPATCH 先写入临时目录，完成后对象进入 MinIO，再 GET /tus/{id}/result 取 StorageObject。\n轻量接口 POST /objects/upload 上限 100MB；本通道可传小文件，上限见 Tus-Max-Size（默认 5GB）。\n",
         "security": [
           {
             "bearerAuth": []
@@ -9394,7 +9436,7 @@
           "Storage"
         ],
         "summary": "删除文件 [需要认证]",
-        "description": "删除文件记录，并同步删除磁盘上的原文件及对应图片裁剪缓存。",
+        "description": "删除文件记录，并同步删除 MinIO 中的原文件及对应图片裁剪缓存。",
         "security": [
           {
             "bearerAuth": []
@@ -9532,7 +9574,7 @@
           "Storage"
         ],
         "summary": "图片自动裁剪（按 w/h/fit 缩放并缓存，返回 webp）",
-        "description": "传入文件资源 ID 与裁剪参数，服务端使用 sharp 生成 webp 并写入磁盘缓存。\n鉴权与 preview 相同：公开 Bucket 可匿名访问。\n两种用法：\n1) 同时指定 w、h：fit=cover 覆盖裁剪到精确尺寸；fit=contain（默认）按原图比例缩放到框内（不留白，输出未必等于 w×h）。\n2) 只指定 w 或 h：按原图比例自动计算另一边（忽略 fit）。\nw/h 均未传时默认 w=480；取值范围 1–4096。\n",
+        "description": "传入文件资源 ID 与裁剪参数，服务端使用 sharp 生成 webp 并写入 MinIO 缓存。\n鉴权与 preview 相同：公开 Bucket 可匿名访问。\n两种用法：\n1) 同时指定 w、h：fit=cover 覆盖裁剪到精确尺寸；fit=contain（默认）按原图比例缩放到框内（不留白，输出未必等于 w×h）。\n2) 只指定 w 或 h：按原图比例自动计算另一边（忽略 fit）。\nw/h 均未传时默认 w=480；取值范围 1–4096。\n",
         "parameters": [
           {
             "in": "path",
@@ -11786,6 +11828,98 @@
         }
       }
     },
+    "/api/v1/oauth/authorize": {
+      "post": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "登记授权码（管理台前端已登录后调用）[需要认证]",
+        "description": "校验 `client_id`（应用）/`redirect_uri`（必须与应用登记的回调**完全一致**）/\n`response_type=code`/PKCE，登记一次性授权码（Redis，120s）。\n返回后由管理台前端 302 到 `redirect_uri?code=...&state=...`。\n本平台没有 IdP Cookie，所以授权端点由已登录的管理台前端发起（它能证明\"当前是谁\"）。\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "client_id",
+                  "redirect_uri"
+                ],
+                "properties": {
+                  "client_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "redirect_uri": {
+                    "type": "string"
+                  },
+                  "response_type": {
+                    "type": "string",
+                    "example": "code"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "example": "openid profile"
+                  },
+                  "nonce": {
+                    "type": "string"
+                  },
+                  "code_challenge": {
+                    "type": "string"
+                  },
+                  "code_challenge_method": {
+                    "type": "string",
+                    "enum": [
+                      "S256",
+                      "plain"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已登记授权码"
+          },
+          "400": {
+            "description": "invalid_client / invalid_request / unsupported_response_type"
+          },
+          "503": {
+            "description": "授权码存储（Redis）不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/token": {
+      "post": {
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "换票（authorization_code / refresh_token）",
+        "description": "BFF 服务端调用，返回标准 OAuth 扁平结构（`access_token`/`token_type`/`expires_in`/\n`refresh_token`/`id_token`），**不套**平台 `{code,message,data}` 信封。\n客户端认证支持 `client_secret_post` 与 `client_secret_basic`。\n`authorization_code` 需带 `code_verifier`（若授权时用了 PKCE）。\n",
+        "responses": {
+          "200": {
+            "description": "令牌"
+          },
+          "400": {
+            "description": "invalid_grant / invalid_request / unsupported_grant_type"
+          },
+          "401": {
+            "description": "invalid_client"
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "tags": [
@@ -12797,206 +12931,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/demo/sales/orders": {
-      "get": {
-        "tags": [
-          "Demo-Sales"
-        ],
-        "summary": "订单列表 [需要认证]",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "status",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "pending",
-                "paid",
-                "shipped",
-                "completed",
-                "cancelled"
-              ]
-            }
-          },
-          {
-            "in": "query",
-            "name": "page",
-            "schema": {
-              "type": "integer",
-              "default": 1
-            }
-          },
-          {
-            "in": "query",
-            "name": "pageSize",
-            "schema": {
-              "type": "integer",
-              "default": 20
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功"
-          }
-        }
-      }
-    },
-    "/api/v1/demo/sales/orders/{orderNo}": {
-      "get": {
-        "tags": [
-          "Demo-Sales"
-        ],
-        "summary": "订单详情 [需要认证]",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "orderNo",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "example": "SO202501001"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功"
-          },
-          "404": {
-            "description": "订单不存在"
-          }
-        }
-      }
-    },
-    "/api/v1/demo/sales/users": {
-      "get": {
-        "tags": [
-          "Demo-Sales"
-        ],
-        "summary": "用户列表 [需要认证]",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功"
-          }
-        }
-      }
-    },
-    "/api/v1/demo/sales/products": {
-      "get": {
-        "tags": [
-          "Demo-Sales"
-        ],
-        "summary": "产品列表 [需要认证]",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功"
-          }
-        }
-      }
-    },
-    "/api/v1/demo/sales/complaints": {
-      "get": {
-        "tags": [
-          "Demo-Sales"
-        ],
-        "summary": "投诉列表 [需要认证]",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "type",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "quality",
-                "logistics",
-                "service",
-                "refund"
-              ]
-            }
-          },
-          {
-            "in": "query",
-            "name": "status",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "open",
-                "processing",
-                "resolved",
-                "closed"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功"
-          }
-        }
-      }
-    },
-    "/api/v1/demo/sales/stats/orders": {
-      "get": {
-        "tags": [
-          "Demo-Sales"
-        ],
-        "summary": "订单统计 [需要认证]",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功"
-          }
-        }
-      }
-    },
-    "/api/v1/demo/sales/stats/complaints": {
-      "get": {
-        "tags": [
-          "Demo-Sales"
-        ],
-        "summary": "投诉统计 [需要认证]",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功"
           }
         }
       }
@@ -17873,6 +17807,12 @@
                         "example": "550e8400-e29b-41d4-a716-446655440000"
                       }
                     }
+                  },
+                  "sid": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "浏览器会话 ID（可选）。带上它时本次登录并入同一会话 —— 管理台与各业务\n应用的 SSO 登录都带同一个 sid，登出时撤销该会话即\"该设备所有应用一起退出\"。\n不传则新建会话。响应里会回传最终使用的 sid。\n",
+                    "example": "3f2504e0-4f89-11d3-9a0c-0305e82c3301"
                   }
                 }
               }
@@ -17902,6 +17842,11 @@
                           "type": "string",
                           "description": "访问令牌，用于后续API调用认证",
                           "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                        },
+                        "sid": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "本次登录所属的会话 ID（下次登录/登出带上它）"
                         },
                         "refresh_token": {
                           "type": "string",
@@ -17945,8 +17890,13 @@
                               "properties": {
                                 "redirect_uri": {
                                   "type": "string",
-                                  "description": "SSO回调地址（应为业务 BFF）",
+                                  "description": "SSO回调地址（应为业务 BFF）。\n若配置了跟随本系统域名/IP，此处已按当前请求 Host 解析为完整 URL。\n",
                                   "example": "https://app.example.com/auth/callback"
+                                },
+                                "redirect_uri_use_system_host": {
+                                  "type": "boolean",
+                                  "description": "是否跟随本系统访问域名/IP（管理端配置；登录响应中 redirect_uri 已解析）",
+                                  "example": false
                                 },
                                 "client_secret": {
                                   "type": "string",
@@ -18319,6 +18269,15 @@
                     "type": "string",
                     "description": "刷新令牌",
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  },
+                  "sid": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "会话 ID；撤销它 = 该设备上所有应用一起退出（管理台前端 localStorage 的 eadaf_sid）"
+                  },
+                  "all": {
+                    "type": "boolean",
+                    "description": "为 true 时同时撤销该用户的**全部**会话（退出所有设备）。需要能确认身份（有效令牌或刷新令牌）"
                   }
                 }
               }
@@ -18397,6 +18356,122 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "当前用户的活跃会话（登录设备）[需要认证]",
+        "description": "列出该用户由 Redis 记录的 SSO 会话。`store_available=false` 表示会话存储（Redis）\n不可用，此时列表必为空 —— 是\"查不到\"，不是\"没有会话\"。\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "会话列表"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "退出所有设备（撤销全部会话）[需要认证]",
+        "description": "会连当前会话一起撤销，前端应随后回登录页。",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "已退出所有设备"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sessions/{sid}": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "撤销指定会话 [需要认证]",
+        "description": "只能撤销属于当前用户的会话（否则 404）。",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "已撤销"
+          },
+          "404": {
+            "description": "会话不存在或不属于当前用户"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/end-session": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "单点登出中转（RP-Initiated Logout）",
+        "description": "业务应用登出后由浏览器跳到本接口，校验回跳地址并 302 回应用。\n回跳地址必须与应用配置的 `redirect_uri`（含 DEV 那套）或 `frontend_url` **同源**，\n否则返回 400（防开放重定向）。\n\n本接口**不要求认证**，也不直接撤销令牌：Phase 0 的刷新令牌在浏览器侧，\n由管理台 `/auth/logout` 页面先调 `POST /api/v1/auth/logout` 撤销再跳到这里。\n",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "app",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "应用 ID"
+          },
+          {
+            "in": "query",
+            "name": "post_logout_redirect_uri",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "登出后回跳地址（需与应用同源）"
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "原样回传（防 CSRF / 保留应用上下文）"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "回跳到 post_logout_redirect_uri（附带 logged_out=1 与 state）"
+          },
+          "400": {
+            "description": "app 或回跳地址不合法"
           }
         }
       }
@@ -18807,9 +18882,13 @@
                             },
                             "redirect_uri": {
                               "type": "string",
-                              "format": "uri",
-                              "description": "SSO回调地址",
+                              "description": "SSO回调地址。若启用跟随本系统域名/IP，此处已按当前请求 Host 解析为完整 URL。\n",
                               "example": "http://localhost:3300/sso-callback"
+                            },
+                            "redirect_uri_use_system_host": {
+                              "type": "boolean",
+                              "description": "是否跟随本系统访问域名/IP",
+                              "example": false
                             },
                             "redirect_mode": {
                               "type": "string",
@@ -18890,6 +18969,11 @@
                                   "description": "登录页副标题；不填则不显示"
                                 }
                               }
+                            },
+                            "login_verify_enabled": {
+                              "type": "boolean",
+                              "description": "登录时是否要求「人类验证」（滑动验证）。\nfalse = 该应用登录直接进行、不弹滑块（内部应用场景）；\n未配置时跟随平台全局开关 LOGIN_VERIFY_ENABLED。\n关闭只免掉滑块，密码校验与登录失败次数限制不受影响。\n",
+                              "example": false
                             }
                           }
                         },
@@ -19499,7 +19583,7 @@
           "Applications"
         ],
         "summary": "删除应用 [需要认证]",
-        "description": "删除指定应用",
+        "description": "物理删除指定应用（非软删，避免同 code tombstone 阻断再次导入）。\n默认同时按与导出相同的 scope 前缀规则级联删除数据模型、API、管道、指标、\nWebhook、Hook、枚举、Scope 文档、仅绑定本应用的专用 Skill 及其独占 Tool、物化元数据等；\n全局 Skill 与仍被其他 Skill 使用的 Tool 只解除绑定。可选删除物理物化表、以及归属 Bucket/文件。\n系统 Bucket 中仍归属该应用的文件记录不会删除，但会先摘掉 application_id，避免外键拦住删除。\n",
         "security": [
           {
             "bearerAuth": []
@@ -19517,9 +19601,36 @@
             "description": "应用ID"
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "deleteBizdata": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "是否按应用 scope 级联删除业务数据（实体/API/管道/指标/Webhook/Hook/专用 Skill 及其独占 Tool 等）"
+                  },
+                  "dropPhysicalTables": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "级联删实体时是否同时 DROP 已物化的物理表/集合（需 deleteBizdata=true）"
+                  },
+                  "deleteBuckets": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "是否同时删除来源应用归属的 Bucket 及其下文件"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "删除成功",
+            "description": "删除成功；data 含 cascade 摘要，以及可选的 deletedBuckets / deletedObjects / skippedSystemBuckets",
             "content": {
               "application/json": {
                 "schema": {
@@ -19567,6 +19678,43 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{id}/delete-preview": {
+      "get": {
+        "tags": [
+          "Applications"
+        ],
+        "summary": "应用删除预览 [需要认证]",
+        "description": "返回应用基本信息、按 bizdata_scope_codes / api_data_scope 命中的业务数据计数，\n以及归属该应用（来源应用）的 Bucket 清单与对象数量，供删除确认页展示。\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "应用ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "预览成功；data.cascade.counts 含 entities/apiServices/pipelines/metrics/materializations 等"
+          },
+          "403": {
+            "description": "系统内置应用不可删除"
+          },
+          "404": {
+            "description": "应用不存在"
           }
         }
       }
@@ -19997,7 +20145,7 @@
         "tags": [
           "System"
         ],
-        "summary": "按应用导出 zip 迁移包(manifest.json + payload.json + 可选 files/,含明文密钥,高危) [需要认证]",
+        "summary": "按应用导出 zip 迁移包(manifest.json + payload.json + 可选 files/,含明文密钥,高危)。实体/管道/指标优先 bizdata_scope_codes,为空时回退 api_data_scope.domainCodes [需要认证]",
         "security": [
           {
             "bearerAuth": []
@@ -20026,15 +20174,20 @@
                     "default": "structure_and_data",
                     "description": "data_only 时导入端不落结构,仅对目标已有同版本实体写数"
                   },
-                  "includeUac": {
+                  "includeEadaf": {
                     "type": "boolean",
                     "default": false,
-                    "description": "是否携带用户/部门/授权等数据(不勾选仅携带被引用的角色与权限)"
+                    "description": "是否携带用户/部门/授权等 EADAF 数据(不勾选仅携带被引用的角色与权限,含存储桶 access_restrictions.role_ids)"
                   },
                   "includeFiles": {
                     "type": "boolean",
                     "default": false,
                     "description": "是否携带存储对象文件(该应用桶内对象 + 归属本应用的对象,以及这些对象引用的共享桶如 fpcu;不勾选仅桶元数据)"
+                  },
+                  "safeMode": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "写入导出包的安全模式标记(供预览)。导入默认开启安全模式退回已发布;导入请求可传 safeMode 覆盖"
                   }
                 }
               }
@@ -20135,6 +20288,11 @@
                     ],
                     "default": "overwrite",
                     "description": "冲突策略:覆盖更新 / 跳过已存在 / 有冲突即中止(不写任何数据)"
+                  },
+                  "safeMode": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "安全模式。默认开启:覆盖导入把已发布 API/采集管道/出站 Webhook 退回未发布。显式 false 才保持源发布状态(可覆盖包内标记)"
                   }
                 }
               }
@@ -20143,7 +20301,7 @@
         },
         "responses": {
           "200": {
-            "description": "导入结果(分节计数/errors/notes)。物化与行数据失败不终止后续 API 等元数据节;源行含空值时会放开目标列 NOT NULL 再写入,避免整表回滚;对象引用的桶在目标不存在时会按 code 自动创建(public)。未勾选 includeUac / includeFiles 写入 notes 而非 errors。不含平台 AI 目录/全局 Skill",
+            "description": "导入结果(分节计数/errors/notes)。新建应用保持源 application_id;仅 overwrite 且目标同 code 但 ID 不同时才对齐为源 ID,skip 沿用目标 ID。默认安全模式退回已发布 API/管道/Webhook,导入请求 safeMode=false 可保持发布。行数据 json/jsonb 列会先序列化再写入。钩子 action_config.apiServiceId / event_filter.apiServiceIds 与存储桶 access_restrictions.role_ids 按 idMap 改写(未映射完时不落空过滤/空角色以免放宽访问)。物化与行数据失败不终止后续 API 等元数据节;源行含空值时会放开目标列 NOT NULL 再写入,避免整表回滚;对象引用的桶在目标不存在时会按 code 自动创建(public)。未勾选 includeEadaf / includeFiles 写入 notes 而非 errors。不含平台 AI 目录/全局 Skill",
             "content": {
               "application/json": {
                 "schema": {
@@ -20154,6 +20312,391 @@
           },
           "400": {
             "description": "文件或策略不合法"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/app-deployment/status": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "应用部署状态（DEV 模式、平台版本、bash/pnpm、脚本与默认输出目录） [需要认证]",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "data.devMode 为 false 时「发布平台 / 发布应用」不可用"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/app-deployment/app/inspect": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "校验业务应用目录（eadaf.app.yaml + 应用 package.json 版本） [需要认证]",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "appDir"
+                ],
+                "properties": {
+                  "appDir": {
+                    "type": "string",
+                    "description": "应用仓库根目录（含 eadaf.app.yaml）"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "校验通过，返回应用名/编码/preset/版本（默认取应用 package.json，回退 eadaf.app.yaml）"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/app-deployment/platform/pack": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "发布平台-开始打 EADAF 平台包（等价 pnpm pack:eadaf；仅 DEV 模式） [需要认证]",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "network": {
+                    "type": "string",
+                    "enum": [
+                      "offline",
+                      "online"
+                    ],
+                    "default": "offline"
+                  },
+                  "runtime": {
+                    "type": "string",
+                    "enum": [
+                      "compose",
+                      "k8s"
+                    ],
+                    "default": "compose"
+                  },
+                  "os": {
+                    "type": "string",
+                    "enum": [
+                      "centos",
+                      "ubuntu",
+                      "debian"
+                    ],
+                    "default": "centos"
+                  },
+                  "arch": {
+                    "type": "string",
+                    "enum": [
+                      "amd64",
+                      "arm64"
+                    ],
+                    "default": "amd64"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "install",
+                      "upgrade",
+                      "patch"
+                    ],
+                    "default": "install"
+                  },
+                  "patch": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "web",
+                        "api"
+                      ]
+                    },
+                    "description": "kind=patch 时必填"
+                  },
+                  "webPort": {
+                    "type": "integer",
+                    "default": 9527
+                  },
+                  "apiPort": {
+                    "type": "integer",
+                    "default": 9526
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "默认取仓库根 package.json version"
+                  },
+                  "outDir": {
+                    "type": "string",
+                    "description": "默认 <仓库>/deploy-artifacts/EADAF"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "返回 job（用 /jobs/{id}/stream 订阅实时日志）"
+          },
+          "403": {
+            "description": "非 DEV 模式"
+          },
+          "409": {
+            "description": "已有打包任务在运行"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/app-deployment/app/pack": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "发布应用-开始打业务应用包（等价 pnpm pack:app；仅 DEV 模式） [需要认证]",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "appDir"
+                ],
+                "properties": {
+                  "appDir": {
+                    "type": "string",
+                    "description": "应用仓库根目录（含 eadaf.app.yaml）"
+                  },
+                  "arch": {
+                    "type": "string",
+                    "enum": [
+                      "amd64",
+                      "arm64"
+                    ],
+                    "default": "amd64"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "install",
+                      "upgrade",
+                      "patch"
+                    ],
+                    "default": "install"
+                  },
+                  "patch": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "web",
+                        "api"
+                      ]
+                    }
+                  },
+                  "webPort": {
+                    "type": "integer"
+                  },
+                  "apiPort": {
+                    "type": "integer"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "默认取应用 package.json version"
+                  },
+                  "outDir": {
+                    "type": "string",
+                    "description": "默认 <仓库>/deploy-artifacts/APP"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "返回 job（用 /jobs/{id}/stream 订阅实时日志）"
+          },
+          "403": {
+            "description": "非 DEV 模式"
+          },
+          "409": {
+            "description": "已有打包任务在运行"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/app-deployment/jobs": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "最近的应用部署（打包）任务列表 [需要认证]",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "data.items（新→旧，含产物目录）"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/app-deployment/jobs/{jobId}/stream": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "打包任务 SSE 实时日志（fromSeq 续传，刷新页面不丢输出） [需要认证]",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fromSeq",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/event-stream，data 为 {\"type\":\"snapshot\"|\"log\"|\"job\"|\"end\", ...}"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/app-deployment/jobs/{jobId}/log": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "打包任务日志轮询接口（SSE 兜底） [需要认证]",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fromSeq",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "data.job + data.lines（seq > fromSeq）"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/app-deployment/jobs/{jobId}": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "打包任务详情（状态/产物目录/退出码） [需要认证]",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "data 为任务详情"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/app-deployment/jobs/{jobId}/cancel": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "取消打包任务 [需要认证]",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "data 为任务详情"
           }
         }
       }
@@ -23267,10 +23810,5 @@
       }
     }
   },
-  "tags": [
-    {
-      "name": "Demo-Sales",
-      "description": "销售管理系统 Demo（SQLite 数据，供 AIBase 页面与 AI Tool 共用）"
-    }
-  ]
+  "tags": []
 }

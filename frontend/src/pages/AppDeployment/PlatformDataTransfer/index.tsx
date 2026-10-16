@@ -40,7 +40,7 @@ const SECTION_LABELS: Record<string, string> = {
   ai: 'AI 目录',
   dataStandards: '数据标准',
   systemFeatures: '系统开关',
-  uacPermissions: 'EADAF 权限目录',
+  eadafPermissions: 'EADAF 权限目录',
   storageBuckets: '存储桶',
   storageObjects: '存储文件',
   aborted: '导入中止',

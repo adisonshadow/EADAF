@@ -100,7 +100,7 @@ pnpm init-db                                  # 结构 + 超管 + EADAF 全局/�
 
 `pnpm dev` 在后端启动前也会检查这两个文件；缺失时只打印告警（用内置默认值继续），不会阻断启动。
 
-默认 `init-db` 会 **DROP 并重建** `uac` **schema**，只用于本机或空库。它不会写入销售域测试实体。EADAF 系统 Skill（如 `bizdata-model-design`）由 `scripts/migrate-eadaf-ai-skills.sql` 幂等写入。
+默认 `init-db` 会 **DROP 并重建** `eadaf` **schema**，只用于本机或空库。它不会写入销售域测试实体。EADAF 系统 Skill（如 `bizdata-model-design`）由 `scripts/migrate-eadaf-ai-skills.sql` 幂等写入。
 
 ### 3.4 同步 Skill 与 Tool
 
@@ -329,7 +329,7 @@ pnpm pack:app      # 业务应用包 → deploy-artifacts/APP/
 
 ### 7.1 不要对已有数据的库执行 init-db
 
-`pnpm init-db` 会 DROP 并重建 `uac` schema，只用于本机或空库。运行时包里，表结构只打进 EADAF 安装包。~~已有库按升级包导入表结构或数据补丁。~~ 升级包、补丁包暂时只有代码。已运行实例的配置与业务数据走第 6 节。
+`pnpm init-db` 会 DROP 并重建 `eadaf` schema，只用于本机或空库。运行时包里，表结构只打进 EADAF 安装包。~~已有库按升级包导入表结构或数据补丁。~~ 升级包、补丁包暂时只有代码。已运行实例的配置与业务数据走第 6 节。
 
 ### 7.2 端口
 

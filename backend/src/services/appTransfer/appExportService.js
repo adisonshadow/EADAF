@@ -32,6 +32,7 @@ const {
 const { collectAppStorage } = require('./transferStorage');
 const { buildManifest, createTransferZipArchive } = require('./transferZip');
 const { Readable } = require('stream');
+const transferCompat = require('./transferCompat');
 
 const SYSTEM_APPLICATION_CODE = 'EADAF';
 const LARGE_ROW_THRESHOLD = 100000;
@@ -67,7 +68,7 @@ function normalizeOptions(raw = {}) {
   const dataMode = raw.dataMode === 'data_only' ? 'data_only' : 'structure_and_data';
   return {
     dataMode,
-    includeUac: raw.includeUac === true,
+    includeEadaf: transferCompat.readIncludeEadaf(raw),
     includeFiles: raw.includeFiles === true,
     // 默认关闭:导入保持源发布状态。开启后覆盖导入才把已发布 API/管道/Webhook 退回未发布
     safeMode: raw.safeMode === true,
@@ -77,7 +78,7 @@ function normalizeOptions(raw = {}) {
 function buildFileOptions(options, sourceApplicationId) {
   return {
     dataMode: options.dataMode,
-    includeUac: options.includeUac,
+    includeEadaf: options.includeEadaf,
     includeFiles: options.includeFiles,
     safeMode: options.safeMode === true,
     secretsInPlaintext: true,
@@ -321,7 +322,7 @@ async function* iterateTableRows(runtime, schemaName, tableName, orderColumn, pa
  *   application: object, entitiesSection: object, apiServicesSection: object,
  *   collectionPipelinesSection: object, outboundWebhooks: object[], metricsSection: object,
  *   hooks: object[], hooksExcluded: object[], skillsSection: object,
- *   metadataSection: object, uacSection: object, storageBuckets: object[], storageObjects: object[],
+ *   metadataSection: object, eadafSection: object, storageBuckets: object[], storageObjects: object[],
  *   storageFileEntries: object[], entityDataItems: object[],
  *   sourceApplicationId: string, warnings: string[],
  * }}
@@ -543,7 +544,7 @@ async function buildExportContext(app, options) {
     ? await models.Permission.findAll({ where: { permission_id: { [Op.in]: referencedPermissionIds } }, raw: true })
     : [];
 
-  const uacSection = {
+  const eadafSection = {
     roles: referencedRoleRows.map((r) => pickModelFields(models.Role, r)),
     permissions: referencedPermissionRows.map((r) => pickModelFields(models.Permission, r)),
     rolePermissions: referencedRolePermissionRows.map((r) => pickModelFields(models.RolePermission, r)),
@@ -552,7 +553,7 @@ async function buildExportContext(app, options) {
     userRoles: [],
     dataPermissionRules: [],
   };
-  if (options.includeUac) {
+  if (options.includeEadaf) {
     const [users, departments, userRoles, allRoles, allPermissions, allRolePermissions, rules] =
       await Promise.all([
         models.User.findAll({ raw: true }),
@@ -563,13 +564,13 @@ async function buildExportContext(app, options) {
         models.RolePermission.findAll({ raw: true }),
         models.DataPermissionRule.findAll({ raw: true }),
       ]);
-    uacSection.users = users.map((r) => pickModelFields(models.User, r));
-    uacSection.departments = departments.map((r) => pickModelFields(models.Department, r));
-    uacSection.userRoles = userRoles.map((r) => pickModelFields(models.UserRole, r));
-    uacSection.roles = allRoles.map((r) => pickModelFields(models.Role, r));
-    uacSection.permissions = allPermissions.map((r) => pickModelFields(models.Permission, r));
-    uacSection.rolePermissions = allRolePermissions.map((r) => pickModelFields(models.RolePermission, r));
-    uacSection.dataPermissionRules = rules.map((r) => pickModelFields(models.DataPermissionRule, r));
+    eadafSection.users = users.map((r) => pickModelFields(models.User, r));
+    eadafSection.departments = departments.map((r) => pickModelFields(models.Department, r));
+    eadafSection.userRoles = userRoles.map((r) => pickModelFields(models.UserRole, r));
+    eadafSection.roles = allRoles.map((r) => pickModelFields(models.Role, r));
+    eadafSection.permissions = allPermissions.map((r) => pickModelFields(models.Permission, r));
+    eadafSection.rolePermissions = allRolePermissions.map((r) => pickModelFields(models.RolePermission, r));
+    eadafSection.dataPermissionRules = rules.map((r) => pickModelFields(models.DataPermissionRule, r));
   }
 
   // ---- 行数据桩(实体 → 最新成功物化记录 → 连接) ----
@@ -708,7 +709,7 @@ async function buildExportContext(app, options) {
       applications: dedicatedLinks.map((r) => pickModelFields(models.SkillApplication, r)),
     },
     metadataSection,
-    uacSection,
+    eadafSection,
     storageBuckets,
     // 未携带文件时不导出对象记录：记录一旦落到目标库就会指向不存在的对象，
     // 图片/附件接口随即 404，而导入报告看不出任何异常（见 #20）。
@@ -729,7 +730,7 @@ function buildExportSummary(ctx, options) {
   const summary = {
     applicationCode: ctx.application.code,
     dataMode: options.dataMode,
-    includeUac: options.includeUac,
+    includeEadaf: options.includeEadaf,
     includeFiles: options.includeFiles,
     safeMode: options.safeMode === true,
     counts: {
@@ -755,10 +756,10 @@ function buildExportSummary(ctx, options) {
       metadataFields: count(ctx.metadataSection?.fields),
       storageBuckets: count(ctx.storageBuckets),
       storageObjects: count(ctx.storageObjects),
-      uacUsers: count(ctx.uacSection.users),
-      uacDepartments: count(ctx.uacSection.departments),
-      uacRoles: count(ctx.uacSection.roles),
-      uacPermissions: count(ctx.uacSection.permissions),
+      eadafUsers: count(ctx.eadafSection.users),
+      eadafDepartments: count(ctx.eadafSection.departments),
+      eadafRoles: count(ctx.eadafSection.roles),
+      eadafPermissions: count(ctx.eadafSection.permissions),
       entityDataEntities: ctx.entityDataItems.length,
       entityDataRows: totalRows,
     },
@@ -814,8 +815,8 @@ async function* exportAppPayloadStream(ctx, options, summary) {
     metadata: ctx.metadataSection,
   });
   yield* chunkString(headJson.slice(0, -1));
-  yield ',"uac":';
-  yield* chunkString(JSON.stringify(ctx.uacSection));
+  yield ',"eadaf":';
+  yield* chunkString(JSON.stringify(ctx.eadafSection));
   yield ',"storageBuckets":';
   yield* chunkString(JSON.stringify(ctx.storageBuckets));
   yield ',"storageObjects":';

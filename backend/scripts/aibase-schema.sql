@@ -1,5 +1,5 @@
 -- AIBase AI 模型网关 Schema
--- 独立 schema，与 uac 解耦
+-- 独立 schema，与 eadaf 解耦
 
 CREATE SCHEMA IF NOT EXISTS aibase;
 

@@ -3,9 +3,15 @@
 # Database Maintenance Script
 # Usage: ./db-maintenance.sh [VACUUM|ANALYZE|REINDEX|ALL]
 
-# Database connection parameters
-DB_NAME="uac"
-SCHEMA="uac"
+# Database connection parameters（与后端同一套 env 级联，见 scripts/env.sh）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+export NODE_ENV="${NODE_ENV:-development}"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/env.sh"
+load_env_file "$PROJECT_ROOT"
+DB_NAME="${POSTGRES_DATABASE:?请在 .env.$NODE_ENV 中配置 POSTGRES_DATABASE}"
+SCHEMA="${POSTGRES_SCHEMA:-eadaf}"
 LOG_DIR="logs"
 LOG_FILE="$LOG_DIR/db-maintenance-$(date +%Y%m%d_%H%M%S).log"
 

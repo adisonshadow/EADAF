@@ -11,6 +11,7 @@
  */
 const { Op } = require('sequelize');
 const models = require('../../models');
+const transferCompat = require('./transferCompat');
 const { prefixHit } = require('./scopePrefix');
 const { openTransferPackage, cleanupUpload } = require('./transferZip');
 
@@ -126,7 +127,7 @@ async function previewImportFile(filePath) {
   const ai = file.ai || {};
   const providerItems = Array.isArray(ai.providers) ? ai.providers : [];
   const aiModelItems = Array.isArray(ai.models) ? ai.models : [];
-  const uac = file.uac || {};
+  const eadaf = transferCompat.readSection(file, 'eadaf') || {};
   const buckets = Array.isArray(file.storageBuckets) ? file.storageBuckets : [];
   const storageObjects = Array.isArray(file.storageObjects) ? file.storageObjects : [];
   const entityData = Array.isArray(file.entityData) ? file.entityData : [];
@@ -441,7 +442,7 @@ async function previewImportFile(filePath) {
         applications: sectionCount(skills.applications),
       },
       metadata: { tables: metadataTables.length, fields: metadataFields.length },
-      uac: {
+      eadaf: {
         users: sectionCount(eadaf.users),
         departments: sectionCount(eadaf.departments),
         roles: sectionCount(eadaf.roles),

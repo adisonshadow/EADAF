@@ -10,8 +10,8 @@
 -- 6. 支持软删除功能
 
 -- 第一部分：创建schema
-DROP SCHEMA IF EXISTS uac CASCADE;
-CREATE SCHEMA uac;
+DROP SCHEMA IF EXISTS eadaf CASCADE;
+CREATE SCHEMA eadaf;
 
 -- 第二部分：创建基础表（没有外键依赖的表）
 -- 部门邻接表（含软删除）
