@@ -4,7 +4,8 @@ import App from './App';
 import { installUnauthorizedInterceptor } from './auth/auth';
 import './index.css';
 
-// 任何请求返回 401（令牌失效/过期）都统一跳登录页，而不是把「无效的令牌」留在页面上
+// 业务请求拿到 401 说明 BFF 侧会话真的没了（刷新由 BFF 负责）→ 统一回登录页，
+// 而不是把「无效的令牌 / 未授权」留在页面上
 installUnauthorizedInterceptor();
 
 createRoot(document.getElementById('root')!).render(

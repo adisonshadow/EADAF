@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { Button, Layout, Menu, Space, Typography } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { clearAuth, buildSsoLogoutUrl } from '@/auth/auth';
+import { logout } from '@/auth/auth';
 import './AppShell.css';
 
 const { Header, Content } = Layout;
@@ -53,9 +53,8 @@ export default function AppShell() {
           icon={<LogoutOutlined />}
           style={{ color: '#fff' }}
           onClick={() => {
-            // 真登出：清本地 + 让 EADAF 撤掉 IdP 会话（否则下次登录会被静默 SSO 登回来）
-            clearAuth();
-            window.location.href = buildSsoLogoutUrl();
+            // 真登出：BFF 清服务端会话 → 跳 EADAF 登出中转页撤销 sid（级联该设备所有应用）
+            void logout();
           }}
         >
           退出

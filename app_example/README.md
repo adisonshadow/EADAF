@@ -1,7 +1,8 @@
 # app_example —— 雨伞品牌厂商 · 电商独立站销售管理系统（EADAF 业务应用示例）
 
 > 一句话：业务系统**只写前端页面**；账号、权限、数据、AI 能力全部复用 **EADAF 平台（`/backend`）**。
-> 示例应用没有自己的后端、没有自己的数据库。
+> 示例应用只有一个极简 **BFF**（`server/index.mjs`，零依赖）：负责 SSO 换票与
+> `/api` 代理，令牌只落服务端；没有自己的数据库。
 
 - 业务域：雨伞品牌 DTC 独立站 —— 伞品（长柄/折叠/高尔夫/广告/儿童伞）、会员、订单、售后工单
 - 前端：React 19 + antd 6 + Vite，5 个页面（经营概览 / 伞品管理 / 独立站订单 / 会员 / 售后工单）
@@ -31,7 +32,7 @@ EADAF 管理台「业务数据」                     运行时
 | 独立站订单 | `GET /api/v1/data/YS/order/Order`、`.../Order/one?order_no=`、`.../OrderItem?order_id=` | 60 笔订单 + 明细 |
 | 会员 | `GET /api/v1/data/YS/member/Member` | 20 位会员（金牌/普通），订单数与消费在前端汇总 |
 | 售后工单 | `GET /api/v1/data/YS/service/Complaint` | 质量 / 物流 / 服务 / 退款工单 |
-| 登录 | `GET /api/v1/auth/check` + EADAF SSO | 账号与权限由平台 UAC 统一管理，示例不存密码 |
+| 登录 | 授权码 + PKCE（BFF 换票）→ 服务端会话 | 账号与权限由平台 UAC 统一管理，示例不存密码；浏览器不接触令牌 |
 | AI 助手 | `POST /api/v1/ai/chat/completions`（经 ai-base） | 走平台 Skill/Tool |
 
 **模型域**：实体 code 前缀 `YS:`（与应用的 AI Scope slug 一致），物化目标是默认连接
@@ -54,10 +55,15 @@ EADAF 管理台「业务数据」                     运行时
 frontend（Vite + antd 管理端） → backend（Express BFF：SSO 换票 + 实体代理） → EADAF（用户/权限/业务实体/数据）
 ```
 
-本示例是它的**最小化版本**：为突出「能复用的都复用」，刻意省掉 BFF ——
-前端直接调用 EADAF 的接口（开发环境经 Vite proxy 到 `29526`）。
+本示例是它的**最小化版本**，但保留了 BFF 这一层（[`server/index.mjs`](server/index.mjs)）：
+它只做两件事 —— **SSO 换票**（授权码 + PKCE，令牌只落服务端）与 **`/api` 代理**
+（带令牌转发、过期自动刷新）。开发时 Vite 把 `/auth`、`/api` 都代理给它，
+浏览器只面对一个源和一枚 httpOnly 会话 Cookie。
+
+真正省掉的是"业务后端"：数据、权限、AI 全部复用 EADAF，示例不建库、不写业务逻辑。
 真实应用需要独立域名、独立镜像、对外 API 时，再按 [docs/pack-and-deploy.md](../docs/pack-and-deploy.md)
 用 `pnpm pack:app` 打成应用包（`eadaf.app.yaml` + 镜像 + 注册 SQL）。
+接法说明与可独立运行的模板见 [docs/sso-bff-template](../docs/sso-bff-template/README.md)。
 
 ## 3. 本地运行
 
@@ -77,8 +83,11 @@ node app_example/scripts/eadaf/provision.mjs
 EADAF_MYSQL_CMD='docker exec -i mysql-local sh -c '"'"'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" bizdata_mat'"'"'' \
   node app_example/scripts/eadaf/load-data.mjs
 
-# 5) 启动示例应用（http://localhost:29529）
-pnpm --filter ./app_example dev
+# 5) 启动示例应用（前端 http://localhost:29529 + BFF http://localhost:29530）
+pnpm --filter ./app_example dev:all     # 同时起 BFF 与 Vite
+# 或分开起：
+#   pnpm --filter ./app_example dev:bff
+#   pnpm --filter ./app_example dev
 ```
 
 > 第 3、4 步的细节、前置条件与可调环境变量见
@@ -106,17 +115,18 @@ pnpm --filter ./app_example dev
 ```
 app_example/
 ├── src/
-│   ├── auth/                 # EADAF SSO：登录页 / 回调 / 鉴权门（token 存 localStorage）
+│   ├── auth/                 # SSO 会话客户端：登录入口 / 鉴权门（浏览器不存令牌）
 │   ├── layout/AppShell.tsx   # 顶栏 + 侧边菜单（有意保持极简）
 │   ├── pages/store/          # 业务页：概览 / 伞品 / 订单 / 会员 / 售后 + storeApi.ts
 │   ├── components/           # ChatReferenceTarget：把业务对象加进 AI 引用
 │   └── App.tsx               # AIChatProvider + 路由
-├── scripts/                  # 销售 Demo 种子 SQL 与生成器
-└── vite.config.ts            # 端口 29529；/api 代理到 EADAF 后端；直连 ai-base 源码（HMR）
+├── server/index.mjs          # BFF：授权码 + PKCE 换票、/api 代理（令牌只落服务端）
+├── scripts/                  # 销售 Demo 种子 SQL 与生成器、dev:all 启动器
+└── vite.config.ts            # 端口 29529；/auth 与 /api 代理到 BFF；直连 ai-base 源码（HMR）
 ```
 
 ## 6. 有意不做的事（保持「简单」）
 
-- 不自建后端 / BFF，不建业务库，不做数据同步；
+- 不自建**业务**后端（BFF 只做换票与代理）、不建业务库、不做数据同步；
 - 不做复杂权限菜单、工作流、报表导出（真实项目再按需加，参考 CIAC-MS）；
 - 页面只做「看数据 + 少量筛选 + 明细」，更深的分析交给 AI 助手（点 `@` 引用后直接提问）。

@@ -17,8 +17,6 @@
  * 用下面极简的 memo 缓存避免重复请求。真实项目应在 API 服务里做 join / 聚合。
  */
 
-import { withApp, handleUnauthorized } from '@/auth/auth';
-
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 const SVC = `${API_BASE}/v1/data/YS`;
 
@@ -27,12 +25,12 @@ interface Envelope<T> {
   pagination?: { total: number; page: number; pageSize: number; totalPages: number; hasNext: boolean };
 }
 
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-/** 调 EADAF 生成的 API 服务；?app= 由 withApp 补上（SSO JWT 是应用密钥签的） */
+/**
+ * 调 EADAF 生成的 API 服务。
+ *
+ * BFF 形态：不带 Authorization、不带 `?app=` —— 令牌与验签都由 BFF 处理
+ * （平台签发的令牌自带 iss/aud/sid，EADAF 不再需要靠 URL 参数选验签密钥）。
+ */
 async function callSvc<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<Envelope<T>> {
   const search = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -40,17 +38,12 @@ async function callSvc<T>(path: string, params: Record<string, string | number |
     search.set(k, String(v));
   }
   const qs = search.toString();
-  const url = withApp(`${SVC}${path}${qs ? `?${qs}` : ''}`);
-  const res = await fetch(url, { headers: authHeaders() });
+  const url = `${SVC}${path}${qs ? `?${qs}` : ''}`;
+  const res = await fetch(url, { credentials: 'same-origin' });
   const json = await res.json();
-  // 401：交给 auth 层先复核会话（可能只是这个接口的问题），确认无效才清登录态回 /auth/login
+  // 401 由 BFF 负责（它会先刷新再重放）；走到这里说明会话真的没了，全局拦截器会回登录页
   if (res.status === 401 || json.code === 401) {
-    const state = await handleUnauthorized();
-    throw new Error(
-      state === 'invalid'
-        ? '登录已失效，正在跳转登录页…'
-        : '该请求未被授权（可能缺少应用参数或权限），请稍后重试或重新登录',
-    );
+    throw new Error(json.message || '登录已失效，请重新登录');
   }
   if (!res.ok || (json.code && json.code !== 200)) {
     throw new Error(json.message || json.error?.message || '请求失败');

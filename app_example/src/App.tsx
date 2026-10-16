@@ -38,8 +38,9 @@ export default function App() {
               systemPromptPrefix: SYSTEM_PROMPT_PREFIX,
               applicationId:
                 import.meta.env.VITE_SSO_APPLICATION_ID || '77777777-7777-4777-8777-777777777701',
-              // 本应用的令牌就是这个 SSO 应用签发的：老令牌（无 application_id 声明）也能补上 ?app=
-              ssoApplicationId: import.meta.env.VITE_SSO_APPLICATION_ID,
+              // BFF 形态：浏览器不持有令牌（Authorization 由 BFF 注入），所以这里取不到 token，
+              // AI 助手请求也就不带 Authorization / 不需要 ?app=
+              getToken: () => null,
               welcome: {
                 title: '你好，我是独立站 AI 助手',
                 description:
