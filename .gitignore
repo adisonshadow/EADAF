@@ -18,6 +18,14 @@ node_modules/
 !.env.example
 # app_example 是纯前端示例：.env 里只有公开的 VITE_* 值（无密钥），入库以便开箱即用
 !app_example/.env
+# 应用导出包含用户密码哈希与明文密钥，只在本机传递，不入库
+app_example/eadaf-app-export-*.zip
+
+# ai-base 源码目录里的 TS 就地编译产物（tsc 生成：.js/.d.ts/.map）；真正的产物目录 dist/ 已在上方忽略
+package/ai-base/src/**/*.js
+package/ai-base/src/**/*.js.map
+package/ai-base/src/**/*.d.ts
+package/ai-base/src/**/*.d.ts.map
 
 # --- Logs ---
 /logs/
