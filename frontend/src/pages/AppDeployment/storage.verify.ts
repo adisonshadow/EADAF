@@ -48,11 +48,11 @@ const platformJob: PackJob = {
   startedAt: '2026-10-15T03:20:00.000Z',
   finishedAt: '2026-10-15T03:21:00.000Z',
   version: '1.2.7',
-  outDir: '/srv/uac2/packages/EADAF',
+  outDir: '/srv/uac2/deploy-artifacts/EADAF',
   artifact: {
-    dir: '/srv/uac2/packages/EADAF',
+    dir: '/srv/uac2/deploy-artifacts/EADAF',
     file: 'eadaf-offline-compose-install-amd64-v1.2.7-20261015-0320.tar.gz',
-    path: '/srv/uac2/packages/EADAF/eadaf-offline-compose-install-amd64-v1.2.7-20261015-0320.tar.gz',
+    path: '/srv/uac2/deploy-artifacts/EADAF/eadaf-offline-compose-install-amd64-v1.2.7-20261015-0320.tar.gz',
     size: 12 * 1024 * 1024,
     mtime: '2026-10-15T03:21:00.000Z',
   },
@@ -127,16 +127,16 @@ assert.equal(readAppDirMap()['app-id-2'], '/srv/repos/other', '空键被忽略')
 assert.equal(listKnownAppDirs().length, 2, '反查用过的应用目录（按目录去重）');
 
 /* 4) 展示辅助：目标目录默认按项目地址拼、示例里不出现具体机器路径 */
-assert.equal(joinProjectPath('/srv/uac2', 'packages/EADAF'), '/srv/uac2/packages/EADAF');
-assert.equal(joinProjectPath('D:\\DEV\\UAC2', 'packages/APP'), 'D:\\DEV\\UAC2\\packages\\APP');
-assert.equal(joinProjectPath('', 'packages/APP'), 'packages/APP');
+assert.equal(joinProjectPath('/srv/uac2', 'deploy-artifacts/EADAF'), '/srv/uac2/deploy-artifacts/EADAF');
+assert.equal(joinProjectPath('D:\\DEV\\UAC2', 'deploy-artifacts/APP'), 'D:\\DEV\\UAC2\\deploy-artifacts\\APP');
+assert.equal(joinProjectPath('', 'deploy-artifacts/APP'), 'deploy-artifacts/APP');
 assert.equal(
-  aliasProjectPath('/srv/uac2/packages/APP', '/srv/uac2'),
-  '<项目目录>/packages/APP',
+  aliasProjectPath('/srv/uac2/deploy-artifacts/APP', '/srv/uac2'),
+  '<项目目录>/deploy-artifacts/APP',
 );
 assert.equal(
-  aliasProjectPath('D:\\DEV\\UAC2\\packages\\EADAF', 'D:\\DEV\\UAC2'),
-  '<项目目录>/packages/EADAF',
+  aliasProjectPath('D:\\DEV\\UAC2\\deploy-artifacts\\EADAF', 'D:\\DEV\\UAC2'),
+  '<项目目录>/deploy-artifacts/EADAF',
 );
 assert.equal(aliasProjectPath('/other/path', '/srv/uac2'), '/other/path');
 assert.equal(

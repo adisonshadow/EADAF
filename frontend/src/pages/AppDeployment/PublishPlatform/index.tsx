@@ -43,7 +43,7 @@ import { usePackJobStream } from '../usePackJobStream';
 
 const { Text, Paragraph } = Typography;
 
-const OUT_RELATIVE = 'packages/EADAF';
+const OUT_RELATIVE = 'deploy-artifacts/EADAF';
 
 /**
  * 「应用部署 → 发布平台」：等价 `pnpm pack:eadaf`，在 DEV 模式的开发机上真实执行，

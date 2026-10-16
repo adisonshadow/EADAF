@@ -297,7 +297,7 @@ fetch_docker_static() {
   local docker_arch compose_arch
   docker_arch="$(docker_static_arch "$arch")"
   compose_arch="$docker_arch"
-  local cache="$REPO_ROOT/packages/.staging/docker-static-$arch"
+  local cache="$REPO_ROOT/deploy-artifacts/.staging/docker-static-$arch"
   mkdir -p "$cache"
   if [[ ! -f "$cache/docker-24.0.9.tgz" ]]; then
     download_with_fallback "$cache/docker-24.0.9.tgz" \

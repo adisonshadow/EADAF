@@ -4,7 +4,7 @@
 
 服务器上用 Node 直接跑开发环境见 [dev-server-deploy.md](./dev-server-deploy.md)。
 
-> 本节说的是 **运行时安装包 / 升级包 / 补丁包**（`packages/EADAF`、`packages/APP` 下的 `.tar.gz`）。  
+> 本节说的是 **运行时安装包 / 升级包 / 补丁包**（`deploy-artifacts/EADAF`、`deploy-artifacts/APP` 下的 `.tar.gz`）。  
 > 管理端导航「应用部署」里按实例迁配置与业务数据的 ZIP，见 [data-transfer.md](./data-transfer.md)，二者不要混用。
 >
 > **数据包补丁已暂时停用。** 升级包、补丁包只含程序（镜像 / 前端 dist），不带表结构，也不带业务数据。表结构只在 **EADAF 安装包** 的 init-db SQL 里。已运行实例之间同步配置与业务数据，用「应用部署」里的 EADAF / 应用数据包导出、导入。
@@ -25,7 +25,7 @@
 
 两个发布页的约定：
 
-- **目标目录默认按项目地址拼出**：平台 `<项目目录>/packages/EADAF`、应用 `<项目目录>/packages/APP`（后端用仓库根拼好回给页面，页面上的示例也只显示 `<项目目录>/...` 这种相对写法）。
+- **目标目录默认按项目地址拼出**：平台 `<项目目录>/deploy-artifacts/EADAF`、应用 `<项目目录>/deploy-artifacts/APP`（后端用仓库根拼好回给页面，页面上的示例也只显示 `<项目目录>/...` 这种相对写法）。
 - **发布应用分两步**：先「选择应用 + 填项目目录」并点校验（目录下必须有 `eadaf.app.yaml`），校验通过后按「应用 → 项目目录」记进**浏览器本地缓存**，下次选同一个应用会自动回填并重新校验；再点「下一步」才出现其余打包配置。
 - **打包历史存在浏览器**（`localStorage`）：任务结束后自动记一条（版本、种类配置、状态、目标目录、产物文件名与大小），可直接复制目标目录去取包；换浏览器或清缓存后，服务端若还留着最近一次任务，会补记进历史。历史上限 50 条，可单条移除或整体清空。
 
@@ -77,7 +77,7 @@ pnpm pack:eadaf
 bash scripts/deploy/pack-eadaf.sh --network offline --runtime compose --os centos --arch amd64 --kind install --non-interactive --yes
 ```
 
-默认写到 `packages/EADAF/`。文件名：
+默认写到 `deploy-artifacts/EADAF/`。文件名：
 
 | 种类 | 文件名 |
 |------|--------|
@@ -118,7 +118,7 @@ pnpm pack:app
 
 应用仓库根目录需要 `eadaf.app.yaml`。FPCU2 使用 `preset: fpcu2`，示例见 `scripts/deploy/app-presets/fpcu2/eadaf.app.yaml.example`。
 
-默认写到 `packages/APP/`。文件名不含网络和运行方式：
+默认写到 `deploy-artifacts/APP/`。文件名不含网络和运行方式：
 
 | 种类 | 文件名 |
 |------|--------|

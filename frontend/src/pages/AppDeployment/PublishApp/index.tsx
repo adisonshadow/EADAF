@@ -57,7 +57,7 @@ import { usePackJobStream } from '../usePackJobStream';
 const { Text, Paragraph } = Typography;
 
 const SYSTEM_APPLICATION_CODE = 'EADAF';
-const OUT_RELATIVE = 'packages/APP';
+const OUT_RELATIVE = 'deploy-artifacts/APP';
 
 interface AppOption {
   label: string;
