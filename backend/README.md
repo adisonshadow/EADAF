@@ -70,6 +70,17 @@ node scripts/lib/load-env.cjs --value POSTGRES_PORT   # 单个键
 node scripts/lib/load-env.cjs --files                 # 实际加载了哪些文件
 ```
 
+**`.env.example` 是生成物**（从 `.env.development` 生成，勿手改）：
+
+```bash
+pnpm --filter ./backend config:example   # 重新生成 .env.example
+pnpm --filter ./backend config:check     # 一致性检查（CI 可跑）
+```
+
+`config:check` 会拦住这几类漂移：**死键**（写了没人读）、**示例过期**（`.env.example` 与生成结果不一致）、
+**`NODE_ENV` 写进 env 文件**（应由 cross-env/pm2/compose 决定），并提示未文档化的键、
+多文件重复定义、compose 默认值与 env 不一致、`.env.production` 缺键。
+
 ### 同步 EADAF Skill / Tool
 
 `init-db` 会执行 `scripts/migrate-eadaf-ai-skills.sql`：写入**全局 Skill** 以及绑定应用 `EADAF` 的专用 Skill/Tool（如 `bizdata-model-design`）。不含 SFDEP、sales-demo 等业务应用 Skill，也不含销售域测试实体。

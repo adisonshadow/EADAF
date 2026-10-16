@@ -29,7 +29,9 @@
     "db:backup": "bash scripts/backup-db-now.sh",
     "backup:now": "bash scripts/backup-db-now.sh",
     "db:backup:setup-cron": "bash scripts/setup-backup-cron.sh",
-    "swagger": "node scripts/generate-swagger.js"
+    "swagger": "node scripts/generate-swagger.js",
+    "config:check": "node scripts/check-env.cjs",
+    "config:example": "node scripts/check-env.cjs --fix-example"
   },
   "dependencies": {
     "@koa/cors": "^5.0.0",
