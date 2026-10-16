@@ -1,5 +1,5 @@
 /**
- * EADAF 平台导出:Skill/Tool、AI 目录、数据标准、系统开关、UAC 权限目录。
+ * EADAF 平台导出:Skill/Tool、AI 目录、数据标准、系统开关、EADAF 权限目录。
  * 不含业务实体 / API / 行数据 / 用户。
  */
 const { Op } = require('sequelize');

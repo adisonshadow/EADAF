@@ -33,7 +33,7 @@ EADAF 管理台「业务数据」                     运行时
 | 独立站订单 | `GET /api/v1/data/YS/order/Order`、`.../Order/one?order_no=`、`.../OrderItem?order_id=` | 60 笔订单 + 明细                       |
 | 会员    | `GET /api/v1/data/YS/member/Member`                                                   | 20 位会员（金牌/普通），订单数与消费在前端汇总         |
 | 售后工单  | `GET /api/v1/data/YS/service/Complaint`                                               | 质量 / 物流 / 服务 / 退款工单               |
-| 登录    | 授权码 + PKCE（BFF 换票）→ 服务端会话                                                             | 账号与权限由平台 UAC 统一管理，示例不存密码；浏览器不接触令牌 |
+| 登录    | 授权码 + PKCE（BFF 换票）→ 服务端会话                                                             | 账号与权限由平台统一管理，示例不存密码；浏览器不接触令牌 |
 | AI 助手 | `POST /api/v1/ai/chat/completions`（经 ai-base）                                         | 走平台 Skill/Tool                    |
 
 

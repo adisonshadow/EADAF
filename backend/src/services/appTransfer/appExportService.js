@@ -500,7 +500,7 @@ async function buildExportContext(app, options) {
     warnings.push(`逻辑元数据节导出失败(已跳过): ${e.message}`);
   }
 
-  // ---- 存储(须早于 UAC 引用角色,以便把桶 access_restrictions.role_ids 算进被引用角色) ----
+  // ---- 存储(须早于EADAF引用角色,以便把桶 access_restrictions.role_ids 算进被引用角色) ----
   const {
     storageBuckets,
     storageObjects,
@@ -514,7 +514,7 @@ async function buildExportContext(app, options) {
     );
   }
 
-  // ---- UAC(不勾选仅导出被引用 roles/permissions) ----
+  // ---- EADAF(不勾选仅导出被引用 roles/permissions) ----
   const bucketRoleIds = [];
   for (const bucket of storageBuckets) {
     const restrictions = bucket.access_restrictions;

@@ -32,7 +32,7 @@ const EXPORT_CONTENT_ITEMS = [
   '实例级 AI 目录(Provider / 模型 / 能力 / IO 标签;API Key 以明文段携带)',
   '数据标准目录(bizdata.data_standards)',
   '系统功能开关(system_features)',
-  'UAC 权限目录(权限码,不含用户 / 部门 / 角色授权)',
+  'EADAF 权限目录(权限码,不含用户 / 部门 / 角色授权)',
 ];
 
 const SECTION_LABELS: Record<string, string> = {
@@ -40,7 +40,7 @@ const SECTION_LABELS: Record<string, string> = {
   ai: 'AI 目录',
   dataStandards: '数据标准',
   systemFeatures: '系统开关',
-  uacPermissions: 'UAC 权限目录',
+  uacPermissions: 'EADAF 权限目录',
   storageBuckets: '存储桶',
   storageObjects: '存储文件',
   aborted: '导入中止',

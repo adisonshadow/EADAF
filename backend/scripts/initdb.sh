@@ -101,9 +101,9 @@ PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-app-deployment-permissio
 
 echo "结构对齐增量迁移完成"
 
-echo "开始导入 UAC 权限目录..."
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/uac-permissions-catalog-seed.sql" || { echo "导入 UAC 权限目录失败"; exit 1; }
-echo "UAC 权限目录导入完成"
+echo "开始导入 EADAF 权限目录..."
+PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/eadaf-permissions-catalog-seed.sql" || { echo "导入 EADAF 权限目录失败"; exit 1; }
+echo "EADAF 权限目录导入完成"
 
 echo "创建超级管理员..."
 PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/superadmin.sql" || { echo "创建超级管理员失败"; exit 1; }

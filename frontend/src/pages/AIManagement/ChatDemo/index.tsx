@@ -38,7 +38,7 @@ const bubbleRoles = {
 
 const promptItems = [
   { key: '1', label: '你好，请介绍一下你自己' },
-  { key: '2', label: '用三句话说明 UAC 系统的作用' },
+  { key: '2', label: '用三句话说明 EADAF 系统的作用' },
   { key: '3', label: '帮我写一段产品简介' },
 ];
 

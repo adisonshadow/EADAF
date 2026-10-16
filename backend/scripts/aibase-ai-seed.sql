@@ -17,12 +17,12 @@ RESTART IDENTITY CASCADE;
 
 -- aibase.scopes: 7 rows
 INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('88888888-8888-4888-8888-888888888801', 'AI 管理', 'ai-management', 'EADAF AI 能力配置：Scope、Tool、Skill 的设计与管理', true, '2026-06-24T12:51:20.252Z', '2026-06-27T06:54:25.451Z');
-INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('55555555-5555-4555-8555-555555555501', '业务数据', 'business-data', 'EUAC 业务数据模型设计与物化', true, '2026-06-22T11:33:21.110Z', '2026-06-22T11:35:04.808Z');
+INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('55555555-5555-4555-8555-555555555501', '业务数据', 'business-data', 'EADAF 业务数据模型设计与物化', true, '2026-06-22T11:33:21.110Z', '2026-06-22T11:35:04.808Z');
 INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('ec563fa7-4f93-4422-b609-61202544641a', '设备管理', 'equipment-management', '企业生产设备管理，涵盖设备资料、设备维护、设备运行状态日志', true, '2026-06-25T02:28:25.038Z', '2026-06-25T02:28:25.038Z');
-INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('33333333-3333-3333-3333-333333333301', 'ERP 演示', 'erp-demo', 'EUAC_AIBase 左侧业务 Demo 使用的 Scope', false, '2026-06-20T09:56:15.382Z', '2026-06-21T08:11:50.220Z');
+INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('33333333-3333-3333-3333-333333333301', 'ERP 演示', 'erp-demo', 'EADAF_AIBase 左侧业务 Demo 使用的 Scope', false, '2026-06-20T09:56:15.382Z', '2026-06-21T08:11:50.220Z');
 INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777710', '成员与权限', 'member-org', 'EADAF 成员、角色、权限与数据规则管理', true, '2026-06-27T06:51:24.398Z', '2026-07-10T15:16:58.359Z');
 INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('81dce576-b34e-4444-be8c-ce3a59fe30a6', '销售数据', 'saledata', NULL, true, '2026-06-21T10:12:04.412Z', '2026-06-21T10:12:04.413Z');
-INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('33333333-3333-4333-8333-333333333302', '销售管理系统 Demo', 'sales-demo', 'EUAC_AIBase 销售管理系统 Demo Scope，Tool 查询 EADAF 物化表（bizdata_mat.ys_*，与页面/API 服务同源）', true, '2026-06-21T08:11:50.226Z', '2026-06-21T08:15:52.743Z');
+INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('33333333-3333-4333-8333-333333333302', '销售管理系统 Demo', 'sales-demo', 'EADAF_AIBase 销售管理系统 Demo Scope，Tool 查询 EADAF 物化表（bizdata_mat.ys_*，与页面/API 服务同源）', true, '2026-06-21T08:11:50.226Z', '2026-06-21T08:15:52.743Z');
 
 
 -- aibase.tools: 156 rows
@@ -681,7 +681,7 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 
 根据 id 更新设备资料。只需传入需要修改的字段，未传的字段保持不变。
 返回更新后的完整记录。', '{"handler":"equipment_update"}'::jsonb, true, '2026-06-26T14:13:42.001Z', '2026-06-26T14:13:42.001Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('44444444-4444-4444-4444-444444444401', '33333333-3333-3333-3333-333333333301', '查询订单（Client）', 'erp-query-order-client', 'erp_query_order', '在前端 Demo 页面查询本地模拟订单数据', 'client', '{"type":"object","required":["orderId"],"properties":{"orderId":{"type":"string","description":"订单号"}}}'::jsonb, '## erp_query_order\n\nClient Tool：由 EUAC_AIBase 页面 functionRegistry 执行。', NULL, false, '2026-06-20T09:56:15.384Z', '2026-06-21T08:11:50.223Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('44444444-4444-4444-4444-444444444401', '33333333-3333-3333-3333-333333333301', '查询订单（Client）', 'erp-query-order-client', 'erp_query_order', '在前端 Demo 页面查询本地模拟订单数据', 'client', '{"type":"object","required":["orderId"],"properties":{"orderId":{"type":"string","description":"订单号"}}}'::jsonb, '## erp_query_order\n\nClient Tool：由 EADAF_AIBase 页面 functionRegistry 执行。', NULL, false, '2026-06-20T09:56:15.384Z', '2026-06-21T08:11:50.223Z');
 INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('66666666-6666-4666-8666-666666666683', '55555555-5555-4555-8555-555555555501', '创建提交外部API', 'outbound-webhook-create', 'outbound_webhook_create', '创建提交外部API配置（新建，不传 webhookId）', 'client', '{"type":"object","required":["name","targetUrl"],"properties":{"code":{"type":"string"},"name":{"type":"string"},"mockData":{"type":"string"},"targetUrl":{"type":"string"},"description":{"type":"string"},"transformScript":{"type":"string"},"requestStructure":{"type":"string"},"triggerApiServiceId":{"type":"string"},"triggerApiServiceCode":{"type":"string"}}}'::jsonb, '## outbound_webhook_create
 
 - 须传 name、targetUrl
@@ -1391,7 +1391,7 @@ INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdo
 - **禁止**把物理表名（如 bizdata_mat.xxx）当作元数据 code；逻辑 code 应为 entity code（如 equipment:Device）', true, false, true, '{"terminationStrictness":"plan-only"}'::jsonb, '2026-06-27T16:36:15.337Z', '2026-07-29T07:43:20.309Z');
 INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdown, is_active, is_global, is_dedicated, completion_strategy, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777702', '55555555-5555-4555-8555-555555555501', '业务数据物化', 'bizdata-materialization', '辅助 SQL/代码物化与版本对比', '# 业务数据物化助手
 
-你是 EUAC 数据物化助手。
+你是 EADAF 数据物化助手。
 
 ## 流程
 
@@ -1629,7 +1629,7 @@ INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdo
 - 发布：返回 status=published', true, false, true, '{"successCriteria":["webhook 已创建/测试/发布并 verified"],"terminationStrictness":"strict"}'::jsonb, '2026-07-10T15:17:40.535Z', '2026-07-29T07:43:20.309Z');
 INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdown, is_active, is_global, is_dedicated, completion_strategy, created_at, updated_at) VALUES ('99999999-9999-4999-8999-999999999903', '77777777-7777-4777-8777-777777777710', '成员与权限管理', 'uac-access-control', '用户、角色、权限与 bizdata Scope 数据规则管理助手', '# 成员与权限管理助手
 
-你是 EADAF UAC 访问控制助手，帮助管理员管理成员、角色、权限与数据范围规则。
+你是 EADAF 访问控制助手，帮助管理员管理成员、角色、权限与数据范围规则。
 
 ## 重要：Scope 含义
 - 用户说的「Scope / 设备域 / 业务域」指 **bizdata 实体 code 前缀**（如 `equipment`）

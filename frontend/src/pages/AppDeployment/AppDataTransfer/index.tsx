@@ -53,7 +53,7 @@ const EXPORT_CONTENT_ITEMS = [
   '指标与指标卡片',
   '钩子(event_filter 命中本应用实体 / API)',
   '该应用专用 Skill 及其 Tools / AI Scope(不含全局 / EADAF 平台 Skill)',
-  'UAC:勾选「携带 UAC」时含用户 / 部门 / 授权,否则仅含被引用的角色与权限',
+  'EADAF:勾选「携带 EADAF」时含用户 / 部门 / 授权,否则仅含被引用的角色与权限',
 ];
 
 const SECTION_LABELS: Record<string, string> = {
@@ -67,8 +67,8 @@ const SECTION_LABELS: Record<string, string> = {
   hooks: '钩子',
   skills: 'Skill',
   metadata: '逻辑元数据',
-  uac: 'UAC 数据',
-  uacUsers: 'UAC 用户数据',
+  uac: 'EADAF 数据',
+  uacUsers: 'EADAF 用户数据',
   storageBuckets: '存储桶',
   storageObjects: '存储文件',
   entityData: '行数据',
@@ -482,7 +482,7 @@ const AppTransferPanel: React.FC = () => {
                     onChange={setIncludeUac}
                   />
                   <span>
-                    携带 UAC 数据(用户 / 部门 /
+                    携带 EADAF 数据(用户 / 部门 /
                     授权;不勾选仅携带被引用的角色与权限)
                   </span>
                 </Space>

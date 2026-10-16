@@ -23,7 +23,7 @@ const {
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
-    title: 'UAC API Documentation',
+    title: 'EADAF Platform API Documentation',
     version: '1.0.0',
     description: '用户认证和授权系统 API 文档',
   },

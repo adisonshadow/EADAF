@@ -41,7 +41,7 @@ const uploadMiddleware = koaBody({
  *             properties:
  *               applicationId: { type: string, format: uuid, description: '应用 ID(内置应用 EADAF 拒绝导出)' }
  *               dataMode: { type: string, enum: [structure_and_data, data_only], default: structure_and_data, description: 'data_only 时导入端不落结构,仅对目标已有同版本实体写数' }
- *               includeUac: { type: boolean, default: false, description: '是否携带用户/部门/授权等 UAC 数据(不勾选仅携带被引用的角色与权限,含存储桶 access_restrictions.role_ids)' }
+ *               includeUac: { type: boolean, default: false, description: '是否携带用户/部门/授权等 EADAF 数据(不勾选仅携带被引用的角色与权限,含存储桶 access_restrictions.role_ids)' }
  *               includeFiles: { type: boolean, default: false, description: '是否携带存储对象文件(该应用桶内对象 + 归属本应用的对象,以及这些对象引用的共享桶如 fpcu;不勾选仅桶元数据)' }
  *               safeMode: { type: boolean, default: false, description: '写入导出包的安全模式标记(供预览)。导入默认开启安全模式退回已发布;导入请求可传 safeMode 覆盖' }
  *     responses:

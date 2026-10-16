@@ -9,7 +9,7 @@
 BEGIN;
 
 UPDATE aibase.scopes
-   SET description = 'EUAC_AIBase 销售管理系统 Demo Scope，Tool 查询 EADAF 物化表（bizdata_mat.ys_*，与页面/API 服务同源）',
+   SET description = 'EADAF_AIBase 销售管理系统 Demo Scope，Tool 查询 EADAF 物化表（bizdata_mat.ys_*，与页面/API 服务同源）',
        updated_at = now()
  WHERE slug = 'sales-demo';
 

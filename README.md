@@ -256,8 +256,8 @@ pm2 是 workspace 的 devDependency，不必全局安装。根目录用 `pnpm --
 
 ```bash
 # 仓库根目录同时挂起前后端
-pnpm pm2dev        # 开发：uac-api-dev + eadaf-web-dev
-pnpm pm2prod       # 生产：uac-api + eadaf-web
+pnpm pm2dev        # 开发：eadaf-api-dev + eadaf-web-dev
+pnpm pm2prod       # 生产：eadaf-api + eadaf-web
 
 # 或只挂一边
 pnpm --filter ./backend pm2dev
@@ -271,8 +271,8 @@ pnpm --filter ./frontend pm2prod
 
 | 命令                 | pm2 进程名         | 说明                                                                                                |
 | ------------------ | --------------- | ------------------------------------------------------------------------------------------------- |
-| `backend pm2dev`   | `uac-api-dev`   | `NODE_ENV=development`，pm2 watch 文件变更后自动重启                                                        |
-| `backend pm2prod`  | `uac-api`       | `NODE_ENV=production`，加载 `.env.production`                                                        |
+| `backend pm2dev`   | `eadaf-api-dev`   | `NODE_ENV=development`，pm2 watch 文件变更后自动重启                                                        |
+| `backend pm2prod`  | `eadaf-api`       | `NODE_ENV=production`，加载 `.env.production`                                                        |
 | `frontend pm2dev`  | `eadaf-web-dev` | Vite 开发服务（29527，自带 HMR）                                                                           |
 | `frontend pm2prod` | `eadaf-web`     | `vite preview` 托管已构建的 `dist`。需要先 `pnpm --filter ./frontend build`。`/api/v1` 代理到 `localhost:29526` |
 
@@ -283,9 +283,9 @@ pnpm --filter ./frontend pm2prod
 
 ```bash
 pm2 list                       # 查看进程
-pm2 logs uac-api --lines 200   # 查看日志
-pm2 stop uac-api-dev           # 停止（保留进程项）
-pm2 delete uac-api eadaf-web   # 移除进程项
+pm2 logs eadaf-api --lines 200   # 查看日志
+pm2 stop eadaf-api-dev           # 停止（保留进程项）
+pm2 delete eadaf-api eadaf-web   # 移除进程项
 pm2 kill                       # 关闭 pm2 守护进程
 ```
 
@@ -313,8 +313,8 @@ pnpm pack:app      # 业务应用包 → deploy-artifacts/APP/
 
 | 菜单项               | 文件名示例                           | 迁什么                               |
 | ----------------- | ------------------------------- | --------------------------------- |
-| **EADAF数据导出/导入** | `eadaf-platform-export-*.zip`   | 平台 Skill、AI 目录、数据标准、系统开关、UAC 权限码等 |
-| **应用数据导出/导入**   | `eadaf-app-export-<应用编码>-*.zip` | 单个业务应用的配置、模型、API、可选行数据 / UAC / 文件 |
+| **EADAF数据导出/导入** | `eadaf-platform-export-*.zip`   | 平台 Skill、AI 目录、数据标准、系统开关、权限码等 |
+| **应用数据导出/导入**   | `eadaf-app-export-<应用编码>-*.zip` | 单个业务应用的配置、模型、API、可选行数据、文件 |
 
 
 路径：管理端导航 → **应用部署** → 对应菜单项（这两项已从「系统设置」迁出，设置页不再展示）。内置应用 `EADAF` 不可走「应用数据导出/导入」（平台能力用平台菜单项）。导出可能含明文密钥，请妥善保管。

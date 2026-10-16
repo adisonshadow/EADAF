@@ -55,8 +55,7 @@ export default function MembersPage() {
     <div>
       <Typography.Title level={3}>会员</Typography.Title>
       <Typography.Paragraph type="secondary">
-        独立站会员（金牌/普通），订单数与累计消费由订单明细在前端汇总；会员账号本身由 EADAF
-        的 UAC 统一管理。
+        独立站会员（金牌/普通），订单数与累计消费由订单明细在前端汇总；会员账号本身由 EADAF 统一管理。
       </Typography.Paragraph>
       <Card>
         <Space style={{ marginBottom: 16 }} wrap>

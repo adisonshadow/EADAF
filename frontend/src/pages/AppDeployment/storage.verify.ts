@@ -128,14 +128,14 @@ assert.equal(listKnownAppDirs().length, 2, '反查用过的应用目录（按目
 
 /* 4) 展示辅助：目标目录默认按项目地址拼、示例里不出现具体机器路径 */
 assert.equal(joinProjectPath('/srv/uac2', 'deploy-artifacts/EADAF'), '/srv/uac2/deploy-artifacts/EADAF');
-assert.equal(joinProjectPath('D:\\DEV\\UAC2', 'deploy-artifacts/APP'), 'D:\\DEV\\UAC2\\deploy-artifacts\\APP');
+assert.equal(joinProjectPath('D:\\DEV\\EADAF', 'deploy-artifacts/APP'), 'D:\\DEV\\EADAF\\deploy-artifacts\\APP');
 assert.equal(joinProjectPath('', 'deploy-artifacts/APP'), 'deploy-artifacts/APP');
 assert.equal(
   aliasProjectPath('/srv/uac2/deploy-artifacts/APP', '/srv/uac2'),
   '<项目目录>/deploy-artifacts/APP',
 );
 assert.equal(
-  aliasProjectPath('D:\\DEV\\UAC2\\deploy-artifacts\\EADAF', 'D:\\DEV\\UAC2'),
+  aliasProjectPath('D:\\DEV\\EADAF\\deploy-artifacts\\EADAF', 'D:\\DEV\\EADAF'),
   '<项目目录>/deploy-artifacts/EADAF',
 );
 assert.equal(aliasProjectPath('/other/path', '/srv/uac2'), '/other/path');

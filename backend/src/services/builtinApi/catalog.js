@@ -1136,7 +1136,7 @@ const BUILTIN_API_CATALOG = [
     routePath: '/api/v1/system/platform-transfer/export',
     httpMethods: ['POST'],
     actions: ['read'],
-    description: '导出 EADAF 平台 zip 包(Skill/Tool、AI 目录、数据标准、系统开关、UAC 权限目录;可选桶和文件;含明文密钥,建议仅超管使用)',
+    description: '导出 EADAF 平台 zip 包(Skill/Tool、AI 目录、数据标准、系统开关、权限目录;可选桶和文件;含明文密钥,建议仅超管使用)',
   },
   {
     code: 'system:platform_transfer:preview',

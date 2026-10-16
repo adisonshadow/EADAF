@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "UAC API Documentation",
-    "version": "1.0.0",
+    "title": "EADAF Platform API Documentation",
+    "version": "1.0.1",
     "description": "用户认证和授权系统 API 文档"
   },
   "servers": [
@@ -10283,7 +10283,7 @@
         "tags": [
           "System"
         ],
-        "summary": "导出 EADAF 平台 zip 包(Skill/Tool、AI 目录、数据标准、系统开关、UAC 权限目录;可选桶和文件;含明文密钥,高危) [需要认证]",
+        "summary": "导出 EADAF 平台 zip 包(Skill/Tool、AI 目录、数据标准、系统开关、权限目录;可选桶和文件;含明文密钥,高危) [需要认证]",
         "description": "不含业务实体/API/行数据/用户。内置应用 EADAF 的平台能力跨实例同步,与应用数据导出/导入分开。勾选 includeFiles 时携带 EADAF/系统桶及其对象,不含业务应用桶。",
         "security": [
           {
@@ -20029,7 +20029,7 @@
                   "includeUac": {
                     "type": "boolean",
                     "default": false,
-                    "description": "是否携带用户/部门/授权等 UAC 数据(不勾选仅携带被引用的角色与权限)"
+                    "description": "是否携带用户/部门/授权等数据(不勾选仅携带被引用的角色与权限)"
                   },
                   "includeFiles": {
                     "type": "boolean",

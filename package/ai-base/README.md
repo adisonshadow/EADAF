@@ -2,7 +2,7 @@
 
 EADAF AI 聊天基础库。已发布到 npm：[`@eadaf/ai-base`](https://www.npmjs.com/package/@eadaf/ai-base)。宿主应用通过 `AIChatProvider` 接入侧边栏 / 漂浮按钮式 AI 助手，并可在页面内配置 Skill、Tool、Prompts、Chat 引用等能力。
 
-> **架构权威文档**（定位、插件内核、多应用扩展）：[新Agent架构方案](https://github.com/adisonshadow/UAC2/tree/main/docs/TODOs/新Agent架构方案)（尤其 [08-多应用扩展](https://github.com/adisonshadow/UAC2/blob/main/docs/TODOs/新Agent架构方案/08-多应用扩展.md)、[05-展示协议](https://github.com/adisonshadow/UAC2/blob/main/docs/TODOs/新Agent架构方案/05-展示协议.md)）。
+> **架构权威文档**（定位、插件内核、多应用扩展）：[新Agent架构方案](https://github.com/adisonshadow/EADAF/tree/main/docs/TODOs/新Agent架构方案)（尤其 [08-多应用扩展](https://github.com/adisonshadow/EADAF/blob/main/docs/TODOs/新Agent架构方案/08-多应用扩展.md)、[05-展示协议](https://github.com/adisonshadow/EADAF/blob/main/docs/TODOs/新Agent架构方案/05-展示协议.md)）。
 
 ## 安装
 
@@ -21,11 +21,11 @@ import { AIChatProvider } from '@eadaf/ai-base';
 import '@eadaf/ai-base/style.css';
 ```
 
-**本仓库（UAC2 monorepo）不要执行 `pnpm add @eadaf/ai-base`。** `frontend` 与 `app_example` 使用 `"@eadaf/ai-base": "workspace:*"` 链接本地源码。`app_example` 仅作演示与联调沙箱。
+**本仓库（EADAF monorepo）不要执行 `pnpm add @eadaf/ai-base`。** `frontend` 与 `app_example` 使用 `"@eadaf/ai-base": "workspace:*"` 链接本地源码。`app_example` 仅作演示与联调沙箱。
 
 ## 本仓库改源码后如何同步
 
-运行时通过包 `exports` 加载 **`dist/`**。改动本包源码后需重新 build；UAC2 宿主可用 `pnpm refresh:ai-base`（若已配置）清除缓存并同步。
+运行时通过包 `exports` 加载 **`dist/`**。改动本包源码后需重新 build；EADAF 宿主可用 `pnpm refresh:ai-base`（若已配置）清除缓存并同步。
 
 ```bash
 pnpm build

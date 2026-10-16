@@ -1,4 +1,4 @@
--- UAC 权限目录扩展：对齐 EADAF_frontend 菜单模块 + equipment 受限角色模板
+-- 权限目录扩展：对齐 EADAF_frontend 菜单模块 + equipment 受限角色模板
 -- 可重复执行（permissions.code / roles.code UPSERT）
 
 INSERT INTO uac.permissions (permission_id, code, description, resource_type, actions, status, created_at, updated_at)

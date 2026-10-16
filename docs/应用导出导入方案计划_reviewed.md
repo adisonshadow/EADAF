@@ -80,7 +80,7 @@
 | 25 | 实体附带 fields + scope_docs + 用到的 connections | ⚠️ | 漏 **`bizdata.enums`**（code UNIQUE）、**`bizdata.relations`**（实体图，无业务唯一键）。有关系的实体导入后 ER 断裂 |
 | 26 | API 附带 operations + permissions；排除 runs | ✅ 方向对 | 仍漏 **`api_exception_responses` 不必随应用**（全局按 HTTP 状态码 UNIQUE，属实例级，v1 不导出） |
 | 27 | 管道筛「code 首段 ∈ T(A)」 | ❌ 过宽 | `collection_pipeline_applications` 是 **restrict_sources 来源白名单**，不是所有权（`applicationApiCatalogService.js:178-183`）。应用实际数据范围是 `bizdata_scope_codes` 原值前缀，不是首段膨胀 |
-| 28 | Skill = 全部 `is_global` + 绑定 A 的 dedicated | ❌ | `filterSkillsForContext`：global 对**任意应用**可见，dedicated 才按应用过滤；**既非 global 也非 dedicated 的 Skill 对 capabilities 不可见**（`skillController.js:535-553`）。导出全部 global = 把平台 UAC/AI 管理助手打进业务应用包 |
+| 28 | Skill = 全部 `is_global` + 绑定 A 的 dedicated | ❌ | `filterSkillsForContext`：global 对**任意应用**可见，dedicated 才按应用过滤；**既非 global 也非 dedicated 的 Skill 对 capabilities 不可见**（`skillController.js:535-553`）。导出全部 global = 把平台 EADAF/AI 管理助手打进业务应用包 |
 | 29 | 勾选 AI 则 providers/models/capabilities/ioTags **全量** | ⚠️ 事实如此可做，语义错误 | 这是实例级配置，不是应用级。现成对照：`scripts/export-aibase-ai-seed.js` 已能导出整份 aibase 种子 |
 | 30 | 前端文案「8 类内容」 | ❌ | 第 4 节是 10 条；且 7～10 受勾选控制 |
 | 31 | 组件名 `AppTransferSettingsTab` vs 文件 `AppTransferTab.tsx` | ❌ | 原文 3.1 自相矛盾，实施时统一为文件名 `AppTransferTab.tsx`、导出 `AppTransferTab` |
@@ -103,7 +103,7 @@
 | # | 原问题 | 拍板 |
 |---|---|---|
 | 1 | 「应用配置中 EADAF 的应用数据」指什么 | **所选应用在 `uac.applications` 的完整配置行**（含 `api_*` / `sso_*` / `bizdata_scope_codes` / `top_level_skill_markdown`）。**不是**内置系统应用 EADAF 的 `docs/eadaf-api-skill` 或内置 API catalog。EADAF 自身禁止出现在导出下拉中 |
-| 2 | 「无论如何，结构一定导出」 | 拆成两句，避免和 UAC 勾选搅在一起：**(a) 数据实体/API/管道/Webhook/指标/钩子/专用 Skill 的结构始终导出**，与是否勾选「含用户」无关；`dataMode=data_only` 仍然带实体结构（至少 code+version+fields），否则目标无法做版本校验。**(b) UAC：不勾选则只导出被引用的 permissions（及作为 grant 目标的 roles 定义），不导出用户/部门/授权行。** 不要理解成「全量角色目录始终导出」 |
+| 2 | 「无论如何，结构一定导出」 | 拆成两句，避免和 EADAF 勾选搅在一起：**(a) 数据实体/API/管道/Webhook/指标/钩子/专用 Skill 的结构始终导出**，与是否勾选「含用户」无关；`dataMode=data_only` 仍然带实体结构（至少 code+version+fields），否则目标无法做版本校验。**(b) EADAF：不勾选则只导出被引用的 permissions（及作为 grant 目标的 roles 定义），不导出用户/部门/授权行。** 不要理解成「全量角色目录始终导出」 |
 | 3 | API 服务筛选 | **保持 `api_data_scope` 优先**（`serviceCodes` 精确 + `domainCodes` 前缀），空则回退 **`bizdata_scope_codes` 原值前缀**（不要用 `T(A)` 首段膨胀）。不要改成「只导 `grant_type=application` 绑定的服务」——授权给角色的服务仍属于该应用数据域 |
 | 4 | 非 PG/MySQL 行数据 v1 跳过 | **接受**。说明：browse 服务已支持 Mongo/Redis，这是产品取舍不是做不到。导出摘要里必须列出跳过的实体 |
 | 5 | 内置应用 EADAF 能否导出 | **禁止**。下拉过滤 `code === 'EADAF'`；后端再拒一次。该应用承担内置 API 全量放行（`builtinApiPermissionService.js:5-6`），导出它等于搬平台 |

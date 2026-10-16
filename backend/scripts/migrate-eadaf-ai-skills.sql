@@ -16,7 +16,7 @@ ON CONFLICT (slug) DO UPDATE SET
   updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at)
-VALUES ('55555555-5555-4555-8555-555555555501', '业务数据', 'business-data', 'EUAC 业务数据模型设计与物化', true, '2026-06-22T11:33:21.110Z', '2026-06-22T11:35:04.808Z')
+VALUES ('55555555-5555-4555-8555-555555555501', '业务数据', 'business-data', 'EADAF 业务数据模型设计与物化', true, '2026-06-22T11:33:21.110Z', '2026-06-22T11:35:04.808Z')
 ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
@@ -4596,7 +4596,7 @@ VALUES (
   '业务数据物化', 'bizdata-materialization', '辅助 SQL/代码物化与版本对比',
   '# 业务数据物化助手
 
-你是 EUAC 数据物化助手。
+你是 EADAF 数据物化助手。
 
 ## 流程
 
@@ -4959,7 +4959,7 @@ VALUES (
   '成员与权限管理', 'uac-access-control', '用户、角色、权限与 bizdata Scope 数据规则管理助手',
   '# 成员与权限管理助手
 
-你是 EADAF UAC 访问控制助手，帮助管理员管理成员、角色、权限与数据范围规则。
+你是 EADAF 访问控制助手，帮助管理员管理成员、角色、权限与数据范围规则。
 
 ## 重要：Scope 含义
 - 用户说的「Scope / 设备域 / 业务域」指 **bizdata 实体 code 前缀**（如 `equipment`）

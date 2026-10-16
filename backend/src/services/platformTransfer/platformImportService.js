@@ -409,7 +409,7 @@ class ImportContext {
     const section = this.beginSection('uacPermissions');
     const items = Array.isArray(this.file.uacPermissions) ? this.file.uacPermissions : [];
     if (!items.length) {
-      return this.skipSection(section, '文件无 UAC 权限目录');
+      return this.skipSection(section, '文件无 EADAF 权限目录');
     }
     try {
       await this.withSectionTransaction(async (transaction) => {

@@ -1,7 +1,7 @@
 # EADAF 用户 SSO：会话、令牌与登出 方案计划
 
 > 状态：**待评审**（本文只做方案与计划，不含代码改动）
-> 关联：Issue [#36](https://github.com/adisonshadow/UAC2/issues/36)、PR [#37](https://github.com/adisonshadow/UAC2/pull/37)
+> 关联：Issue [#36](https://github.com/adisonshadow/EADAF/issues/36)、PR [#37](https://github.com/adisonshadow/EADAF/pull/37)
 > 权威文档：[sso-integration-guide.md](./sso-integration-guide.md)（实施后需同步更新）
 
 ---
@@ -84,7 +84,7 @@
 **非目标（本期不做）**
 
 - 完整的 OIDC 认证器生态（社交登录、SAML、企业 IdP 联邦）——保留现有密码/SSO 入口；
-- 细粒度授权（scope → 权限映射）重构——沿用现有 UAC 权限体系；
+- 细粒度授权（scope → 权限映射）重构——沿用现有 EADAF 权限体系；
 - 多租户隔离模型变更。
 
 ---

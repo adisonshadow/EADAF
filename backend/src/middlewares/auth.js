@@ -268,7 +268,7 @@ module.exports = async (ctx, next) => {
         'Warning',
         '299 - "EADAF SSO: legacy flow (?app= + app-secret-signed user JWT) is deprecated; migrate to /oauth/authorize + PKCE (docs/sso-integration-guide.md section 13)"',
       );
-      ctx.set('Link', '<https://github.com/adisonshadow/UAC2/blob/main/docs/sso-integration-guide.md>; rel="deprecation"');
+      ctx.set('Link', '<https://github.com/adisonshadow/EADAF/blob/main/docs/sso-integration-guide.md>; rel="deprecation"');
       noteLegacyUsage(ctx);
     }
 

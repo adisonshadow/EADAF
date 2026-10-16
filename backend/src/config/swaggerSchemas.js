@@ -982,7 +982,7 @@ Object.assign(schemas, {
       aborted: bool('abort 策略下是否因冲突中止', false),
       safeMode: bool('实际生效的安全模式(请求可覆盖包内标记;默认 true)', true),
       dataMode: str('数据模式', 'structure_and_data'),
-      includeUac: bool('是否导入了 UAC 用户数据', false),
+      includeUac: bool('是否导入了用户数据', false),
       includeFiles: bool('是否导入了存储对象文件', false),
       sections: obj('各节执行结果 { status, counts, errors, notes }。含 databaseConnections(matched/created/failed);notes 为预期跳过说明,不算失败'),
       chainStoppedAt: str('硬依赖链终止节(uac/application/entities);连接创建/物化与行数据失败不写入此项', 'entities'),

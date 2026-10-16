@@ -1,4 +1,4 @@
--- UAC 系统数据库Schema
+-- EADAF 系统数据库Schema
 -- 版本：1.4
 -- PostgreSQL 12+
 -- 关键实现细节：

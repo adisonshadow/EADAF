@@ -1,4 +1,4 @@
--- 纠正 UAC 用户列表 Tool 描述：/api/v1/users 不支持 size=-1（会 500），应使用 1–500
+-- 纠正  用户列表 Tool 描述：/api/v1/users 不支持 size=-1（会 500），应使用 1–500
 
 UPDATE aibase.tools
 SET

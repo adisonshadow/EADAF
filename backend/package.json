@@ -1,7 +1,7 @@
 {
-  "name": "uac-api",
-  "version": "1.0.7",
-  "description": "UAC REST API Service",
+  "name": "eadaf-api",
+  "version": "1.1.0",
+  "description": "EADAF Platform REST API Service",
   "main": "src/app.js",
   "engines": {
     "node": ">=22.13.0"
@@ -11,8 +11,8 @@
     "dev:watch": "cross-env NODE_ENV=development nodemon src/app.js",
     "prod": "cross-env NODE_ENV=production node src/app.js",
     "start": "cross-env NODE_ENV=production node src/app.js",
-    "pm2dev": "pm2 startOrReload ecosystem.config.cjs --only uac-api-dev",
-    "pm2prod": "pm2 startOrReload ecosystem.config.cjs --only uac-api",
+    "pm2dev": "pm2 startOrReload ecosystem.config.cjs --only eadaf-api-dev",
+    "pm2prod": "pm2 startOrReload ecosystem.config.cjs --only eadaf-api",
     "test": "jest",
     "lint": "eslint src/",
     "test-with-reset-db": "cross-env RESET_DB=true jest --config=jest.config.js",

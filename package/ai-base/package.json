@@ -5,12 +5,12 @@
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/adisonshadow/UAC2.git",
+    "url": "git+https://github.com/adisonshadow/EADAF.git",
     "directory": "package/ai-base"
   },
   "homepage": "https://www.npmjs.com/package/@eadaf/ai-base",
   "bugs": {
-    "url": "https://github.com/adisonshadow/UAC2/issues"
+    "url": "https://github.com/adisonshadow/EADAF/issues"
   },
   "keywords": [
     "eadaf",
