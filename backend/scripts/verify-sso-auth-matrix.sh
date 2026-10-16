@@ -45,7 +45,7 @@ login() { # login <application_id 或空>
 }
 
 if ! curl -sf -o /dev/null "$BASE/auth/captcha"; then
-  echo "后端不可达：$BASE（先启动 EADAF 后端）" >&2
+  echo "后端不可达：${BASE}（先启动 EADAF 后端）" >&2
   exit 2
 fi
 
