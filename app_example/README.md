@@ -61,7 +61,7 @@ pnpm --filter ./app_example dev
    `VITE_SSO_APPLICATION_ID`（默认值就是仓库里一直在用的示例应用 ID）。
 2. **准备 AI Scope**：示例默认用 `sales-demo`（`VITE_DEMO_SCOPE_SLUG`），平台已带对应的订单/售后 Skill 与 Tool。
 
-环境变量见 [`.env.example`](.env.example)：`cp .env.example .env.development` 后按需修改。
+环境变量见 [`.env`](.env)：已随仓库提供示例默认值，直接改，或另建 `.env.local` 覆盖（已忽略）。
 
 ## 4. 示例数据怎么来的
 

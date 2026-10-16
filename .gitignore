@@ -16,6 +16,8 @@ node_modules/
 .env.production
 .env.test
 !.env.example
+# app_example 是纯前端示例：.env 里只有公开的 VITE_* 值（无密钥），入库以便开箱即用
+!app_example/.env
 
 # --- Logs ---
 /logs/
