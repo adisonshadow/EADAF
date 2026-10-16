@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_skills_scope_id ON aibase.skills(scope_id);
 CREATE TABLE IF NOT EXISTS aibase.skill_applications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     skill_id UUID NOT NULL REFERENCES aibase.skills(id) ON DELETE CASCADE,
-    application_id UUID NOT NULL REFERENCES uac.applications(application_id) ON DELETE CASCADE,
+    application_id UUID NOT NULL REFERENCES eadaf.applications(application_id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(skill_id, application_id)
 );

@@ -4,7 +4,7 @@ import { Button, Empty, Spin, Typography } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { buildEntityReference, buildScopeReference } from '@/pages/BusinessData/ai/chatReferenceUtils';
 import { buildScopeTree, type ScopeTreeItem } from '@/pages/BusinessData/utils/buildScopeTree';
-import { getBusinessDataSchema } from '@/services/UAC/api/businessData';
+import { getBusinessDataSchema } from '@/services/EADAF/api/businessData';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 
 const { Text } = Typography;

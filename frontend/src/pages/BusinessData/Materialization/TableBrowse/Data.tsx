@@ -10,7 +10,7 @@ import PageContainerTitleWithBack from '@/components/PageContainerTitleWithBack'
 import {
   getMaterializedTableRows,
   getMaterializedTableSchema,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 import { buildMockDataPrompt } from '../utils/mockDataPrompt';
 

@@ -1,7 +1,7 @@
 # 应用导出/导入 方案计划 — Review 修订稿
 
 > Review 对象：[docs/应用导出导入方案计划.md](应用导出导入方案计划.md)  
-> 核查基准：`uac.applications` / 两套 Scope、`bizdata` 实体与物化、API/管道/Webhook、`aibase` Skill/Tool/Provider、`automation.hooks`、对象存储桶、`builtinApi/catalog`、系统设置 Tab、备份恢复上传模式  
+> 核查基准：`eadaf.applications` / 两套 Scope、`bizdata` 实体与物化、API/管道/Webhook、`aibase` Skill/Tool/Provider、`automation.hooks`、对象存储桶、`builtinApi/catalog`、系统设置 Tab、备份恢复上传模式  
 > Review 日期：2026-09-07 · 方式：方案中全部事实断言逐条对照源码核查（file:line 为证）  
 > 状态：**以本文为准的实施蓝本**（原文保留作历史；落地请按本文执行）
 
@@ -38,7 +38,7 @@
 
 | # | 方案断言 | 结论 | 证据 |
 |---|---|---|---|
-| 1 | 主存储 PostgreSQL，schema：`uac` / `aibase` / `bizdata`；物化在目标库 `bizdata_mat` | ⚠️ | Sequelize 默认 schema 是 `uac`（`config/database.js:16` + `config/index.js:64`）。`aibase`/`bizdata` 由各模型显式指定。物化默认 schema 是连接上的 `target_schema`（种子为 `bizdata_mat`，`bizdata-schema.sql:96,114`），**未必**在「本实例 PG」——连接可指向外部 PG/MySQL |
+| 1 | 主存储 PostgreSQL，schema：`eadaf` / `aibase` / `bizdata`；物化在目标库 `bizdata_mat` | ⚠️ | Sequelize 默认 schema 是 `eadaf`（`config/database.js:16` + `config/index.js:64`）。`aibase`/`bizdata` 由各模型显式指定。物化默认 schema 是连接上的 `target_schema`（种子为 `bizdata_mat`，`bizdata-schema.sql:96,114`），**未必**在「本实例 PG」——连接可指向外部 PG/MySQL |
 | 2 | 应用与 Scope 无关联表，`bizdata_scope_codes` JSONB 数组 | ✅ | `models/application.js:74-79` |
 | 3 | 数据域 Scope 为虚拟树，顶层 = code 首段，无独立 Scope 表 | ✅ | `bizdataScopeUtils.js`；`businessDataService.listScopes` 从实体 code 推导（`:824-834`） |
 | 4 | AI 域 `aibase.scopes` 扁平表，仅 tools/skills 的 `scope_id`，与数据域不是同一体系 | ✅ | `models/scope.js`；`models/index.js:102-106` |
@@ -54,7 +54,7 @@
 |---|---|---|---|
 | 10 | Settings `Tabs.items` 目前三项，可追加 | ✅ | `pages/System/Settings/index.tsx:10-14` |
 | 11 | `tabs.tsx` 已 450 行，不宜再加厚 | ✅ | 文件止于 L450 |
-| 12 | 应用列表 `GET /api/v1/applications` | ✅ | `applicationRoutes.js` prefix + `getApplications`（`services/UAC/api/applications.ts`） |
+| 12 | 应用列表 `GET /api/v1/applications` | ✅ | `applicationRoutes.js` prefix + `getApplications`（`services/EADAF/api/applications.ts`） |
 | 13 | 内置应用 code = `EADAF` | ✅ | `applicationController.js:15` `SYSTEM_APPLICATION_CODE`；`builtinApiPermissionService.js:5-6` |
 | 14 | 下载复用 `triggerBlobDownload` | ✅ | `FileStorage/Browser/index.tsx:52-61`。但该处拿的是 **blob 响应**，不是把 JSON envelope 再转 Blob |
 | 15 | 恢复 Modal 交互可参考 `tabs.tsx:251-282`；超时 30 分钟 | ✅ | `system.ts:51` `timeout: 30 * 60 * 1000`；上传 `beforeUpload={() => false}` |
@@ -80,7 +80,7 @@
 | 25 | 实体附带 fields + scope_docs + 用到的 connections | ⚠️ | 漏 **`bizdata.enums`**（code UNIQUE）、**`bizdata.relations`**（实体图，无业务唯一键）。有关系的实体导入后 ER 断裂 |
 | 26 | API 附带 operations + permissions；排除 runs | ✅ 方向对 | 仍漏 **`api_exception_responses` 不必随应用**（全局按 HTTP 状态码 UNIQUE，属实例级，v1 不导出） |
 | 27 | 管道筛「code 首段 ∈ T(A)」 | ❌ 过宽 | `collection_pipeline_applications` 是 **restrict_sources 来源白名单**，不是所有权（`applicationApiCatalogService.js:178-183`）。应用实际数据范围是 `bizdata_scope_codes` 原值前缀，不是首段膨胀 |
-| 28 | Skill = 全部 `is_global` + 绑定 A 的 dedicated | ❌ | `filterSkillsForContext`：global 对**任意应用**可见，dedicated 才按应用过滤；**既非 global 也非 dedicated 的 Skill 对 capabilities 不可见**（`skillController.js:535-553`）。导出全部 global = 把平台 UAC/AI 管理助手打进业务应用包 |
+| 28 | Skill = 全部 `is_global` + 绑定 A 的 dedicated | ❌ | `filterSkillsForContext`：global 对**任意应用**可见，dedicated 才按应用过滤；**既非 global 也非 dedicated 的 Skill 对 capabilities 不可见**（`skillController.js:535-553`）。导出全部 global = 把平台 EADAF/AI 管理助手打进业务应用包 |
 | 29 | 勾选 AI 则 providers/models/capabilities/ioTags **全量** | ⚠️ 事实如此可做，语义错误 | 这是实例级配置，不是应用级。现成对照：`scripts/export-aibase-ai-seed.js` 已能导出整份 aibase 种子 |
 | 30 | 前端文案「8 类内容」 | ❌ | 第 4 节是 10 条；且 7～10 受勾选控制 |
 | 31 | 组件名 `AppTransferSettingsTab` vs 文件 `AppTransferTab.tsx` | ❌ | 原文 3.1 自相矛盾，实施时统一为文件名 `AppTransferTab.tsx`、导出 `AppTransferTab` |
@@ -93,7 +93,7 @@
 |---|---|---|
 | `bizdata.metrics` + `metric_cards` | `metrics.scope_code`、`metric_cards.domain_code` 均可前缀命中 | **纳入结构导出**（排除 `metric_runs` / `metric_values`） |
 | `automation.hooks` | 无 code；`event_filter` 常指向 API/实体 | **纳入**：筛 `event_filter` 命中本次导出的 apiService/entity code；upsert 键 `(name, event_type)`（表无 UNIQUE，导入前按此查） |
-| `uac.storage_buckets` | 有 `application_id` | **只导桶元数据**（code UNIQUE），**不导对象文件**（与原文「存储桶文件内容不做」一致） |
+| `eadaf.storage_buckets` | 有 `application_id` | **只导桶元数据**（code UNIQUE），**不导对象文件**（与原文「存储桶文件内容不做」一致） |
 | `bizdata.data_standards` | 元数据治理，弱关联 | v1 **不导出**（无稳定应用边界） |
 
 ---
@@ -102,8 +102,8 @@
 
 | # | 原问题 | 拍板 |
 |---|---|---|
-| 1 | 「应用配置中 EADAF 的应用数据」指什么 | **所选应用在 `uac.applications` 的完整配置行**（含 `api_*` / `sso_*` / `bizdata_scope_codes` / `top_level_skill_markdown`）。**不是**内置系统应用 EADAF 的 `docs/eadaf-api-skill` 或内置 API catalog。EADAF 自身禁止出现在导出下拉中 |
-| 2 | 「无论如何，结构一定导出」 | 拆成两句，避免和 UAC 勾选搅在一起：**(a) 数据实体/API/管道/Webhook/指标/钩子/专用 Skill 的结构始终导出**，与是否勾选「含用户」无关；`dataMode=data_only` 仍然带实体结构（至少 code+version+fields），否则目标无法做版本校验。**(b) UAC：不勾选则只导出被引用的 permissions（及作为 grant 目标的 roles 定义），不导出用户/部门/授权行。** 不要理解成「全量角色目录始终导出」 |
+| 1 | 「应用配置中 EADAF 的应用数据」指什么 | **所选应用在 `eadaf.applications` 的完整配置行**（含 `api_*` / `sso_*` / `bizdata_scope_codes` / `top_level_skill_markdown`）。**不是**内置系统应用 EADAF 的 `docs/eadaf-api-skill` 或内置 API catalog。EADAF 自身禁止出现在导出下拉中 |
+| 2 | 「无论如何，结构一定导出」 | 拆成两句，避免和 EADAF 勾选搅在一起：**(a) 数据实体/API/管道/Webhook/指标/钩子/专用 Skill 的结构始终导出**，与是否勾选「含用户」无关；`dataMode=data_only` 仍然带实体结构（至少 code+version+fields），否则目标无法做版本校验。**(b) EADAF：不勾选则只导出被引用的 permissions（及作为 grant 目标的 roles 定义），不导出用户/部门/授权行。** 不要理解成「全量角色目录始终导出」 |
 | 3 | API 服务筛选 | **保持 `api_data_scope` 优先**（`serviceCodes` 精确 + `domainCodes` 前缀），空则回退 **`bizdata_scope_codes` 原值前缀**（不要用 `T(A)` 首段膨胀）。不要改成「只导 `grant_type=application` 绑定的服务」——授权给角色的服务仍属于该应用数据域 |
 | 4 | 非 PG/MySQL 行数据 v1 跳过 | **接受**。说明：browse 服务已支持 Mongo/Redis，这是产品取舍不是做不到。导出摘要里必须列出跳过的实体 |
 | 5 | 内置应用 EADAF 能否导出 | **禁止**。下拉过滤 `code === 'EADAF'`；后端再拒一次。该应用承担内置 API 全量放行（`builtinApiPermissionService.js:5-6`），导出它等于搬平台 |
@@ -149,7 +149,7 @@
 - 导出时对 `providers.api_key_encrypted`、`outbound_webhooks.auth_secret_enc`、`applications.api_connect_config.app_secret` / `sso_config.client_secret` **解密后写入文件明文段**（文件本身已是机密，Modal 警示保留）。
 - 导入时用**目标** `ENCRYPTION_KEY` 重新加密。
 - `database_connections.password_enc`：v1 不导出（见 3.1）。
-- `users.password_hash`：这是 bcrypt 哈希不是 AES，**可原样**（与密钥无关）；仅 `includeUac=true` 时带。
+- `users.password_hash`：这是 bcrypt 哈希不是 AES，**可原样**（与密钥无关）；仅 `includeEadaf=true` 时带。
 - 文件头 `options.secretsInPlaintext: true`，导入前校验，避免以后有人改回「带密文」还误以为能用。
 
 ### 3.4 P0 — 分节失败策略
@@ -159,8 +159,8 @@
 **修订：**
 
 - **依赖链上的节失败 → 终止后续节**（仍返回已完成节的计数，不回滚已提交的外部库行数据——这一点必须在结果里写清楚）。
-- 依赖链：`uac` 最小结构 → `application` → `entities`（+enums/relations/scope_docs）→ 物化 → `entityData` → `apiServices` → `collectionPipelines` → `outboundWebhooks` → `metrics` → `hooks` → `skills` → `storageBuckets`。
-- **可选节**（`includeUac` 的用户数据、`includeAi` 的 providers）失败不阻断主链，单独标红。
+- 依赖链：`eadaf` 最小结构 → `application` → `entities`（+enums/relations/scope_docs）→ 物化 → `entityData` → `apiServices` → `collectionPipelines` → `outboundWebhooks` → `metrics` → `hooks` → `skills` → `storageBuckets`。
+- **可选节**（`includeEadaf` 的用户数据、`includeAi` 的 providers）失败不阻断主链，单独标红。
 
 主库各节用一个 Sequelize 事务能包则包；物化与行数据在外部连接，**无法**与主库同事务（原文这句保留）。
 
@@ -241,7 +241,7 @@ function prefixHit(code, scopes) {
 ```jsonc
 {
   "dataMode": "structure_and_data", // | "data_only"
-  "includeUac": false,
+  "includeEadaf": false,
   "includeAi": false,
   "secretsInPlaintext": true
 }
@@ -263,7 +263,7 @@ function prefixHit(code, scopes) {
 | `hooks.items` | **新增**；`action_config` 内 http 密钥按 3.3 明文 |
 | `skills` | 默认只有 dedicated + 其 tools/aiScopes/skillApplications(本应用)。`includeAi` 才追加 global skills 与 providers/models |
 | `ai` | 仅 `includeAi` |
-| `uac` | 同原文；不勾选时只填被引用的 roles/permissions（及必要的 role_permissions 边） |
+| `eadaf` | 同原文；不勾选时只填被引用的 roles/permissions（及必要的 role_permissions 边） |
 | `storageBuckets` | **新增**元数据，无 objects |
 
 文件名仍：`eadaf-app-export-{appCode}-{yyyyMMddHHmmss}.json`。
@@ -276,7 +276,7 @@ function prefixHit(code, scopes) {
 
 | 接口 | 方法 | 行为（相对原文的改动） |
 |---|---|---|
-| 导出 | `GET` 或 `POST /export` | **响应体就是 JSON 文件**（`Content-Type: application/json`，`Content-Disposition: attachment; filename="..."`）。不要包 `{ code, data: { payload } }`。权限码见下。Body/query 仍用 `{ applicationId, dataMode, includeUac, includeAi }` |
+| 导出 | `GET` 或 `POST /export` | **响应体就是 JSON 文件**（`Content-Type: application/json`，`Content-Disposition: attachment; filename="..."`）。不要包 `{ code, data: { payload } }`。权限码见下。Body/query 仍用 `{ applicationId, dataMode, includeEadaf, includeAi }` |
 | 预览 | `POST /preview` multipart `file` | **P1 必做**。返回节条数、冲突（含第二唯一键）、连接匹配结果、跳过的 Mongo/Redis 实体、缺失引用 |
 | 导入 | `POST /import` multipart `file` + `strategy` | 同原文 1GB / 临时目录 / 只收 `.json`；超时 30 分钟。结果分节 |
 
@@ -284,7 +284,7 @@ function prefixHit(code, scopes) {
 
 ### 5.1 权限码（必须登记，否则 guard 放行）
 
-在 `services/builtinApi/catalog.js` 的 system 域追加，并同步 `scripts/uac-permissions-catalog-seed.sql`（**禁止**复用已占用的 permission 数字后缀，参见操作日志 review 对 082 的警告）：
+在 `services/builtinApi/catalog.js` 的 system 域追加，并同步 `scripts/eadaf-permissions-catalog-seed.sql`（**禁止**复用已占用的 permission 数字后缀，参见操作日志 review 对 082 的警告）：
 
 | code | method + path |
 |---|---|
@@ -321,7 +321,7 @@ function prefixHit(code, scopes) {
 - 导出：`applicationId` Select（过滤 EADAF）+ `dataMode` + 两勾选 + **静态清单按实际 节来**（不要写「8 类」）。
 - 导出请求：`responseType: 'blob'`，`timeout` 与恢复相同；从 `Content-Disposition` 取文件名，失败时 blob 可能是 JSON 错误信封（参考 Browser 页对 `application/json` blob 的处理，`:39-40` 一带）。
 - 导入：**禁止**本地 `JSON.parse` 整文件。选文件 → 直接 `POST /preview` → 展示后端摘要 → 选策略 → confirm → `POST /import`。
-- API 封装仍放 `services/UAC/api/system.ts` + `typings.d.ts`。
+- API 封装仍放 `services/EADAF/api/system.ts` + `typings.d.ts`。
 - 敏感警示、不可自动撤销，保留原文。
 
 本功能是系统设置上的备份类能力，**不走 AI Chat**，与现有备份 Tab 同类，不违反「业务 AI 必须走 Chat」规则。
@@ -346,10 +346,10 @@ function prefixHit(code, scopes) {
 
 - `backend/src/routes/index.js`
 - `backend/src/services/builtinApi/catalog.js`（三条权限，必须）
-- `backend/scripts/uac-permissions-catalog-seed.sql`（同步权限种子）
+- `backend/scripts/eadaf-permissions-catalog-seed.sql`（同步权限种子）
 - `frontend/src/pages/System/Settings/index.tsx`
-- `frontend/src/services/UAC/api/system.ts`
-- `frontend/src/services/UAC/api/typings.d.ts`
+- `frontend/src/services/EADAF/api/system.ts`
+- `frontend/src/services/EADAF/api/typings.d.ts`
 
 ---
 

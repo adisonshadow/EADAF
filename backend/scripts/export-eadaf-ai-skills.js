@@ -59,7 +59,7 @@ WHERE s.is_global = true
      AND EXISTS (
        SELECT 1
        FROM aibase.skill_applications sa
-       JOIN uac.applications a ON a.application_id = sa.application_id
+       JOIN eadaf.applications a ON a.application_id = sa.application_id
        WHERE sa.skill_id = s.id AND a.code = 'EADAF'
      )
    )
@@ -130,7 +130,7 @@ async function main() {
   const topLevel = (
     await client.query(
       `SELECT top_level_skill_markdown
-       FROM uac.applications
+       FROM eadaf.applications
        WHERE code = 'EADAF'
          AND top_level_skill_markdown IS NOT NULL
          AND btrim(top_level_skill_markdown) <> ''`,
@@ -256,7 +256,7 @@ async function main() {
       out.push(`INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)`);
       out.push(`SELECT s.id, a.application_id, CURRENT_TIMESTAMP`);
       out.push(`FROM aibase.skills s`);
-      out.push(`JOIN uac.applications a ON a.code = 'EADAF'`);
+      out.push(`JOIN eadaf.applications a ON a.code = 'EADAF'`);
       out.push(`WHERE s.slug = ${sqlLiteral(slug)}`);
       out.push(`ON CONFLICT (skill_id, application_id) DO NOTHING;`);
       out.push(``);
@@ -265,7 +265,7 @@ async function main() {
 
   if (topLevel.length) {
     out.push(`-- EADAF 顶层 Skill Markdown`);
-    out.push(`UPDATE uac.applications`);
+    out.push(`UPDATE eadaf.applications`);
     out.push(`SET top_level_skill_markdown = ${sqlLiteral(topLevel[0].top_level_skill_markdown)},`);
     out.push(`    updated_at = CURRENT_TIMESTAMP`);
     out.push(`WHERE code = 'EADAF';`);

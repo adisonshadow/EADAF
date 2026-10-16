@@ -1,11 +1,11 @@
 /**
  * 应用导入服务(review 方案 §3/§5.3)。
  *
- * 依赖链:uac 最小结构 → uac 用户数据(可选)→ application → entities(结构)
+ * 依赖链:eadaf 最小结构 → eadaf 用户数据(可选)→ application → entities(结构)
  * → databaseConnections → 物化 → entityData → apiServices → collectionPipelines
  * → outboundWebhooks → metrics → hooks → skills → storageBuckets → storageObjects。
- * 硬终止节:uac / application / entities(后续外键依赖结构)。
- * 软失败节:uacUsers / databaseConnections / materialization / entityData / ai — 只标红本节约,继续后续元数据。
+ * 硬终止节:eadaf / application / entities(后续外键依赖结构)。
+ * 软失败节:eadafUsers / databaseConnections / materialization / entityData / ai — 只标红本节约,继续后续元数据。
  *
  * 关键规则:
  * - idMap 只覆盖元数据表;物化表行数据保留源主键;
@@ -26,6 +26,8 @@
  */
 const { Op } = require('sequelize');
 const models = require('../../models');
+const transferCompat = require('./transferCompat');
+const config = require('../../config');
 const { encryptApiKey } = require('../../utils/encryption');
 const logger = require('../../utils/logger');
 const { Client: PgClient } = require('pg');
@@ -95,7 +97,7 @@ function tempApplicationCode(sourceId) {
 }
 
 /**
- * 指向 uac.applications(application_id) 的单列外键。
+ * 指向 eadaf.applications(application_id) 的单列外键。
  * 物理删除应用前必须先摘掉,否则 storage_objects 等会直接把导入事务打回。
  */
 async function listIncomingApplicationFks(transaction) {
@@ -120,10 +122,10 @@ async function listIncomingApplicationFks(transaction) {
       LIMIT 1
     ) pk ON true
     WHERE con.contype = 'f'
-      AND pn.nspname = 'uac'
+      AND pn.nspname = :schema
       AND pc.relname = 'applications'
       AND array_length(con.conkey, 1) = 1
-  `, { transaction });
+  `, { replacements: { schema: config.postgresql.schema }, transaction });
   return rows;
 }
 
@@ -210,8 +212,8 @@ async function repointApplicationReferences(oldId, newId, transaction) {
     WHERE c.column_name IN ('application_id', 'source_application_id')
       AND t.table_type = 'BASE TABLE'
       AND c.table_schema NOT IN ('pg_catalog', 'information_schema')
-      AND NOT (c.table_schema = 'uac' AND c.table_name = 'applications')
-  `, { transaction });
+      AND NOT (c.table_schema = :schema AND c.table_name = 'applications')
+  `, { replacements: { schema: config.postgresql.schema }, transaction });
   for (const col of cols) {
     if (!IDENT_RE.test(col.table_schema) || !IDENT_RE.test(col.table_name) || !IDENT_RE.test(col.column_name)) {
       continue;
@@ -349,7 +351,7 @@ class ImportContext {
     this.strategy = strategy;
     this.createdBy = normalizeCreatedBy(options.createdBy);
     this.dataMode = file.options?.dataMode === 'data_only' ? 'data_only' : 'structure_and_data';
-    this.includeUac = file.options?.includeUac === true;
+    this.includeEadaf = transferCompat.readIncludeEadaf(file.options);
     this.includeFiles = file.options?.includeFiles === true;
     this.safeMode = resolveImportSafeMode(file, options);
     this.sourceAppId = file.options?.sourceApplicationId || file.application?.application_id || null;
@@ -623,13 +625,13 @@ class ImportContext {
 
   // ---------- 各节实现 ----------
 
-  /** uac 最小结构:roles / permissions / rolePermissions */
-  async importUacCore() {
-    const section = this.beginSection('uac');
-    const uac = this.file.uac || {};
-    const roles = Array.isArray(uac.roles) ? uac.roles : [];
-    const permissions = Array.isArray(uac.permissions) ? uac.permissions : [];
-    const rolePermissions = Array.isArray(uac.rolePermissions) ? uac.rolePermissions : [];
+  /** eadaf 最小结构:roles / permissions / rolePermissions */
+  async importEadafCore() {
+    const section = this.beginSection('eadaf');
+    const eadaf = transferCompat.readSection(this.file, 'eadaf') || {};
+    const roles = Array.isArray(eadaf.roles) ? eadaf.roles : [];
+    const permissions = Array.isArray(eadaf.permissions) ? eadaf.permissions : [];
+    const rolePermissions = Array.isArray(eadaf.rolePermissions) ? eadaf.rolePermissions : [];
     if (!roles.length && !permissions.length) {
       section.status = 'ok';
       return section;
@@ -657,17 +659,17 @@ class ImportContext {
     return section;
   }
 
-  /** uac 用户数据(可选节):departments + closure / users / userRoles / dataPermissionRules */
-  async importUacUsers() {
-    const section = this.beginSection('uacUsers');
-    if (!this.includeUac) {
-      return this.skipSection(section, '未勾选 includeUac,跳过用户/部门数据');
+  /** eadaf 用户数据(可选节):departments + closure / users / userRoles / dataPermissionRules */
+  async importEadafUsers() {
+    const section = this.beginSection('eadafUsers');
+    if (!this.includeEadaf) {
+      return this.skipSection(section, '未勾选 includeEadaf,跳过用户/部门数据');
     }
-    const uac = this.file.uac || {};
-    const departments = Array.isArray(uac.departments) ? uac.departments : [];
-    const users = Array.isArray(uac.users) ? uac.users : [];
-    const userRoles = Array.isArray(uac.userRoles) ? uac.userRoles : [];
-    const rules = Array.isArray(uac.dataPermissionRules) ? uac.dataPermissionRules : [];
+    const eadaf = transferCompat.readSection(this.file, 'eadaf') || {};
+    const departments = Array.isArray(eadaf.departments) ? eadaf.departments : [];
+    const users = Array.isArray(eadaf.users) ? eadaf.users : [];
+    const userRoles = Array.isArray(eadaf.userRoles) ? eadaf.userRoles : [];
+    const rules = Array.isArray(eadaf.dataPermissionRules) ? eadaf.dataPermissionRules : [];
 
     try {
       await this.withSectionTransaction(async (transaction) => {
@@ -1967,8 +1969,8 @@ async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
   }
 
   const chainSteps = [
-    ['uac', () => ctx.importUacCore()],
-    ['uacUsers', () => ctx.importUacUsers()],
+    ['eadaf', () => ctx.importEadafCore()],
+    ['eadafUsers', () => ctx.importEadafUsers()],
     ['application', () => ctx.importApplication()],
     ['entities', () => ctx.importEntities()],
     ['databaseConnections', () => ctx.ensureDatabaseConnections()],
@@ -1984,8 +1986,8 @@ async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
     ['storageBuckets', () => ctx.importStorageBuckets()],
     ['storageObjects', () => ctx.importStorageObjects()],
   ];
-  // 物化/行数据/连接创建失败不挡住 API 等元数据;uacUsers / metadata 本就可选
-  const softFailSections = new Set(['uacUsers', 'databaseConnections', 'materialization', 'entityData', 'metadata', 'storageObjects']);
+  // 物化/行数据/连接创建失败不挡住 API 等元数据;eadafUsers / metadata 本就可选
+  const softFailSections = new Set(['eadafUsers', 'databaseConnections', 'materialization', 'entityData', 'metadata', 'storageObjects']);
 
   for (const [name, step] of chainSteps) {
      
@@ -2005,7 +2007,7 @@ async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
     result.warnings.push('文件含实例级 AI 目录,应用导入已忽略;请到「EADAF数据导出/导入」页迁移平台能力');
   }
 
-  result.includeUac = ctx.includeUac;
+  result.includeEadaf = ctx.includeEadaf;
   result.includeFiles = ctx.includeFiles;
   result.safeMode = ctx.safeMode;
   result.dataMode = ctx.dataMode;
@@ -2016,7 +2018,7 @@ async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
   }
   if (!result.chainStoppedAt) {
     const failedSections = Object.entries(result.sections)
-      .filter(([name, s]) => s.status === 'failed' && name !== 'uacUsers' && name !== 'metadata')
+      .filter(([name, s]) => s.status === 'failed' && name !== 'eadafUsers' && name !== 'metadata')
       .map(([name]) => name);
     if (failedSections.length) {
       result.warnings.push(`以下节存在失败条目,请查看各节 errors: ${failedSections.join(', ')}`);

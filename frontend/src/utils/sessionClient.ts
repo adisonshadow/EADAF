@@ -1,4 +1,4 @@
-import { postAuthRefresh } from '@/services/UAC/api/auth';
+import { postAuthRefresh } from '@/services/EADAF/api/auth';
 import { getAuth, saveAuth, saveSsoSid } from './auth';
 
 /**

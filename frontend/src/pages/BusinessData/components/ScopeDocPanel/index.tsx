@@ -5,7 +5,7 @@ import MilkdownCrepeEditor from '@/components/MilkdownCrepeEditor';
 import {
   getBusinessDataScopeDoc,
   putBusinessDataScopeDoc,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 
 interface ScopeDocPanelProps {

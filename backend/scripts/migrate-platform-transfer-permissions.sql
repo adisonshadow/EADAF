@@ -5,7 +5,7 @@
 
 START TRANSACTION;
 
-INSERT INTO uac.builtin_api_configs (code, access_restriction) VALUES
+INSERT INTO eadaf.builtin_api_configs (code, access_restriction) VALUES
   ('system:platform_transfer:export',  '{"mode":"role","roleIds":["10000000-0000-0000-0000-000000000001"]}'::jsonb),
   ('system:platform_transfer:preview', '{"mode":"role","roleIds":["10000000-0000-0000-0000-000000000001"]}'::jsonb),
   ('system:platform_transfer:import',  '{"mode":"role","roleIds":["10000000-0000-0000-0000-000000000001"]}'::jsonb)

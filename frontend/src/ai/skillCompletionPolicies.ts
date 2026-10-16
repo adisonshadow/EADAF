@@ -38,7 +38,7 @@ const BLOCK_MODEL_RECREATE = [
 ] as const;
 
 export function registerEadafSkillCompletionPolicies(): void {
-  registerSkillCompletionPolicy('uac-access-control', {
+  registerSkillCompletionPolicy('eadaf-access-control', {
     terminationStrictness: 'plan-only',
     allowDirectAnswerTermination: true,
     blockKeywords: [...BLOCK_SUGGEST_NEXT],

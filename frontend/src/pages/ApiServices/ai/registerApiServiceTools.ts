@@ -15,13 +15,13 @@ import {
   postApiServiceSuggestTestParams,
   postApiServiceTest,
   putApiServiceTestMockParams,
-} from '@/services/UAC/api/apiServices';
+} from '@/services/EADAF/api/apiServices';
 import {
   createExceptionResponse,
   deleteExceptionResponse,
   getExceptionResponses,
   patchExceptionResponse,
-} from '@/services/UAC/api/exceptionResponses';
+} from '@/services/EADAF/api/exceptionResponses';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { formatApiServiceTestError, extractApiServiceValidationErrors, isApiServiceTestFailure, describeApiServiceTestFailure } from './apiServiceTestError';
 import { normalizeApiServiceCode, scopeCodeFromEntityCode, suggestServiceSlugFromEntity } from './apiServiceCodeUtils';

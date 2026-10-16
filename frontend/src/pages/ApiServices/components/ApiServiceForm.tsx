@@ -21,7 +21,7 @@ import {
   suggestServiceSlugFromEntity,
 } from '../ai/apiServiceCodeUtils';
 import { useRoleOptions } from '@/hooks/useRoleOptions';
-import { postApiServiceResolveConnection } from '@/services/UAC/api/apiServices';
+import { postApiServiceResolveConnection } from '@/services/EADAF/api/apiServices';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 import {
   API_SERVICE_TRANSPORT_OPTIONS,

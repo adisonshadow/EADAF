@@ -1,9 +1,9 @@
-import { getApplications } from '@/services/UAC/api/applications';
+import { getApplications } from '@/services/EADAF/api/applications';
 import {
   postAppTransferExport,
   postAppTransferImport,
   postAppTransferPreview,
-} from '@/services/UAC/api/system';
+} from '@/services/EADAF/api/system';
 import { message, modal } from '@/utils/antdAppApis';
 import {
   getApiData,
@@ -53,7 +53,7 @@ const EXPORT_CONTENT_ITEMS = [
   '指标与指标卡片',
   '钩子(event_filter 命中本应用实体 / API)',
   '该应用专用 Skill 及其 Tools / AI Scope(不含全局 / EADAF 平台 Skill)',
-  'UAC:勾选「携带 UAC」时含用户 / 部门 / 授权,否则仅含被引用的角色与权限',
+  'EADAF:勾选「携带 EADAF」时含用户 / 部门 / 授权,否则仅含被引用的角色与权限',
 ];
 
 const SECTION_LABELS: Record<string, string> = {
@@ -67,8 +67,8 @@ const SECTION_LABELS: Record<string, string> = {
   hooks: '钩子',
   skills: 'Skill',
   metadata: '逻辑元数据',
-  uac: 'UAC 数据',
-  uacUsers: 'UAC 用户数据',
+  eadaf: 'EADAF 数据',
+  eadafUsers: 'EADAF 用户数据',
   storageBuckets: '存储桶',
   storageObjects: '存储文件',
   entityData: '行数据',
@@ -241,7 +241,7 @@ const AppTransferPanel: React.FC = () => {
   const [dataMode, setDataMode] = useState<'structure_and_data' | 'data_only'>(
     'structure_and_data',
   );
-  const [includeUac, setIncludeUac] = useState(false);
+  const [includeEadaf, setIncludeEadaf] = useState(false);
   const [includeFiles, setIncludeFiles] = useState(false);
   const [safeMode, setSafeMode] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -279,7 +279,7 @@ const AppTransferPanel: React.FC = () => {
       const blob = await postAppTransferExport({
         applicationId: values.applicationId,
         dataMode,
-        includeUac,
+        includeEadaf,
         includeFiles,
         safeMode,
       });
@@ -478,11 +478,11 @@ const AppTransferPanel: React.FC = () => {
                 <Space>
                   <Switch
                     size="small"
-                    checked={includeUac}
-                    onChange={setIncludeUac}
+                    checked={includeEadaf}
+                    onChange={setIncludeEadaf}
                   />
                   <span>
-                    携带 UAC 数据(用户 / 部门 /
+                    携带 EADAF 数据(用户 / 部门 /
                     授权;不勾选仅携带被引用的角色与权限)
                   </span>
                 </Space>

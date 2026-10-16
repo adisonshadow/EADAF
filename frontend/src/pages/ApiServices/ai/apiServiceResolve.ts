@@ -1,4 +1,4 @@
-import { getApiServices } from '@/services/UAC/api/apiServices';
+import { getApiServices } from '@/services/EADAF/api/apiServices';
 import { getApiData } from '@/utils/apiResponse';
 
 const CODE_SEGMENT_RE = /^[A-Za-z][A-Za-z0-9_]*$/;

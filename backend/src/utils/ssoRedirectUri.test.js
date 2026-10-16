@@ -10,7 +10,7 @@ const {
 
 const DEV_HTTP = { protocol: 'http', host: 'localhost:29527' };
 const DEV_LAN = { protocol: 'http', host: '192.168.1.9:29527' };
-const PROD_HTTPS = { protocol: 'https', host: 'uac.example.com' };
+const PROD_HTTPS = { protocol: 'https', host: 'eadaf.example.com' };
 
 test('开发模式判定：只有明确的 development 才算，未设置按 development 处理', () => {
   assert.equal(isPlatformDevMode('development'), true);
@@ -104,7 +104,7 @@ test('DEV 地址填完整域名、默认地址跟随本机时，各按各的规�
   );
   assert.equal(
     resolveSsoRedirectUri(ssoConfig, PROD_HTTPS, { isDevMode: false }),
-    'https://uac.example.com/auth/callback',
+    'https://eadaf.example.com/auth/callback',
   );
 });
 
@@ -117,7 +117,7 @@ test('默认地址的解析行为保持不变（回归）', () => {
   );
   assert.equal(
     resolveSsoRedirectUri({ redirect_uri: '/auth/callback', redirect_uri_use_system_host: true }, PROD_HTTPS),
-    'https://uac.example.com/auth/callback',
+    'https://eadaf.example.com/auth/callback',
   );
 });
 

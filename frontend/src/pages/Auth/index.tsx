@@ -1,7 +1,7 @@
-import { getHealth } from '@/services/UAC/api/health';
-import { getAuthCheck, postAuthLogin } from '@/services/UAC/api/auth';
-import { getApplicationsSsoId } from '@/services/UAC/api/applicationsSso';
-import { getCaptcha } from '@/services/UAC/api/captcha';
+import { getHealth } from '@/services/EADAF/api/health';
+import { getAuthCheck, postAuthLogin } from '@/services/EADAF/api/auth';
+import { getApplicationsSsoId } from '@/services/EADAF/api/applicationsSso';
+import { getCaptcha } from '@/services/EADAF/api/captcha';
 import { history } from '@/utils/navigation';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import { Modal, Form, Input, Button, Card, Space, Spin, Result, Alert } from 'antd';

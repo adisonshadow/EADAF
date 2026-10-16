@@ -5,7 +5,7 @@ import type { UploadProps } from 'antd';
 import React, { useState } from 'react';
 import Lottie from 'react-lottie-player';
 import { SYSTEM_STORAGE_BUCKET_CODE } from '@/constants/storage';
-import { postStorageObjectUpload } from '@/services/UAC/api/storage';
+import { postStorageObjectUpload } from '@/services/EADAF/api/storage';
 import { isApiSuccess, getApiData } from '@/utils/apiResponse';
 import { resolveMediaUrl } from '@/utils/mediaUrl';
 import { isSvgFile } from '@/utils/prepareLogoUploadFile';

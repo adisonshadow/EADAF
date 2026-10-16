@@ -8,7 +8,7 @@
   "database": "eadaf_db",       // 数据库名称
   "user": "my_name",            // 数据库用户名
   "password": "123456",      // 数据库密码
-  "schema": "uac",           // 数据库模式
+  "schema": "eadaf",           // 数据库模式
   "max_connections": 20,     // 最大连接数
   "idle_timeout": 30000,     // 空闲连接超时时间（毫秒）
   "connection_timeout": 2000,// 连接超时时间（毫秒）
@@ -119,7 +119,7 @@
 }
 ```
 
-进度权威在磁盘 `{root}/.tus` 与表 `uac.storage_upload_sessions`。Redis（`REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD`）**可选**：连上则缓存 offset，未配置或宕机不影响续传。
+进度权威在磁盘 `{root}/.tus` 与表 `eadaf.storage_upload_sessions`。Redis（`REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD`）**可选**：连上则缓存 offset，未配置或宕机不影响续传。
 
 ## 日志配置 (logging)
 ```json
@@ -146,7 +146,7 @@
 - `database`: 数据库名称，默认为 eadaf_db
 - `user`: 数据库用户名，默认为 my_name
 - `password`: 数据库密码，默认为 123456
-- `schema`: 数据库模式，默认为 uac
+- `schema`: 数据库模式，默认 eadaf
 - `max_connections`: 连接池最大连接数，默认为 20
 - `idle_timeout`: 空闲连接超时时间，默认为 30000 毫秒
 - `connection_timeout`: 连接超时时间，默认为 2000 毫秒

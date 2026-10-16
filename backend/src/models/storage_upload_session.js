@@ -1,5 +1,6 @@
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 class StorageUploadSession extends Model {}
 
@@ -101,7 +102,7 @@ StorageUploadSession.init({
   sequelize,
   modelName: 'StorageUploadSession',
   tableName: 'storage_upload_sessions',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',

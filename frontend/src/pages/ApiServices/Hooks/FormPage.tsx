@@ -11,9 +11,9 @@ import {
   postAutomationHookTest,
   postAutomationHookValidateScript,
   putAutomationHook,
-} from '@/services/UAC/api/automationHooks';
-import { getApiServices } from '@/services/UAC/api/apiServices';
-import { getBusinessDataEntities } from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/automationHooks';
+import { getApiServices } from '@/services/EADAF/api/apiServices';
+import { getBusinessDataEntities } from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 import { message } from '@/utils/antdAppApis';
 import {

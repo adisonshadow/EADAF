@@ -7,7 +7,7 @@ import PageContainerTitleWithBack from '@/components/PageContainerTitleWithBack'
 import {
   deleteApplicationsId,
   getApplicationsIdDeletePreview,
-} from '@/services/UAC/api/applications';
+} from '@/services/EADAF/api/applications';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { SYSTEM_APPLICATION_CODE } from './Schemas';
 

@@ -23,7 +23,7 @@ import {
   getApiServiceTestProfile,
   postApiServiceSuggestTestParams,
   postApiServiceTest,
-} from '@/services/UAC/api/apiServices';
+} from '@/services/EADAF/api/apiServices';
 import {
   buildParameterRowsFromInterface,
   collectEnumCodesFromInterface,

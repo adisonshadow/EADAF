@@ -1,12 +1,12 @@
 -- 应用表增加 logo_url 字段，并确保系统内置应用 EADAF 存在
-ALTER TABLE uac.applications
+ALTER TABLE eadaf.applications
   ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500);
 
-COMMENT ON COLUMN uac.applications.logo_url IS '应用 Logo URL（可选）';
-COMMENT ON COLUMN uac.applications.name IS '应用全称';
-COMMENT ON COLUMN uac.applications.code IS '缩写简称（唯一）';
+COMMENT ON COLUMN eadaf.applications.logo_url IS '应用 Logo URL（可选）';
+COMMENT ON COLUMN eadaf.applications.name IS '应用全称';
+COMMENT ON COLUMN eadaf.applications.code IS '缩写简称（唯一）';
 
-INSERT INTO uac.applications (
+INSERT INTO eadaf.applications (
     application_id, name, code, logo_url, status, description
 )
 VALUES (

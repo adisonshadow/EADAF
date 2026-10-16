@@ -1,5 +1,5 @@
 -- 系统内置 Bucket（与 env SYSTEM_STORAGE_BUCKET_CODE 一致）
-INSERT INTO uac.storage_buckets (
+INSERT INTO eadaf.storage_buckets (
   code, name, description, application_id, status, access_mode, access_restrictions
 )
 VALUES (

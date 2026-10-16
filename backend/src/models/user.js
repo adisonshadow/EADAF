@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const User = sequelize.define('User', {
   user_id: {
@@ -97,7 +98,7 @@ const User = sequelize.define('User', {
   }
 }, {
   tableName: 'users',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   underscored: true,
   paranoid: true,

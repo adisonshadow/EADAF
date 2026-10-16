@@ -67,7 +67,7 @@ const postgresql = {
   database: process.env.POSTGRES_DATABASE || 'eadaf_db',
   user: process.env.POSTGRES_USER || 'my_name',
   password: process.env.POSTGRES_PASSWORD || '123456',
-  schema: process.env.POSTGRES_SCHEMA || 'uac',
+  schema: process.env.POSTGRES_SCHEMA || 'eadaf',
   max_connections: parseInt(process.env.POSTGRES_MAX_CONNECTIONS, 20),
   idle_timeout: parseInt(process.env.POSTGRES_IDLE_TIMEOUT, 30000),
   connection_timeout: parseInt(process.env.POSTGRES_CONNECTION_TIMEOUT, 2000),

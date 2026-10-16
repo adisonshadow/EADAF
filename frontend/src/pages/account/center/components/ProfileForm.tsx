@@ -2,7 +2,7 @@ import React from 'react';
 import { Form, Input, Button, Select } from 'antd';
 import { message } from '@/utils/antdAppApis';
 import { useInitialState } from '@/providers/InitialStateProvider';
-import api from '@/services/UAC/api';
+import api from '@/services/EADAF/api';
 import AvatarUpload from '@/components/AvatarUpload';
 import { genderEnum } from '@/enums';
 import { normalizeUploadFileId } from '@/utils/image';

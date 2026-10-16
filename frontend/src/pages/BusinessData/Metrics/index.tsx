@@ -23,7 +23,7 @@ import {
   getBizdataMetricRuns,
   getBizdataMetrics,
   postBizdataMetricExecute,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { metricRunColumns, metricTableColumns } from './schema';
 

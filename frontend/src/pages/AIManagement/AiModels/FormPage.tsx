@@ -18,8 +18,8 @@ import {
   getAdminModelsId,
   patchAdminModelsId,
   postAdminModels,
-} from '@/services/UAC/api/adminModels';
-import { getAdminProviders } from '@/services/UAC/api/adminProviders';
+} from '@/services/EADAF/api/adminModels';
+import { getAdminProviders } from '@/services/EADAF/api/adminProviders';
 import { getApiData, isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { AI_CAPABILITIES, AI_MODALITIES, SLUG_PATTERN } from '../constants';
 

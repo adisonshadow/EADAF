@@ -4,7 +4,7 @@ import {
   getBizdataMetadataTable,
   getBizdataMetadataTables,
   getBizdataMetrics,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { isUuid, resolveBizDataEntityId } from './bizdataFieldUtils';
 

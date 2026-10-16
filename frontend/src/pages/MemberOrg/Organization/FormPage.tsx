@@ -19,7 +19,7 @@ import {
   putDepartmentsDepartmentId,
   putDepartmentsDepartmentIdRoles,
   deleteDepartmentsDepartmentId,
-} from '@/services/UAC/api/departments';
+} from '@/services/EADAF/api/departments';
 import { departmentEditFormColumns } from './Schemas';
 
 export type OrganizationPageMode = 'create' | 'edit';

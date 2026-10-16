@@ -15,7 +15,7 @@ import {
   getBizdataDataStandards,
   postBizdataDataStandard,
   putBizdataDataStandard,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { augmentColumnsWithChatReference } from '@/utils/augmentColumnsWithChatReference';
 import { buildDataStandardReference } from '@/ai/chatReferenceBuilders';

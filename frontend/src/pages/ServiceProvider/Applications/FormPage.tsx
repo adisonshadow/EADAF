@@ -12,7 +12,7 @@ import {
   getApplicationsId,
   postApplications,
   putApplicationsId,
-} from '@/services/UAC/api/applications';
+} from '@/services/EADAF/api/applications';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import {
   applicationEditFormColumns,

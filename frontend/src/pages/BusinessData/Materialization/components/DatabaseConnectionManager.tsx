@@ -30,7 +30,7 @@ import {
   postDatabaseConnection,
   putDatabaseConnection,
   testDatabaseConnection,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import {
   getApiData,
   getApiErrorMessage,

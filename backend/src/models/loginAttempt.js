@@ -2,6 +2,7 @@
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const LoginAttempt = sequelize.define('LoginAttempt', {
     id: {
@@ -43,7 +44,7 @@ const LoginAttempt = sequelize.define('LoginAttempt', {
     }
 }, {
     tableName: 'login_attempts',
-    schema: 'uac',
+    schema: SCHEMA,
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at'

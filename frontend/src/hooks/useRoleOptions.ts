@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getRoles } from '@/services/UAC/api/roles';
+import { getRoles } from '@/services/EADAF/api/roles';
 
 export interface RoleOption {
   label: string;

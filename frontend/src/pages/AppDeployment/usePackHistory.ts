@@ -1,4 +1,4 @@
-import type { PackJob } from '@/services/UAC/api/appDeployment';
+import type { PackJob } from '@/services/EADAF/api/appDeployment';
 import { useCallback, useState } from 'react';
 import { describePackMeta } from './components/packOptions';
 import {

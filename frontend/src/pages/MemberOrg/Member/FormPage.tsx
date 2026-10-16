@@ -18,9 +18,9 @@ import {
   putUsersUserId,
   putUsersUserIdRoles,
   deleteUsersUserId,
-} from '@/services/UAC/api/users';
+} from '@/services/EADAF/api/users';
 import { useRoleOptions } from '@/hooks/useRoleOptions';
-import api from '@/services/UAC/api';
+import api from '@/services/EADAF/api';
 import { history } from '@/utils/navigation';
 import {
   userCreateFormColumns,

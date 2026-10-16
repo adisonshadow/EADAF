@@ -3,19 +3,19 @@ import {
   getAdminScopesId,
   patchAdminScopesId,
   postAdminScopes,
-} from '@/services/UAC/api/adminScopes';
+} from '@/services/EADAF/api/adminScopes';
 import {
   getAdminSkills,
   getAdminSkillsId,
   patchAdminSkillsId,
   postAdminSkills,
-} from '@/services/UAC/api/adminSkills';
+} from '@/services/EADAF/api/adminSkills';
 import {
   getAdminTools,
   getAdminToolsId,
   patchAdminToolsId,
   postAdminTools,
-} from '@/services/UAC/api/adminTools';
+} from '@/services/EADAF/api/adminTools';
 import { registerFunctionCall, unregisterFunctionCall, invalidateSkillCache } from '@eadaf/ai-base';
 import { createMutatingHandler } from '@/ai/toolMutation';
 import { getApiData, parseApiListResponse } from '@/utils/apiResponse';

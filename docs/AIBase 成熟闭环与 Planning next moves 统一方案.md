@@ -141,7 +141,7 @@ type AssistantSegment =
 - [✅] 收敛检测：连续相同 Tool / 相同错误触发硬停止
 - [✅] `reconcilePlan()` 对账逻辑
 - [✅] 查询型任务“交付即终止”能力
-- [✅] `uac-access-control` 已启用 `allowDirectAnswerTermination`
+- [✅] `eadaf-access-control` 已启用 `allowDirectAnswerTermination`
 - [✅] “先失败，后重试成功”后允许正常结束
 - [✅] 同性质批量 Tool 结果聚合
 - [✅] 回归脚本覆盖结构化终止与批量聚合核心场景
@@ -152,7 +152,7 @@ type AssistantSegment =
 - [ ] 为 `planning` 片段设计视觉样式，接近 Cursor 的轻量状态提示
 - [ ] 将 `update_plan` / `reconcilePlan()` 的结果实时同步到该片段
 - [ ] 为“自动重试前 / 继续执行前 / 即将验收前”提供更精确的 planning 文案
-- [ ] 将查询型直收尾策略扩展到更多只读 Skill，而不只限于 `uac-access-control`
+- [ ] 将查询型直收尾策略扩展到更多只读 Skill，而不只限于 `eadaf-access-control`
 - [ ] 为更多 Skill 补齐 `completion_strategy`
 - [ ] 为 Planning 片段增加最小化/折叠策略，避免长任务刷屏
 - [ ] 将最终交付摘要、Plan、Tool 步骤串成统一的会话时间线
@@ -180,7 +180,7 @@ type AssistantSegment =
 
 ### P2：Skill 与策略治理
 
-- [✅] 为 `uac-access-control` 加入查询型直接收尾策略
+- [✅] 为 `eadaf-access-control` 加入查询型直接收尾策略
 - [✅] 为 `bizdata-data-standards` 判断是否适合直接收尾
 - [✅] 为 `bizdata-metadata-catalog` 判断是否适合直接收尾
 - [✅] 为 `aibase-capability-design/manage` 判断是否应维持 `plan-only`

@@ -1,5 +1,5 @@
 import type { AgentPlugin } from '@eadaf/ai-base';
-import { registerUacTools, unregisterUacTools } from '@/pages/MemberOrg/ai/registerUacTools';
+import { registerEadafTools, unregisterEadafTools } from '@/pages/MemberOrg/ai/registerEadafTools';
 import {
   registerAibaseAdminTools,
   unregisterAibaseAdminTools,
@@ -63,7 +63,7 @@ export const eadafHostToolsPlugin: AgentPlugin = {
     registerApiServiceTools();
     registerOutboundWebhookTools();
     registerHookTools();
-    registerUacTools();
+    registerEadafTools();
     registerEadafSkillCompletionPolicies();
 
     ctx.effect(() => () => {
@@ -77,7 +77,7 @@ export const eadafHostToolsPlugin: AgentPlugin = {
       unregisterApiServiceTools();
       unregisterOutboundWebhookTools();
       unregisterHookTools();
-      unregisterUacTools();
+      unregisterEadafTools();
     });
   },
 };

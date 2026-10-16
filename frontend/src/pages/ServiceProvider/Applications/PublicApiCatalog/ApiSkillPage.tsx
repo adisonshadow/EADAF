@@ -5,7 +5,7 @@ import { Alert, Button, Spin, Tag, Typography } from 'antd';
 import { message } from '@/utils/antdAppApis';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getApplicationsPublicApiCatalog } from '@/services/UAC/api/applicationsPublic';
+import { getApplicationsPublicApiCatalog } from '@/services/EADAF/api/applicationsPublic';
 import {
   buildApiSkillMarkdownUrl,
   buildApplicationApiDocsPath,

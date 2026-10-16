@@ -8,7 +8,7 @@ import {
   deleteAuthSessions,
   deleteAuthSessionsId,
   getAuthSessions,
-} from '@/services/UAC/api/auth';
+} from '@/services/EADAF/api/auth';
 
 interface SessionItem {
   sid?: string;

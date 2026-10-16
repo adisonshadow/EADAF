@@ -1,6 +1,6 @@
 -- 创建超级管理员
 -- 1. 创建超级管理员角色
-INSERT INTO uac.roles (role_id, role_name, code, description, status)
+INSERT INTO eadaf.roles (role_id, role_name, code, description, status)
 VALUES (
     '10000000-0000-0000-0000-000000000001',
     '超级管理员',
@@ -10,7 +10,7 @@ VALUES (
 );
 
 -- 2. 创建管理员用户（密码：123456）
-INSERT INTO uac.users (user_id, username, password_hash, email, avatar, phone, gender, status)
+INSERT INTO eadaf.users (user_id, username, password_hash, email, avatar, phone, gender, status)
 VALUES (
     '10000000-0000-0000-0000-000000000001',
     'admin',
@@ -23,21 +23,21 @@ VALUES (
 );
 
 -- 3. 为超级管理员角色分配所有权限
-INSERT INTO uac.role_permissions (role_id, permission_id)
+INSERT INTO eadaf.role_permissions (role_id, permission_id)
 SELECT 
     '10000000-0000-0000-0000-000000000001', -- 超级管理员角色ID
     permission_id
-FROM uac.permissions;
+FROM eadaf.permissions;
 
 -- 4. 将超级管理员角色分配给admin用户
-INSERT INTO uac.user_roles (user_id, role_id)
+INSERT INTO eadaf.user_roles (user_id, role_id)
 VALUES (
     '10000000-0000-0000-0000-000000000001', -- admin用户ID
     '10000000-0000-0000-0000-000000000001'  -- 超级管理员角色ID
 );
 
 -- 5. 为超级管理员添加所有数据权限规则
-INSERT INTO uac.data_permission_rules (role_id, resource_type, conditions, status)
+INSERT INTO eadaf.data_permission_rules (role_id, resource_type, conditions, status)
 VALUES (
     '10000000-0000-0000-0000-000000000001',
     '*',
@@ -46,7 +46,7 @@ VALUES (
 );
 
 -- 6. 确保系统内置应用 EADAF 存在（不含密钥；完整字段见 seed-eadaf-application.sql）
-INSERT INTO uac.applications (
+INSERT INTO eadaf.applications (
     application_id, name, code, logo_url, status, description,
     sso_enabled, api_enabled, api_connect_config, sso_config,
     bizdata_scope_codes, builtin_api_scope, outbound_webhook_scope

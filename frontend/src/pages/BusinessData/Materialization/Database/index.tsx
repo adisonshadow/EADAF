@@ -9,7 +9,7 @@ import ScopeDomainTree from '@/components/ScopeDomainTree';
 import MaterializedTableList, { materializedRowKey } from '../components/MaterializedTableList';
 import { useDatabaseConnections } from '../hooks/useMaterializationData';
 import { buildMockDataPrompt } from '../utils/mockDataPrompt';
-import { getMaterializationStatus } from '@/services/UAC/api/businessData';
+import { getMaterializationStatus } from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 
 const MaterializedDatabasePage: React.FC = () => {

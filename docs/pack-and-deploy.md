@@ -169,7 +169,7 @@ cd eadaf-offline-compose-upgrade-amd64-v1.2.0-20261007-1430
 DEPLOY_ROOT=/path/to/eadaf-runtime ./apply.sh
 ```
 
-补丁包同样是解压后执行 `./apply.sh`。~~升级用 `uac.schema_migrations` 记账；旧库第一次升级只把 `schema-baseline.txt` 里已发布过的 SQL 记为已执行，不重放。~~ 升级暂时不跑表结构迁移。表结构只在 EADAF 安装包的 init-db 里。
+补丁包同样是解压后执行 `./apply.sh`。~~升级用 `eadaf.schema_migrations` 记账；旧库第一次升级只把 `schema-baseline.txt` 里已发布过的 SQL 记为已执行，不重放。~~ 升级暂时不跑表结构迁移。表结构只在 EADAF 安装包的 init-db 里。
 
 若现场还留着旧整包里的 FPCU 容器，这次升级不会删除它们。之后用应用包接管。
 
@@ -191,7 +191,7 @@ DEPLOY_ROOT=/path/to/eadaf-runtime ./apply.sh
 
 ### 5.1 应用包不含数据结构与数据
 
-应用包（安装 / 升级 / 补丁）**只含程序**：镜像与前端 `dist`。包内**不跑**任何建模型、物化表或写业务数据的脚本，`apply.sh` 只做两件事——注册应用到 EADAF（`application.sql.template`，写 `uac.applications` 一行）与拉起容器。
+应用包（安装 / 升级 / 补丁）**只含程序**：镜像与前端 `dist`。包内**不跑**任何建模型、物化表或写业务数据的脚本，`apply.sh` 只做两件事——注册应用到 EADAF（`application.sql.template`，写 `eadaf.applications` 一行）与拉起容器。
 
 **模型、表结构、数据 API 与业务数据一律走管理端「应用部署 → 应用数据导出/导入」**，见 [data-transfer.md](./data-transfer.md)：
 

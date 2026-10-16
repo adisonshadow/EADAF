@@ -2,7 +2,7 @@ import { ApiOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { Empty, Spin, Tree, Typography } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { getBuiltinApis, type BuiltinApiTreeNode } from '@/services/UAC/api/builtinApis';
+import { getBuiltinApis, type BuiltinApiTreeNode } from '@/services/EADAF/api/builtinApis';
 // 注意：admin 端点返回的树节点字段为 { code, label, key, isLeaf, fullCode?, children? }
 // （与公开目录的 { name, isApiNode } 不同）。此处按 admin 树结构映射。
 import { isApiSuccess, getApiData } from '@/utils/apiResponse';

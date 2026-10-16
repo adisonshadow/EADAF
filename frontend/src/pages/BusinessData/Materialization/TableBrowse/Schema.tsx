@@ -5,7 +5,7 @@ import { message } from '@/utils/antdAppApis';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PageContainerTitleWithBack from '@/components/PageContainerTitleWithBack';
-import { getMaterializedTableSchema } from '@/services/UAC/api/businessData';
+import { getMaterializedTableSchema } from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 
 function formatDbType(dbType?: string) {

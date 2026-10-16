@@ -13,7 +13,7 @@ import {
   getAutomationHook,
   getAutomationHookRuns,
   postAutomationHookRunRetry,
-} from '@/services/UAC/api/automationHooks';
+} from '@/services/EADAF/api/automationHooks';
 import { getApiData, getApiErrorMessage, isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { useProTableSearchCollapse } from '@/hooks/useProTableSearchCollapse';
 import PageContainerTitleWithBack from '@/components/PageContainerTitleWithBack';

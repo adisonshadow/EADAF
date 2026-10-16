@@ -11,6 +11,7 @@
  */
 const { Op } = require('sequelize');
 const models = require('../../models');
+const transferCompat = require('./transferCompat');
 const { prefixHit } = require('./scopePrefix');
 const { openTransferPackage, cleanupUpload } = require('./transferZip');
 
@@ -126,7 +127,7 @@ async function previewImportFile(filePath) {
   const ai = file.ai || {};
   const providerItems = Array.isArray(ai.providers) ? ai.providers : [];
   const aiModelItems = Array.isArray(ai.models) ? ai.models : [];
-  const uac = file.uac || {};
+  const eadaf = transferCompat.readSection(file, 'eadaf') || {};
   const buckets = Array.isArray(file.storageBuckets) ? file.storageBuckets : [];
   const storageObjects = Array.isArray(file.storageObjects) ? file.storageObjects : [];
   const entityData = Array.isArray(file.entityData) ? file.entityData : [];
@@ -266,9 +267,9 @@ async function previewImportFile(filePath) {
     await checkUnique('skills.scopes', ai.scopes, 'slug', models.Scope, 'slug');
   }
   await checkUnique('storageBuckets', buckets, 'code', models.StorageBucket, 'code');
-  await checkUnique('uac.roles', uac.roles || [], 'code', models.Role, 'code');
-  await checkUnique('uac.permissions', uac.permissions || [], 'code', models.Permission, 'code');
-  await checkUnique('uac.users', uac.users || [], 'username', models.User, 'username');
+  await checkUnique('eadaf.roles', eadaf.roles || [], 'code', models.Role, 'code');
+  await checkUnique('eadaf.permissions', eadaf.permissions || [], 'code', models.Permission, 'code');
+  await checkUnique('eadaf.users', eadaf.users || [], 'username', models.User, 'username');
 
   // hooks:按 (name, event_type) 查重复,多条命中需人工改名
   const hookMultiMatch = [];
@@ -441,14 +442,14 @@ async function previewImportFile(filePath) {
         applications: sectionCount(skills.applications),
       },
       metadata: { tables: metadataTables.length, fields: metadataFields.length },
-      uac: {
-        users: sectionCount(uac.users),
-        departments: sectionCount(uac.departments),
-        roles: sectionCount(uac.roles),
-        permissions: sectionCount(uac.permissions),
-        userRoles: sectionCount(uac.userRoles),
-        rolePermissions: sectionCount(uac.rolePermissions),
-        dataPermissionRules: sectionCount(uac.dataPermissionRules),
+      eadaf: {
+        users: sectionCount(eadaf.users),
+        departments: sectionCount(eadaf.departments),
+        roles: sectionCount(eadaf.roles),
+        permissions: sectionCount(eadaf.permissions),
+        userRoles: sectionCount(eadaf.userRoles),
+        rolePermissions: sectionCount(eadaf.rolePermissions),
+        dataPermissionRules: sectionCount(eadaf.dataPermissionRules),
       },
       storageBuckets: buckets.length,
       storageObjects: storageObjects.length,

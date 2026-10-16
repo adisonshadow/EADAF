@@ -1,7 +1,7 @@
 # EADAF 用户 SSO：会话、令牌与登出 方案计划
 
 > 状态：**待评审**（本文只做方案与计划，不含代码改动）
-> 关联：Issue [#36](https://github.com/adisonshadow/UAC2/issues/36)、PR [#37](https://github.com/adisonshadow/UAC2/pull/37)
+> 关联：Issue [#36](https://github.com/adisonshadow/EADAF/issues/36)、PR [#37](https://github.com/adisonshadow/EADAF/pull/37)
 > 权威文档：[sso-integration-guide.md](./sso-integration-guide.md)（实施后需同步更新）
 
 ---
@@ -65,7 +65,7 @@
 | 刷新 | `POST /api/v1/auth/refresh` 挂在 `auth` 之后（`backend/src/routes/authRoutes.js:392`） | **访问令牌过期后就无法刷新**（刷新需要未过期的访问令牌），只能强制重新登录；刷新无轮换、无重放检测 |
 | 登出 | `authController.logout` 只撤一条 refresh；控制台 `AvatarDropdown.tsx:28`、`account/center/index.tsx:79` 只清 `token`/`refresh_token` | 无 IdP 会话、无单点登出；控制台退出**不清理 `sso_token:<app>`**；应用退出根本不通知 EADAF |
 | 401 语义 | 应用：任何 401 → 复核 → 会话有效则只报错（本轮改），会话失效则清并跳登录。控制台：`requestInterceptors.ts:105-113` 的 401 分支在 axios 下**不可达**（401 走 errorHandler），实际只弹 toast、不跳登录 | 会话级 / 接口级 401 没有区分标准，"掉登录"和"卡住不跳"两种极端都会出现 |
-| 会话记录 | 只有 `uac.refresh_tokens`（user_id / token / expires_at / status），无 `sid`、无设备信息、无"这套会话属于哪个应用" | 无法列出/撤销"某次登录"，无法做"退出所有设备" |
+| 会话记录 | 只有 `eadaf.refresh_tokens`（user_id / token / expires_at / status），无 `sid`、无设备信息、无"这套会话属于哪个应用" | 无法列出/撤销"某次登录"，无法做"退出所有设备" |
 | 基础设施 | Redis 已有封装（`utils/redisClient.js`，依赖不可用时自动降级） | 可用来做撤销集，无需改表 |
 
 ---
@@ -84,7 +84,7 @@
 **非目标（本期不做）**
 
 - 完整的 OIDC 认证器生态（社交登录、SAML、企业 IdP 联邦）——保留现有密码/SSO 入口；
-- 细粒度授权（scope → 权限映射）重构——沿用现有 UAC 权限体系；
+- 细粒度授权（scope → 权限映射）重构——沿用现有 EADAF 权限体系；
 - 多租户隔离模型变更。
 
 ---
@@ -155,7 +155,7 @@
 
 ### 5.4 会话模型
 
-- 登录时生成 `sid`（UUID），写入 access/refresh 与 `uac.refresh_tokens`（复用 `token_id` 或新列）；
+- 登录时生成 `sid`（UUID），写入 access/refresh 与 `eadaf.refresh_tokens`（复用 `token_id` 或新列）；
 - **撤销集放 Redis**（`sso:revoked:sid:<sid>`，TTL = 最长 refresh 有效期）：中间件校验 `sid` 未撤销；Redis 不可用时降级为"只靠 DB + 短 access TTL"（fail-open，但 access 只有 15min，影响面有限）；
 - 设备信息（IP / UA / 登录时间 / 最后活跃）随会话记录，供"登录设备"页与审计；
 - 登出粒度：`本应用`（撤销该 `sid`）/ `本设备全部应用`（撤销该用户在该设备的所有 `sid`）/ `所有设备`（撤销该用户全部 `sid`）。

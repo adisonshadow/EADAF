@@ -2,9 +2,9 @@
 
 面向一台全新的 Linux 云主机（国内网络），从零把 EADAF 跑起来：工作目录、克隆仓库、Node / pnpm / Docker、依赖容器、初始化数据库、pm2 守护。
 
-默认路径：`/var/www/UAC2`。下文以用户 `admin` 为例，请按本机用户替换。
+默认路径：`/var/www/EADAF`。下文以用户 `admin` 为例，请按本机用户替换。
 
-> **注意**：`pnpm init-db` 会 `DROP` 并重建 `uac` schema，只用于开发机 / 首次安装，不要对有数据的库执行。
+> **注意**：`pnpm init-db` 会 `DROP` 并重建 `eadaf` schema，只用于开发机 / 首次安装，不要对有数据的库执行。
 >
 > 本文是在服务器上用仓库源码跑开发环境。发给客户的运行时包里，表结构只在 EADAF 安装包；升级包和补丁包只有程序。~~数据包补丁~~ 已暂时停用。已运行实例的配置与业务数据用管理端「系统设置」的 EADAF / 应用数据包，见 [data-transfer.md](./data-transfer.md)。
 
@@ -24,7 +24,7 @@ sudo chmod -R 755 /var/www
 
 ```bash
 cd /var/www
-git clone https://github.com/adisonshadow/UAC2
+git clone https://github.com/adisonshadow/EADAF
 ```
 
 HTTPS 克隆或后续 `git pull` 失败时，见文末 [Git 改为 SSH](#8-git-访问异常改为-ssh)。
@@ -203,7 +203,7 @@ sudo systemctl restart docker
 账号口令与 `backend/.env.example` 一致（Postgres：`my_name` / `123456` / `eadaf_db`）。
 
 ```bash
-cd /var/www/UAC2/backend
+cd /var/www/EADAF/backend
 
 ls docker-compose_with_MySQL.yml
 
@@ -221,7 +221,7 @@ docker compose -f docker-compose_with_MySQL.yml logs -f
 ## 6. 配置并初始化 EADAF
 
 ```bash
-cd /var/www/UAC2/backend
+cd /var/www/EADAF/backend
 
 cp .env.example .env.development
 cp .env.example .env.production
@@ -239,7 +239,7 @@ sudo apt install -y postgresql-client
 在 **仓库根目录** 安装依赖（pnpm workspace，不要只在 backend 里装）：
 
 ```bash
-cd /var/www/UAC2
+cd /var/www/EADAF
 pnpm install
 ```
 
@@ -248,7 +248,7 @@ pnpm install
 `package/ai-base` 的 `dist/` **不进 Git**（被 `app_example/.gitignore` 忽略）。`pnpm install` 只链上 workspace 包，**不会**自动产出 `dist`。不编译的话，前端依赖 `@eadaf/ai-base` 的入口（`main` / `exports` 指向 `./dist/...`）会缺失，后续 `frontend build` / 预览 / AI 侧栏都容易挂。
 
 ```bash
-cd /var/www/UAC2/package/ai-base
+cd /var/www/EADAF/package/ai-base
 pnpm run build
 ```
 
@@ -263,7 +263,7 @@ ls dist/index.js dist/index.d.ts dist/style.css
 初始化数据库并**短时**试跑后端（确认能起来就立刻停，不要挂着）：
 
 ```bash
-cd /var/www/UAC2/backend
+cd /var/www/EADAF/backend
 pnpm init-db
 pnpm dev
 ```
@@ -313,7 +313,7 @@ npm install pm2 -g
 低配推荐启动方式（**务必先有 ai-base 的 `dist`**，见 [§6.1](#61-编译-eadafai-base必做)）：
 
 ```bash
-cd /var/www/UAC2
+cd /var/www/EADAF
 pnpm --filter ./package/ai-base build
 # 或：cd package/ai-base && pnpm run build
 
@@ -324,7 +324,7 @@ pnpm pm2prod
 高配开发机才用（同样建议先编译过一次 ai-base；Vite 虽有源码 alias，但 workspace 包入口仍依赖 `dist`）：
 
 ```bash
-cd /var/www/UAC2
+cd /var/www/EADAF
 pnpm --filter ./package/ai-base build
 pnpm pm2dev
 ```
@@ -333,13 +333,13 @@ pnpm pm2dev
 
 | 命令 | 进程名 | 说明 |
 |------|--------|------|
-| `pnpm pm2dev` | `uac-api-dev` + `eadaf-web-dev` | 仅高配开发机：API watch 热重启；前端 Vite `--host`（29527）；依赖已编译的 `@eadaf/ai-base` |
-| `pnpm pm2prod` | `uac-api` + `eadaf-web` | 低配 / 长期托管：API 读 `.env.production`；需先编译 ai-base，再 `pnpm --filter ./frontend build`，再 `vite preview` |
+| `pnpm pm2dev` | `eadaf-api-dev` + `eadaf-web-dev` | 仅高配开发机：API watch 热重启；前端 Vite `--host`（29527）；依赖已编译的 `@eadaf/ai-base` |
+| `pnpm pm2prod` | `eadaf-api` + `eadaf-web` | 低配 / 长期托管：API 读 `.env.production`；需先编译 ai-base，再 `pnpm --filter ./frontend build`，再 `vite preview` |
 
 ```bash
 pm2 list
-pm2 logs uac-api --lines 200      # 低配 pm2prod
-# pm2 logs uac-api-dev --lines 200  # 仅高配 pm2dev
+pm2 logs eadaf-api --lines 200      # 低配 pm2prod
+# pm2 logs eadaf-api-dev --lines 200  # 仅高配 pm2dev
 pm2 save
 pm2 startup    # 按提示把开机自启命令复制执行
 ```
@@ -370,8 +370,8 @@ cat ~/.ssh/id_ed25519.pub
 ssh -T git@github.com
 # Hi <github-user>! You've successfully authenticated, but GitHub does not provide shell access.
 
-cd /var/www/UAC2
-git remote set-url origin git@github.com:adisonshadow/UAC2.git
+cd /var/www/EADAF
+git remote set-url origin git@github.com:adisonshadow/EADAF.git
 git remote -v
 ```
 

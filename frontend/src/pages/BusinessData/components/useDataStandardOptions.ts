@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getBizdataDataStandards } from '@/services/UAC/api/businessData';
+import { getBizdataDataStandards } from '@/services/EADAF/api/businessData';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 

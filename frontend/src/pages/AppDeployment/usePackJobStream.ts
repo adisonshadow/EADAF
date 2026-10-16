@@ -3,7 +3,7 @@ import type {
   PackJob,
   PackLogLine,
   PackStreamEvent,
-} from '@/services/UAC/api/appDeployment';
+} from '@/services/EADAF/api/appDeployment';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** 前端保留的最大日志行数（与服务端上限一致，超出丢头部） */

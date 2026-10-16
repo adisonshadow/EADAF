@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getApiServices, getApiServiceTree } from '@/services/UAC/api/apiServices';
+import { getApiServices, getApiServiceTree } from '@/services/EADAF/api/apiServices';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import {
   attachApiServicesToDomainTree,

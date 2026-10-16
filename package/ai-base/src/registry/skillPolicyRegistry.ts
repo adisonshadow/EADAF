@@ -53,7 +53,7 @@ const FRAMEWORK_SKILL_SLUG = 'aibase-chat-framework';
  * 解析用于 task_complete / 结构化终止的完成策略。
  *
  * 不得把多个无关 Skill 的 requiredTools / successCriteria 做并集——
- * 否则查询页（如 uac-access-control）会被建模/物化/API 等写操作清单误伤，
+ * 否则查询页（如 eadaf-access-control）会被建模/物化/API 等写操作清单误伤，
  * 出现「task_complete 失败：关键 Tool 未调用：bizdata_validate_model…」。
  *
  * 选取规则：

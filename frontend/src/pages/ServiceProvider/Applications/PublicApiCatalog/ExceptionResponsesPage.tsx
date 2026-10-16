@@ -2,7 +2,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { Alert, Button, Spin, Tag, Typography } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getApplicationsPublicApiCatalog } from '@/services/UAC/api/applicationsPublic';
+import { getApplicationsPublicApiCatalog } from '@/services/EADAF/api/applicationsPublic';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 import { buildApplicationApiDocsPath } from '@/utils/applicationApiDocsUrl';
 import './index.css';

@@ -13,7 +13,7 @@ import { EyeOutlined, PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, 
 import { Form } from 'antd';
 import { useSetState } from "ahooks";
 import { Permission, PermissionTableProps, ActionType } from '../../types';
-import { getPermissions, postPermissions, putPermissionsPermissionId, deletePermissionsPermissionId, getPermissionsPermissionId } from "@/services/UAC/api/permissions";
+import { getPermissions, postPermissions, putPermissionsPermissionId, deletePermissionsPermissionId, getPermissionsPermissionId } from "@/services/EADAF/api/permissions";
 import { buildPermissionTree, getAllPermissionIds, getNodeLevel, getCurrentLevelCode } from '../../utils';
 import { RESOURCE_TYPES, ACTION_LABELS } from '../../constants';
 import PermissionForm from '../PermissionForm';

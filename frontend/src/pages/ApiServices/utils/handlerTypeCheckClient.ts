@@ -4,7 +4,7 @@ import {
   postApiServiceCheckHandler,
   type ApiServiceHandlerCheckResult,
   type ApiServiceHandlerDiagnostic,
-} from '@/services/UAC/api/apiServices';
+} from '@/services/EADAF/api/apiServices';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 
 let cachedSdkDts: string | null = null;

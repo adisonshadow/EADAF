@@ -1,6 +1,6 @@
 -- 系统内置应用 EADAF（init-db 必有，供 skill_applications / 系统存储桶外键）
 -- 不含 app_secret / sso client_secret：密钥须在「应用管理 → 生成密钥」后自行保管，禁止写入仓库或种子。
-INSERT INTO uac.applications (
+INSERT INTO eadaf.applications (
     application_id,
     name,
     code,
@@ -35,9 +35,9 @@ VALUES (
 ON CONFLICT (code) DO UPDATE SET
     name = EXCLUDED.name,
     logo_url = CASE
-        WHEN uac.applications.logo_url IS NULL OR btrim(uac.applications.logo_url) = ''
+        WHEN eadaf.applications.logo_url IS NULL OR btrim(eadaf.applications.logo_url) = ''
         THEN EXCLUDED.logo_url
-        ELSE uac.applications.logo_url
+        ELSE eadaf.applications.logo_url
     END,
     description = EXCLUDED.description,
     api_enabled = EXCLUDED.api_enabled,

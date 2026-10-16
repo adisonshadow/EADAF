@@ -33,5 +33,5 @@ migrate-eadaf-ai-skills.sql
 20260710_add_model_rate_limit.sql
 migrate-app-transfer-permissions.sql
 migrate-platform-transfer-permissions.sql
-uac-permissions-catalog-seed.sql
+eadaf-permissions-catalog-seed.sql
 superadmin.sql

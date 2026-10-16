@@ -268,7 +268,7 @@ module.exports = async (ctx, next) => {
         'Warning',
         '299 - "EADAF SSO: legacy flow (?app= + app-secret-signed user JWT) is deprecated; migrate to /oauth/authorize + PKCE (docs/sso-integration-guide.md section 13)"',
       );
-      ctx.set('Link', '<https://github.com/adisonshadow/UAC2/blob/main/docs/sso-integration-guide.md>; rel="deprecation"');
+      ctx.set('Link', '<https://github.com/adisonshadow/EADAF/blob/main/docs/sso-integration-guide.md>; rel="deprecation"');
       noteLegacyUsage(ctx);
     }
 
@@ -369,7 +369,7 @@ module.exports = async (ctx, next) => {
     ctx.state.user = payload;
     ctx.state.isSsoAuth = isSsoAuth;
     // 本次请求按哪个应用验的签：刷新令牌要用它保持应用会话
-    // （刷新令牌自身不带 application_id，避免超过 uac.refresh_tokens.token 的 255 上限）
+    // （刷新令牌自身不带 application_id，避免超过 eadaf.refresh_tokens.token 的 255 上限）
     ctx.state.ssoApplicationId = matchedCandidate.application?.application_id || null;
     
     logger.debug('认证成功', {

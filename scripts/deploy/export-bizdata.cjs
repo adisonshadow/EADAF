@@ -103,7 +103,7 @@ async function main() {
 
   const appRes = await client.query(
     `SELECT code, bizdata_scope_codes, api_data_scope
-     FROM uac.applications
+     FROM eadaf.applications
      WHERE code = $1
      LIMIT 1`,
     [applicationCode]
@@ -146,7 +146,7 @@ async function main() {
   lines.push(`-- application=${applicationCode} scopes=${scopes.join(',')}`);
   lines.push('BEGIN;');
   lines.push(
-    `UPDATE uac.applications SET bizdata_scope_codes = ${sqlLiteral(scopes)}::jsonb, updated_at = CURRENT_TIMESTAMP WHERE code = ${sqlLiteral(applicationCode)};`
+    `UPDATE eadaf.applications SET bizdata_scope_codes = ${sqlLiteral(scopes)}::jsonb, updated_at = CURRENT_TIMESTAMP WHERE code = ${sqlLiteral(applicationCode)};`
   );
 
   async function tableExists(name) {

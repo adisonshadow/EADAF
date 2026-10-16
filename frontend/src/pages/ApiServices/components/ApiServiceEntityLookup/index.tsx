@@ -3,7 +3,7 @@ import { Button, Input, Modal, Space, Spin, Tag, Tooltip, Tree, Typography } fro
 import type { DataNode } from 'antd/es/tree';
 import React, { useEffect, useMemo, useState } from 'react';
 import { buildScopeTree, type ScopeTreeItem } from '@/pages/BusinessData/utils/buildScopeTree';
-import { getBusinessDataSchema } from '@/services/UAC/api/businessData';
+import { getBusinessDataSchema } from '@/services/EADAF/api/businessData';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 
 const { Text } = Typography;

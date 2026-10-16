@@ -17,12 +17,12 @@ RESTART IDENTITY CASCADE;
 
 -- aibase.scopes: 7 rows
 INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('88888888-8888-4888-8888-888888888801', 'AI 管理', 'ai-management', 'EADAF AI 能力配置：Scope、Tool、Skill 的设计与管理', true, '2026-06-24T12:51:20.252Z', '2026-06-27T06:54:25.451Z');
-INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('55555555-5555-4555-8555-555555555501', '业务数据', 'business-data', 'EUAC 业务数据模型设计与物化', true, '2026-06-22T11:33:21.110Z', '2026-06-22T11:35:04.808Z');
+INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('55555555-5555-4555-8555-555555555501', '业务数据', 'business-data', 'EADAF 业务数据模型设计与物化', true, '2026-06-22T11:33:21.110Z', '2026-06-22T11:35:04.808Z');
 INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('ec563fa7-4f93-4422-b609-61202544641a', '设备管理', 'equipment-management', '企业生产设备管理，涵盖设备资料、设备维护、设备运行状态日志', true, '2026-06-25T02:28:25.038Z', '2026-06-25T02:28:25.038Z');
-INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('33333333-3333-3333-3333-333333333301', 'ERP 演示', 'erp-demo', 'EUAC_AIBase 左侧业务 Demo 使用的 Scope', false, '2026-06-20T09:56:15.382Z', '2026-06-21T08:11:50.220Z');
+INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('33333333-3333-3333-3333-333333333301', 'ERP 演示', 'erp-demo', 'EADAF_AIBase 左侧业务 Demo 使用的 Scope', false, '2026-06-20T09:56:15.382Z', '2026-06-21T08:11:50.220Z');
 INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777710', '成员与权限', 'member-org', 'EADAF 成员、角色、权限与数据规则管理', true, '2026-06-27T06:51:24.398Z', '2026-07-10T15:16:58.359Z');
 INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('81dce576-b34e-4444-be8c-ce3a59fe30a6', '销售数据', 'saledata', NULL, true, '2026-06-21T10:12:04.412Z', '2026-06-21T10:12:04.413Z');
-INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('33333333-3333-4333-8333-333333333302', '销售管理系统 Demo', 'sales-demo', 'EUAC_AIBase 销售管理系统 Demo Scope，Tool 查询 EADAF 物化表（bizdata_mat.ys_*，与页面/API 服务同源）', true, '2026-06-21T08:11:50.226Z', '2026-06-21T08:15:52.743Z');
+INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at) VALUES ('33333333-3333-4333-8333-333333333302', '销售管理系统 Demo', 'sales-demo', 'EADAF_AIBase 销售管理系统 Demo Scope，Tool 查询 EADAF 物化表（bizdata_mat.ys_*，与页面/API 服务同源）', true, '2026-06-21T08:11:50.226Z', '2026-06-21T08:15:52.743Z');
 
 
 -- aibase.tools: 156 rows
@@ -681,7 +681,7 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 
 根据 id 更新设备资料。只需传入需要修改的字段，未传的字段保持不变。
 返回更新后的完整记录。', '{"handler":"equipment_update"}'::jsonb, true, '2026-06-26T14:13:42.001Z', '2026-06-26T14:13:42.001Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('44444444-4444-4444-4444-444444444401', '33333333-3333-3333-3333-333333333301', '查询订单（Client）', 'erp-query-order-client', 'erp_query_order', '在前端 Demo 页面查询本地模拟订单数据', 'client', '{"type":"object","required":["orderId"],"properties":{"orderId":{"type":"string","description":"订单号"}}}'::jsonb, '## erp_query_order\n\nClient Tool：由 EUAC_AIBase 页面 functionRegistry 执行。', NULL, false, '2026-06-20T09:56:15.384Z', '2026-06-21T08:11:50.223Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('44444444-4444-4444-4444-444444444401', '33333333-3333-3333-3333-333333333301', '查询订单（Client）', 'erp-query-order-client', 'erp_query_order', '在前端 Demo 页面查询本地模拟订单数据', 'client', '{"type":"object","required":["orderId"],"properties":{"orderId":{"type":"string","description":"订单号"}}}'::jsonb, '## erp_query_order\n\nClient Tool：由 EADAF_AIBase 页面 functionRegistry 执行。', NULL, false, '2026-06-20T09:56:15.384Z', '2026-06-21T08:11:50.223Z');
 INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('66666666-6666-4666-8666-666666666683', '55555555-5555-4555-8555-555555555501', '创建提交外部API', 'outbound-webhook-create', 'outbound_webhook_create', '创建提交外部API配置（新建，不传 webhookId）', 'client', '{"type":"object","required":["name","targetUrl"],"properties":{"code":{"type":"string"},"name":{"type":"string"},"mockData":{"type":"string"},"targetUrl":{"type":"string"},"description":{"type":"string"},"transformScript":{"type":"string"},"requestStructure":{"type":"string"},"triggerApiServiceId":{"type":"string"},"triggerApiServiceCode":{"type":"string"}}}'::jsonb, '## outbound_webhook_create
 
 - 须传 name、targetUrl
@@ -749,8 +749,8 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('44444444-4444-4444-8444-444444444414', '33333333-3333-4333-8333-333333333302', '订单趋势统计', 'sales-order-stats-period', 'sales_order_stats_by_period', '按日/周/月统计近 N 天订单趋势', 'server_builtin', '{"type":"object","properties":{"days":{"type":"integer","description":"统计天数，默认30"},"groupBy":{"enum":["day","week","month"],"type":"string","description":"聚合粒度"}}}'::jsonb, '## sales_order_stats_by_period\n\n参数 days、groupBy(day|week|month)。', '{"handler":"sales_order_stats_by_period"}'::jsonb, true, '2026-06-21T08:11:50.227Z', '2026-06-21T08:11:50.227Z');
 INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('44444444-4444-4444-8444-444444444413', '33333333-3333-4333-8333-333333333302', '订单状态统计', 'sales-order-stats-status', 'sales_order_stats_by_status', '按订单状态汇总数量与金额', 'server_builtin', '{"type":"object","properties":{}}'::jsonb, '## sales_order_stats_by_status\n\n返回各 status 的 order_count 与 total_amount。', '{"handler":"sales_order_stats_by_status"}'::jsonb, true, '2026-06-21T08:11:50.227Z', '2026-06-21T08:11:50.227Z');
 INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('44444444-4444-4444-8444-444444444412', '33333333-3333-4333-8333-333333333302', '搜索订单', 'sales-search-orders', 'sales_search_orders', '按状态、用户、日期、关键词搜索订单', 'server_builtin', '{"type":"object","properties":{"page":{"type":"integer"},"dateTo":{"type":"string"},"status":{"enum":["pending","paid","shipped","completed","cancelled"],"type":"string"},"userId":{"type":"string","description":"会员 ID（UUID）或姓名"},"memberId":{"type":"string","description":"与 userId 等价"},"keyword":{"type":"string"},"dateFrom":{"type":"string"},"pageSize":{"type":"integer"}}}'::jsonb, '## sales_search_orders\n\n支持 status/userId(会员 ID 或姓名)/keyword/dateFrom/dateTo 分页搜索，返回订单与会员姓名。', '{"handler":"sales_search_orders"}'::jsonb, true, '2026-06-21T08:11:50.227Z', '2026-06-21T08:11:50.227Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777716', '77777777-7777-4777-8777-777777777710', '分配用户角色', 'uac-assign-user-roles', 'uac_assign_user_roles', '全量替换用户直接绑定的角色', 'client', '{"type":"object","required":["userId","roleIds"],"properties":{"userId":{"type":"string"},"roleIds":{"type":"array","items":{"type":"string"}}}}'::jsonb, '## uac_assign_user_roles', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777722', '77777777-7777-4777-8777-777777777710', '创建数据权限规则', 'uac-create-data-rule', 'uac_create_data_rule', '为角色创建数据权限规则（如 bizdata_scope 限定）', 'client', '{"type":"object","required":["roleId","resourceType","conditions"],"properties":{"roleId":{"type":"string"},"conditions":{"type":"object"},"resourceType":{"type":"string"}}}'::jsonb, '## uac_create_data_rule
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777716', '77777777-7777-4777-8777-777777777710', '分配用户角色', 'eadaf-assign-user-roles', 'eadaf_assign_user_roles', '全量替换用户直接绑定的角色', 'client', '{"type":"object","required":["userId","roleIds"],"properties":{"userId":{"type":"string"},"roleIds":{"type":"array","items":{"type":"string"}}}}'::jsonb, '## eadaf_assign_user_roles', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777722', '77777777-7777-4777-8777-777777777710', '创建数据权限规则', 'eadaf-create-data-rule', 'eadaf_create_data_rule', '为角色创建数据权限规则（如 bizdata_scope 限定）', 'client', '{"type":"object","required":["roleId","resourceType","conditions"],"properties":{"roleId":{"type":"string"},"conditions":{"type":"object"},"resourceType":{"type":"string"}}}'::jsonb, '## eadaf_create_data_rule
 
 ### equipment 域示例
 ```json
@@ -763,43 +763,43 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
   }
 }
 ```', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771e', '77777777-7777-4777-8777-777777777710', '创建权限', 'uac-create-permission', 'uac_create_permission', '创建权限', 'client', '{"type":"object","required":["code","resourceType","actions"],"properties":{"code":{"type":"string"},"actions":{"type":"array","items":{"type":"string"}},"description":{"type":"string"},"resourceType":{"enum":["MENU","BUTTON","API"],"type":"string"}}}'::jsonb, '## uac_create_permission', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777719', '77777777-7777-4777-8777-777777777710', '创建角色', 'uac-create-role', 'uac_create_role', '创建新角色', 'client', '{"type":"object","required":["roleName","code"],"properties":{"code":{"type":"string"},"status":{"enum":["ACTIVE","ARCHIVED"],"type":"string"},"roleName":{"type":"string"},"description":{"type":"string"}}}'::jsonb, '## uac_create_role
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771e', '77777777-7777-4777-8777-777777777710', '创建权限', 'eadaf-create-permission', 'eadaf_create_permission', '创建权限', 'client', '{"type":"object","required":["code","resourceType","actions"],"properties":{"code":{"type":"string"},"actions":{"type":"array","items":{"type":"string"}},"description":{"type":"string"},"resourceType":{"enum":["MENU","BUTTON","API"],"type":"string"}}}'::jsonb, '## eadaf_create_permission', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777719', '77777777-7777-4777-8777-777777777710', '创建角色', 'eadaf-create-role', 'eadaf_create_role', '创建新角色', 'client', '{"type":"object","required":["roleName","code"],"properties":{"code":{"type":"string"},"status":{"enum":["ACTIVE","ARCHIVED"],"type":"string"},"roleName":{"type":"string"},"description":{"type":"string"}}}'::jsonb, '## eadaf_create_role
 
 code 支持冒号分层，如 `equipment:data-operator`', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777713', '77777777-7777-4777-8777-777777777710', '创建用户', 'uac-create-user', 'uac_create_user', '创建新用户并可选绑定角色', 'client', '{"type":"object","required":["username","password","name","departmentId"],"properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"gender":{"enum":["MALE","FEMALE","OTHER"],"type":"string"},"roleIds":{"type":"array","items":{"type":"string"}},"password":{"type":"string"},"username":{"type":"string"},"departmentId":{"type":"string"}}}'::jsonb, '## uac_create_user
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777713', '77777777-7777-4777-8777-777777777710', '创建用户', 'eadaf-create-user', 'eadaf_create_user', '创建新用户并可选绑定角色', 'client', '{"type":"object","required":["username","password","name","departmentId"],"properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"gender":{"enum":["MALE","FEMALE","OTHER"],"type":"string"},"roleIds":{"type":"array","items":{"type":"string"}},"password":{"type":"string"},"username":{"type":"string"},"departmentId":{"type":"string"}}}'::jsonb, '## eadaf_create_user
 
 - **departmentId 必填**
 - password 可自动生成 6 位数字
 - roleIds 可选，创建时一并绑定', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771b', '77777777-7777-4777-8777-777777777710', '删除角色', 'uac-delete-role', 'uac_delete_role', '软删除指定角色', 'client', '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"}}}'::jsonb, '## uac_delete_role', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777715', '77777777-7777-4777-8777-777777777710', '删除用户', 'uac-delete-user', 'uac_delete_user', '软删除指定用户', 'client', '{"type":"object","required":["userId"],"properties":{"userId":{"type":"string"}}}'::jsonb, '## uac_delete_user', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777724', '77777777-7777-4777-8777-777777777710', '过滤用户', 'uac-filter-users', 'uac_filter_users', '按过滤项检索用户，返回命中项（内部固定 page=1&size=500）。勿传 size=-1', 'client', '{"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"userId":{"type":"string","description":"用户ID精确匹配"},"username":{"type":"string"},"departmentId":{"type":"string","description":"部门ID"}}}'::jsonb, '## uac_filter_users
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771b', '77777777-7777-4777-8777-777777777710', '删除角色', 'eadaf-delete-role', 'eadaf_delete_role', '软删除指定角色', 'client', '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"}}}'::jsonb, '## eadaf_delete_role', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777715', '77777777-7777-4777-8777-777777777710', '删除用户', 'eadaf-delete-user', 'eadaf_delete_user', '软删除指定用户', 'client', '{"type":"object","required":["userId"],"properties":{"userId":{"type":"string"}}}'::jsonb, '## eadaf_delete_user', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777724', '77777777-7777-4777-8777-777777777710', '过滤用户', 'eadaf-filter-users', 'eadaf_filter_users', '按过滤项检索用户，返回命中项（内部固定 page=1&size=500）。勿传 size=-1', 'client', '{"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"userId":{"type":"string","description":"用户ID精确匹配"},"username":{"type":"string"},"departmentId":{"type":"string","description":"部门ID"}}}'::jsonb, '## eadaf_filter_users
 
 参数全可选；不传则返回最多 500 条。返回 { items, total }。
 
 - 字段名用 camelCase（departmentId/userId）
 - **禁止**对用户接口使用 size=-1', '{}'::jsonb, true, '2026-07-10T15:16:58.364Z', '2026-07-29T16:00:55.879Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777718', '77777777-7777-4777-8777-777777777710', '获取角色详情', 'uac-get-role', 'uac_get_role', '按 role_id 获取角色详情（含权限）', 'client', '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"}}}'::jsonb, '## uac_get_role', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777712', '77777777-7777-4777-8777-777777777710', '获取用户详情', 'uac-get-user', 'uac_get_user', '按 user_id 获取用户详情（含角色）', 'client', '{"type":"object","required":["userId"],"properties":{"userId":{"type":"string"}}}'::jsonb, '## uac_get_user', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777721', '77777777-7777-4777-8777-777777777710', '列出 bizdata Scope', 'uac-list-bizdata-scopes', 'uac_list_bizdata_scopes', '从业务数据实体 code 推导 Scope 树（如 equipment）', 'client', '{"type":"object","properties":{}}'::jsonb, '## uac_list_bizdata_scopes
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777718', '77777777-7777-4777-8777-777777777710', '获取角色详情', 'eadaf-get-role', 'eadaf_get_role', '按 role_id 获取角色详情（含权限）', 'client', '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"}}}'::jsonb, '## eadaf_get_role', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777712', '77777777-7777-4777-8777-777777777710', '获取用户详情', 'eadaf-get-user', 'eadaf_get_user', '按 user_id 获取用户详情（含角色）', 'client', '{"type":"object","required":["userId"],"properties":{"userId":{"type":"string"}}}'::jsonb, '## eadaf_get_user', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777721', '77777777-7777-4777-8777-777777777710', '列出 bizdata Scope', 'eadaf-list-bizdata-scopes', 'eadaf_list_bizdata_scopes', '从业务数据实体 code 推导 Scope 树（如 equipment）', 'client', '{"type":"object","properties":{}}'::jsonb, '## eadaf_list_bizdata_scopes
 
 返回 bizdata 业务域 Scope，**不是** aibase.scopes。
 
 设备域 code 前缀通常为 `equipment`。', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777723', '77777777-7777-4777-8777-777777777710', '列出数据权限规则', 'uac-list-data-rules', 'uac_list_data_rules', '列出数据权限规则，可按 roleId / resourceType 筛选', 'client', '{"type":"object","properties":{"roleId":{"type":"string"},"resourceType":{"type":"string"}}}'::jsonb, '## uac_list_data_rules', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777720', '77777777-7777-4777-8777-777777777710', '部门树', 'uac-list-departments-tree', 'uac_list_departments_tree', '获取组织架构部门树', 'client', '{"type":"object","properties":{}}'::jsonb, '## uac_list_departments_tree', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771d', '77777777-7777-4777-8777-777777777710', '列出权限', 'uac-list-permissions', 'uac_list_permissions', '列出权限，可按 resourceType 筛选', 'client', '{"type":"object","properties":{"code":{"type":"string"},"page":{"type":"integer"},"size":{"type":"integer"},"resourceType":{"enum":["MENU","BUTTON","API"],"type":"string"}}}'::jsonb, '## uac_list_permissions', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777717', '77777777-7777-4777-8777-777777777710', '列出角色', 'uac-list-roles', 'uac_list_roles', '列出系统角色，size=-1 返回全部', 'client', '{"type":"object","properties":{"page":{"type":"integer"},"size":{"type":"integer"},"status":{"type":"string"}}}'::jsonb, '## uac_list_roles', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777711', '77777777-7777-4777-8777-777777777710', '列出用户', 'uac-list-users', 'uac_list_users', '分页列出系统用户，支持 username/name/status 筛选。禁止 size=-1；拉较多数据用 page=1&size=500，或改用 uac_filter_users', 'client', '{"type":"object","properties":{"name":{"type":"string"},"page":{"type":"integer","description":"页码，从 1 起"},"size":{"type":"integer","maximum":500,"minimum":1,"description":"每页条数，1–500；禁止 -1"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"username":{"type":"string"}}}'::jsonb, '## uac_list_users
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777723', '77777777-7777-4777-8777-777777777710', '列出数据权限规则', 'eadaf-list-data-rules', 'eadaf_list_data_rules', '列出数据权限规则，可按 roleId / resourceType 筛选', 'client', '{"type":"object","properties":{"roleId":{"type":"string"},"resourceType":{"type":"string"}}}'::jsonb, '## eadaf_list_data_rules', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777720', '77777777-7777-4777-8777-777777777710', '部门树', 'eadaf-list-departments-tree', 'eadaf_list_departments_tree', '获取组织架构部门树', 'client', '{"type":"object","properties":{}}'::jsonb, '## eadaf_list_departments_tree', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771d', '77777777-7777-4777-8777-777777777710', '列出权限', 'eadaf-list-permissions', 'eadaf_list_permissions', '列出权限，可按 resourceType 筛选', 'client', '{"type":"object","properties":{"code":{"type":"string"},"page":{"type":"integer"},"size":{"type":"integer"},"resourceType":{"enum":["MENU","BUTTON","API"],"type":"string"}}}'::jsonb, '## eadaf_list_permissions', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777717', '77777777-7777-4777-8777-777777777710', '列出角色', 'eadaf-list-roles', 'eadaf_list_roles', '列出系统角色，size=-1 返回全部', 'client', '{"type":"object","properties":{"page":{"type":"integer"},"size":{"type":"integer"},"status":{"type":"string"}}}'::jsonb, '## eadaf_list_roles', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777711', '77777777-7777-4777-8777-777777777710', '列出用户', 'eadaf-list-users', 'eadaf_list_users', '分页列出系统用户，支持 username/name/status 筛选。禁止 size=-1；拉较多数据用 page=1&size=500，或改用 eadaf_filter_users', 'client', '{"type":"object","properties":{"name":{"type":"string"},"page":{"type":"integer","description":"页码，从 1 起"},"size":{"type":"integer","maximum":500,"minimum":1,"description":"每页条数，1–500；禁止 -1"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"username":{"type":"string"}}}'::jsonb, '## eadaf_list_users
 
 - **禁止** `size=-1`（用户接口不支持，会 HTTP 500）
 - 拉较多数据：`page=1&size=500`
-- 按条件检索优先 `uac_filter_users`（内部固定 size=500）', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-29T16:00:55.864Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771c', '77777777-7777-4777-8777-777777777710', '设置角色权限', 'uac-set-role-permissions', 'uac_set_role_permissions', '全量替换角色的功能权限', 'client', '{"type":"object","required":["roleId","permissionIds"],"properties":{"roleId":{"type":"string"},"permissionIds":{"type":"array","items":{"type":"string"}}}}'::jsonb, '## uac_set_role_permissions', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771f', '77777777-7777-4777-8777-777777777710', '更新权限', 'uac-update-permission', 'uac_update_permission', '更新权限描述或状态', 'client', '{"type":"object","required":["permissionId"],"properties":{"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"actions":{"type":"array","items":{"type":"string"}},"description":{"type":"string"},"permissionId":{"type":"string"}}}'::jsonb, '## uac_update_permission', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771a', '77777777-7777-4777-8777-777777777710', '更新角色', 'uac-update-role', 'uac_update_role', '更新角色名称与描述', 'client', '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"},"roleName":{"type":"string"},"description":{"type":"string"}}}'::jsonb, '## uac_update_role', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
-INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777714', '77777777-7777-4777-8777-777777777710', '更新用户', 'uac-update-user', 'uac_update_user', '更新用户基本信息', 'client', '{"type":"object","required":["userId"],"properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"gender":{"type":"string"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"userId":{"type":"string"},"departmentId":{"type":"string"}}}'::jsonb, '## uac_update_user', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+- 按条件检索优先 `eadaf_filter_users`（内部固定 size=500）', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-29T16:00:55.864Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771c', '77777777-7777-4777-8777-777777777710', '设置角色权限', 'eadaf-set-role-permissions', 'eadaf_set_role_permissions', '全量替换角色的功能权限', 'client', '{"type":"object","required":["roleId","permissionIds"],"properties":{"roleId":{"type":"string"},"permissionIds":{"type":"array","items":{"type":"string"}}}}'::jsonb, '## eadaf_set_role_permissions', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771f', '77777777-7777-4777-8777-777777777710', '更新权限', 'eadaf-update-permission', 'eadaf_update_permission', '更新权限描述或状态', 'client', '{"type":"object","required":["permissionId"],"properties":{"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"actions":{"type":"array","items":{"type":"string"}},"description":{"type":"string"},"permissionId":{"type":"string"}}}'::jsonb, '## eadaf_update_permission', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-77777777771a', '77777777-7777-4777-8777-777777777710', '更新角色', 'eadaf-update-role', 'eadaf_update_role', '更新角色名称与描述', 'client', '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"},"roleName":{"type":"string"},"description":{"type":"string"}}}'::jsonb, '## eadaf_update_role', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
+INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, execution_type, parameters_schema, review_markdown, server_config, is_active, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777714', '77777777-7777-4777-8777-777777777710', '更新用户', 'eadaf-update-user', 'eadaf_update_user', '更新用户基本信息', 'client', '{"type":"object","required":["userId"],"properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"gender":{"type":"string"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"userId":{"type":"string"},"departmentId":{"type":"string"}}}'::jsonb, '## eadaf_update_user', '{}'::jsonb, true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z');
 
 
 -- aibase.skills: 18 rows
@@ -830,7 +830,7 @@ INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdo
 
 ## 概念
 - **AI 能力 Scope**（`aibase.scopes`）：AI Chat 路由与 Tool 分组，如 `business-data`、`ai-management`、`member-org`
-- **业务域 Scope**（bizdata）：实体 code 前缀，如 `equipment`；用 `uac_list_bizdata_scopes` 或 `bizdata_list_entities` 查询，**禁止**用 `aibase_create_scope` 创建业务域
+- **业务域 Scope**（bizdata）：实体 code 前缀，如 `equipment`；用 `eadaf_list_bizdata_scopes` 或 `bizdata_list_entities` 查询，**禁止**用 `aibase_create_scope` 创建业务域
 - **Tool**：可调用函数，functionName 全局唯一（snake_case）
 - **Skill**：系统提示与 Tool 组合，slug 为 Skill ID
 
@@ -839,7 +839,7 @@ INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdo
 
 ## 设计流程
 1. `aibase_read_surfaces` 或 `aibase_list_*` 了解现状
-2. 业务域范围：先 `uac_list_bizdata_scopes` 确认 bizdata 前缀
+2. 业务域范围：先 `eadaf_list_bizdata_scopes` 确认 bizdata 前缀
 3. 设计 Tool：`executionType` 选 client（前端注册）或 server_builtin（后端 handler）
 4. 设计 Skill：编写 contentMarkdown 指令，用 toolIds 关联 Tool
 
@@ -863,7 +863,7 @@ INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdo
 - 用 `aibase_read_surfaces` 读取当前页面表单/列表状态
 
 ## 业务域 vs AI 能力域
-- **业务域 Scope**：bizdata 实体 code 前缀（如 `equipment`），用 `uac_list_bizdata_scopes` / `bizdata_list_entities`
+- **业务域 Scope**：bizdata 实体 code 前缀（如 `equipment`），用 `eadaf_list_bizdata_scopes` / `bizdata_list_entities`
 - **AI 能力 Scope**：`aibase.scopes`，管理菜单暂未开放，勿引导访问 `/ai_management/scopes`
 
 ## 常用操作
@@ -1391,7 +1391,7 @@ INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdo
 - **禁止**把物理表名（如 bizdata_mat.xxx）当作元数据 code；逻辑 code 应为 entity code（如 equipment:Device）', true, false, true, '{"terminationStrictness":"plan-only"}'::jsonb, '2026-06-27T16:36:15.337Z', '2026-07-29T07:43:20.309Z');
 INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdown, is_active, is_global, is_dedicated, completion_strategy, created_at, updated_at) VALUES ('77777777-7777-4777-8777-777777777702', '55555555-5555-4555-8555-555555555501', '业务数据物化', 'bizdata-materialization', '辅助 SQL/代码物化与版本对比', '# 业务数据物化助手
 
-你是 EUAC 数据物化助手。
+你是 EADAF 数据物化助手。
 
 ## 流程
 
@@ -1627,39 +1627,39 @@ INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdo
 - 创建/更新：返回含 webhook id
 - 测试：`status=success`
 - 发布：返回 status=published', true, false, true, '{"successCriteria":["webhook 已创建/测试/发布并 verified"],"terminationStrictness":"strict"}'::jsonb, '2026-07-10T15:17:40.535Z', '2026-07-29T07:43:20.309Z');
-INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdown, is_active, is_global, is_dedicated, completion_strategy, created_at, updated_at) VALUES ('99999999-9999-4999-8999-999999999903', '77777777-7777-4777-8777-777777777710', '成员与权限管理', 'uac-access-control', '用户、角色、权限与 bizdata Scope 数据规则管理助手', '# 成员与权限管理助手
+INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdown, is_active, is_global, is_dedicated, completion_strategy, created_at, updated_at) VALUES ('99999999-9999-4999-8999-999999999903', '77777777-7777-4777-8777-777777777710', '成员与权限管理', 'eadaf-access-control', '用户、角色、权限与 bizdata Scope 数据规则管理助手', '# 成员与权限管理助手
 
-你是 EADAF UAC 访问控制助手，帮助管理员管理成员、角色、权限与数据范围规则。
+你是 EADAF 访问控制助手，帮助管理员管理成员、角色、权限与数据范围规则。
 
 ## 重要：Scope 含义
 - 用户说的「Scope / 设备域 / 业务域」指 **bizdata 实体 code 前缀**（如 `equipment`）
-- 用 `uac_list_bizdata_scopes` 或 `bizdata_list_entities` 查询
+- 用 `eadaf_list_bizdata_scopes` 或 `bizdata_list_entities` 查询
 - **禁止**调用 `aibase_create_scope` / `aibase_list_scopes`（AI 能力域 Scope 管理已暂时关闭）
 
 ## 列出用户
-- 用 `uac_list_users` 或 `uac_filter_users`
+- 用 `eadaf_list_users` 或 `eadaf_filter_users`
 - **禁止**传 `size=-1`（用户接口会 500；与角色列表不同）
 - 正确示例：`page=1, size=500`
 
 ## 创建用户
-- **departmentId 必填**（先 `uac_list_departments_tree`）
+- **departmentId 必填**（先 `eadaf_list_departments_tree`）
 - password 可自动生成 6 位数字并告知用户
-- 用 `uac_assign_user_roles` 或创建时传 roleIds 绑定角色
+- 用 `eadaf_assign_user_roles` 或创建时传 roleIds 绑定角色
 
 ## 受限用户标准流程（例：仅 equipment 域数据模型 + API 服务）
-1. `uac_list_bizdata_scopes` 确认 `equipment` 存在
-2. `uac_list_roles` 查找 code=`equipment:data-operator`；若无则创建并赋权
-3. `uac_list_permissions` 筛选 `business_data:*`、`api_services:*`、`bizdata:*`、`apiservice:*`、`api:bizdata:*`、`api:apiservice:*`
-4. `uac_set_role_permissions` 全量设置角色权限
-5. `uac_create_data_rule`：`resourceType=bizdata_scope`，conditions 含 `bizdata_scope_codes:["equipment"]`、`allowed_modules:["business_data","api_services"]`
-6. `uac_create_user` + 绑定上述角色
+1. `eadaf_list_bizdata_scopes` 确认 `equipment` 存在
+2. `eadaf_list_roles` 查找 code=`equipment:data-operator`；若无则创建并赋权
+3. `eadaf_list_permissions` 筛选 `business_data:*`、`api_services:*`、`bizdata:*`、`apiservice:*`、`api:bizdata:*`、`api:apiservice:*`
+4. `eadaf_set_role_permissions` 全量设置角色权限
+5. `eadaf_create_data_rule`：`resourceType=bizdata_scope`，conditions 含 `bizdata_scope_codes:["equipment"]`、`allowed_modules:["business_data","api_services"]`
+6. `eadaf_create_user` + 绑定上述角色
 
 ## 已有模板
 - 角色 code `equipment:data-operator`（equipment:数据与API操作员）已预置时可复用，无需重复创建
 
 ## 权限模型
 - 功能权限：Permission → Role → User
-- 数据规则：`uac.data_permission_rules`（配置契约，运行时 enforcement 待接入）', true, false, true, '{"terminationStrictness":"plan-only"}'::jsonb, '2026-06-27T06:51:24.406Z', '2026-07-29T16:00:55.884Z');
+- 数据规则：`eadaf.data_permission_rules`（配置契约，运行时 enforcement 待接入）', true, false, true, '{"terminationStrictness":"plan-only"}'::jsonb, '2026-06-27T06:51:24.406Z', '2026-07-29T16:00:55.884Z');
 INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdown, is_active, is_global, is_dedicated, completion_strategy, created_at, updated_at) VALUES ('77777777-7777-4777-8777-7777777777a0', '55555555-5555-4555-8555-555555555501', '钩子管理', 'hook-center-manage', '事件钩子的创建、试跑、修复与运行排查', '# 钩子管理 Skill
 
 你是 EADAF 钩子管理助手。钩子 = 「当某事件发生且条件满足 → 执行某动作」。入口：API 服务 → 钩子管理（/api_services/hooks）。
@@ -1942,7 +1942,7 @@ INSERT INTO aibase.skill_applications (skill_id, application_id, created_at) VAL
 
 
 -- 应用顶层 Skill Markdown
-UPDATE uac.applications SET top_level_skill_markdown = '
+UPDATE eadaf.applications SET top_level_skill_markdown = '
 # EADAF 应用顶层 Skill
 
 你是 **EADAF 企业数据底座** 的 AI 助手。本文档描述平台通用行为、主要功能模块与 Skill/Tool 概览；**具体页面的操作流程以当前页面加载的专用 Skill 为准**。
@@ -1974,7 +1974,7 @@ UPDATE uac.applications SET top_level_skill_markdown = '
 ### 与用户沟通
 - 用业务语言；**禁止**向用户展示 Tool 函数名、内部 JSON 协议、原始 Tool 返回体
 - 涉及成员、权限、实体、API 等数据时**必须先调用 Tool 查询**，禁止编造 ID、version、连接信息
-- 用户说的「Scope / 业务域 / 设备域」通常指 **bizdata 实体 code 前缀**（如 `equipment`），用 `uac_list_bizdata_scopes` / `bizdata_list_entity_summaries` 查询实体列表；**不是** aibase.scopes（AI 能力域管理菜单暂未开放）
+- 用户说的「Scope / 业务域 / 设备域」通常指 **bizdata 实体 code 前缀**（如 `equipment`），用 `eadaf_list_bizdata_scopes` / `bizdata_list_entity_summaries` 查询实体列表；**不是** aibase.scopes（AI 能力域管理菜单暂未开放）
 
 ### 引用与快捷操作
 - 用户可通过页面 `@` 引用成员、实体、API 服务等上下文；优先结合引用内容理解意图
@@ -1985,10 +1985,10 @@ UPDATE uac.applications SET top_level_skill_markdown = '
 ### 成员与组织（/member_org、/permissions）
 | 页面 | Skill ID | 要点 |
 |------|----------|------|
-| 成员 / 组织 / 角色 | `uac-access-control` | 用户、部门树、角色、数据范围规则 |
-| 菜单 / 按钮 / API 权限 | `uac-access-control` | 权限项维护与角色授权 |
+| 成员 / 组织 / 角色 | `eadaf-access-control` | 用户、部门树、角色、数据范围规则 |
+| 菜单 / 按钮 / API 权限 | `eadaf-access-control` | 权限项维护与角色授权 |
 
-主要 Tool：`uac_list_*` / `uac_create_*` / `uac_update_*` / `uac_assign_*` / `uac_set_role_permissions` / `uac_create_data_rule`
+主要 Tool：`eadaf_list_*` / `eadaf_create_*` / `eadaf_update_*` / `eadaf_assign_*` / `eadaf_set_role_permissions` / `eadaf_create_data_rule`
 
 ### 业务数据（/business_data）
 | 页面 | Skill ID | 要点 |

@@ -42,8 +42,8 @@ import {
   useApiDomainTreeData,
 } from '@/components/ApiDomainTreePicker';
 import SearchableScopeTree, { fromApiDomainTree, fromBuiltinApiTree } from '@/components/SearchableScopeTree';
-import { getBuiltinApis, type BuiltinApiTreeNode } from '@/services/UAC/api/builtinApis';
-import { getOutboundWebhooks } from '@/services/UAC/api/outboundWebhooks';
+import { getBuiltinApis, type BuiltinApiTreeNode } from '@/services/EADAF/api/builtinApis';
+import { getOutboundWebhooks } from '@/services/EADAF/api/outboundWebhooks';
 import {
   attachApiServicesToDomainTree,
   buildApiServiceDomainTree,
@@ -52,7 +52,7 @@ import {
   type ApiServiceListItem,
 } from '@/utils/buildApiServiceDomainTree';
 import { buildApplicationApiDocsUrl } from '@/utils/applicationApiDocsUrl';
-import { getApplications, putApplicationsId, postApplicationsIdGenerateSecret } from '@/services/UAC/api/applications';
+import { getApplications, putApplicationsId, postApplicationsIdGenerateSecret } from '@/services/EADAF/api/applications';
 import { isApiSuccess, parseApiListResponse, getApiData } from '@/utils/apiResponse';
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';
 import { useProTableSearchCollapse } from '@/hooks/useProTableSearchCollapse';

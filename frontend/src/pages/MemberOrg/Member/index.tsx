@@ -15,7 +15,7 @@ import { buildMemberPrompts } from '@/ai/pageChatPrompts';
 import { useNavigate } from 'react-router-dom';
 import { useOpenDetail } from '@/hooks/useReturnToList';
 import { tableColumns, useDepartmentOptions } from "./Schemas";
-import { getUsers, deleteUsersUserId } from "@/services/UAC/api/users";
+import { getUsers, deleteUsersUserId } from "@/services/EADAF/api/users";
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';
 import { useProTableSearchCollapse } from '@/hooks/useProTableSearchCollapse';
 import { TableActionButton, TableActions, TABLE_ACTION_COLUMN_BASE } from '@/components/TableActions';

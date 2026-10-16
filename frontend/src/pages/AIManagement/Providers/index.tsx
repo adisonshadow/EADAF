@@ -13,7 +13,7 @@ import { buildAIProviderPrompts } from '@/ai/pageChatPrompts';
 import { useNavigate } from 'react-router-dom';
 import { useAIListSurface } from '@/ai/useAIListSurface';
 import { TableActionButton, TableActions, TABLE_ACTION_COLUMN_BASE } from '@/components/TableActions';
-import { deleteAdminProvidersId, getAdminProviders } from '@/services/UAC/api/adminProviders';
+import { deleteAdminProvidersId, getAdminProviders } from '@/services/EADAF/api/adminProviders';
 import { isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';
 import { useProTableSearchCollapse } from '@/hooks/useProTableSearchCollapse';

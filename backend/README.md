@@ -85,6 +85,18 @@ pnpm --filter ./backend config:check     # 一致性检查（CI 可跑）
 `systemStorageBucketCode` 等跨环境会变的值，前端启动时读取——同一份前端产物可部署到不同环境，
 不必为"桶 code 不同"重新构建。前端侧解析顺序见 `EADAF_frontend/src/config/deployConfig.ts`。
 
+### 历史命名迁移（UAC → EADAF）
+
+老库的表都建在 `uac` schema 下，AI Tool 名也还是 `uac_*`。已有实例执行一次（幂等，先备份）：
+
+```bash
+bash backend/scripts/backup-db-now.sh            # 先备份
+pnpm --filter ./backend migrate-uac-to-eadaf     # ALTER SCHEMA + 存库 AI 文本归一
+```
+
+新装实例不需要：种子与迁移脚本已是 `eadaf`。数据库 schema 名由 `POSTGRES_SCHEMA` 控制
+（默认 `eadaf`，模型统一从该配置读取，不再各自硬编码）。
+
 ### 同步 EADAF Skill / Tool
 
 `init-db` 会执行 `scripts/migrate-eadaf-ai-skills.sql`：写入**全局 Skill** 以及绑定应用 `EADAF` 的专用 Skill/Tool（如 `bizdata-model-design`）。不含 SFDEP、sales-demo 等业务应用 Skill，也不含销售域测试实体。

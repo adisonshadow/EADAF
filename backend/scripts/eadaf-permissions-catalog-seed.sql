@@ -1,7 +1,7 @@
--- UAC 权限目录扩展：对齐 EADAF_frontend 菜单模块 + equipment 受限角色模板
+-- 权限目录扩展：对齐 EADAF_frontend 菜单模块 + equipment 受限角色模板
 -- 可重复执行（permissions.code / roles.code UPSERT）
 
-INSERT INTO uac.permissions (permission_id, code, description, resource_type, actions, status, created_at, updated_at)
+INSERT INTO eadaf.permissions (permission_id, code, description, resource_type, actions, status, created_at, updated_at)
 VALUES
   -- MENU
   ('660e8400-e29b-41d4-a716-446655440033', 'member_org:manage', '成员与组织', 'MENU', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -49,7 +49,7 @@ VALUES
   ('660e8400-e29b-41d4-a716-446655440054', 'aibase:tool:manage', 'AI Tool 管理', 'BUTTON', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('660e8400-e29b-41d4-a716-446655440055', 'aibase:skill:manage', 'AI Skill 管理', 'BUTTON', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   -- 注：内置 API 权限已迁移至独立清单（backend/src/services/builtinApi/catalog.js）
-  --     及限制配置表 uac.builtin_api_configs，不再由 permissions(resource_type='API') 承载
+  --     及限制配置表 eadaf.builtin_api_configs，不再由 permissions(resource_type='API') 承载
 ON CONFLICT (code) DO UPDATE SET
   description = EXCLUDED.description,
   resource_type = EXCLUDED.resource_type,
@@ -58,7 +58,7 @@ ON CONFLICT (code) DO UPDATE SET
   updated_at = CURRENT_TIMESTAMP;
 
 -- equipment 域：数据模型 + API 服务 操作员角色模板
-INSERT INTO uac.roles (role_id, role_name, code, description, status, created_at, updated_at)
+INSERT INTO eadaf.roles (role_id, role_name, code, description, status, created_at, updated_at)
 VALUES (
   '660e8400-e29b-41d4-a716-446655440100',
   'equipment:数据与API操作员',
@@ -74,12 +74,12 @@ ON CONFLICT (code) DO UPDATE SET
   status = EXCLUDED.status,
   updated_at = CURRENT_TIMESTAMP;
 
-DELETE FROM uac.role_permissions
+DELETE FROM eadaf.role_permissions
 WHERE role_id = '660e8400-e29b-41d4-a716-446655440100';
 
-INSERT INTO uac.role_permissions (role_id, permission_id)
+INSERT INTO eadaf.role_permissions (role_id, permission_id)
 SELECT '660e8400-e29b-41d4-a716-446655440100', p.permission_id
-FROM uac.permissions p
+FROM eadaf.permissions p
 WHERE p.code IN (
   'business_data:manage',
   'api_services:manage',
@@ -92,11 +92,11 @@ WHERE p.code IN (
 );
 
 -- 数据权限规则：equipment Scope 限定（运行时 enforcement 待接入）
-DELETE FROM uac.data_permission_rules
+DELETE FROM eadaf.data_permission_rules
 WHERE role_id = '660e8400-e29b-41d4-a716-446655440100'
   AND resource_type = 'bizdata_scope';
 
-INSERT INTO uac.data_permission_rules (rule_id, role_id, resource_type, conditions, status, created_at, updated_at)
+INSERT INTO eadaf.data_permission_rules (rule_id, role_id, resource_type, conditions, status, created_at, updated_at)
 VALUES (
   '660e8400-e29b-41d4-a716-446655440101',
   '660e8400-e29b-41d4-a716-446655440100',

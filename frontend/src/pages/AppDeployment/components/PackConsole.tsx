@@ -1,4 +1,4 @@
-import type { PackJob, PackLogLine } from '@/services/UAC/api/appDeployment';
+import type { PackJob, PackLogLine } from '@/services/EADAF/api/appDeployment';
 import { message } from '@/utils/antdAppApis';
 import {
   CopyOutlined,

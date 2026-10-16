@@ -4,6 +4,7 @@
  */
 const { Op } = require('sequelize');
 const models = require('../models');
+const config = require('../../config');
 const {
   prefixHit,
   parseApiDataScope,
@@ -435,10 +436,10 @@ async function releaseApplicationReferences(applicationId) {
     JOIN pg_class pc ON pc.oid = con.confrelid
     JOIN pg_namespace pn ON pn.oid = pc.relnamespace
     WHERE con.contype = 'f'
-      AND pn.nspname = 'uac'
+      AND pn.nspname = :schema
       AND pc.relname = 'applications'
       AND array_length(con.conkey, 1) = 1
-  `);
+  `, { replacements: { schema: config.postgresql.schema } });
   let count = 0;
   for (const fk of rows) {
     if (!IDENT_RE.test(fk.table_schema) || !IDENT_RE.test(fk.table_name) || !IDENT_RE.test(fk.column_name)) {

@@ -2,7 +2,7 @@ import Editor from '@monaco-editor/react';
 import { Button } from 'antd';
 import { message } from '@/utils/antdAppApis';
 import React, { useEffect, useState } from 'react';
-import { patchBusinessDataEntity } from '@/services/UAC/api/businessData';
+import { patchBusinessDataEntity } from '@/services/EADAF/api/businessData';
 
 interface JsonSchemaEditorProps {
   entity: API.BusinessDataEntity;

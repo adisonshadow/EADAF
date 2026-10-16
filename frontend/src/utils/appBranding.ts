@@ -1,5 +1,5 @@
 import defaultSettings from '../../config/defaultSettings';
-import { getSystemBranding, type AppBranding } from '@/services/UAC/api/systemBranding';
+import { getSystemBranding, type AppBranding } from '@/services/EADAF/api/systemBranding';
 import { resolveMediaUrl } from '@/utils/mediaUrl';
 
 export type { AppBranding };

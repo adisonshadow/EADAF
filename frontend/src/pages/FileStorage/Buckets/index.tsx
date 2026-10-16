@@ -21,14 +21,14 @@ import { useAIChatPrompts, useChatReference } from '@eadaf/ai-base';
 import { buildStorageBucketPrompts } from '@/ai/pageChatPrompts';
 import { BizdataScopePickerModal } from '@/components/BizdataScopePicker';
 import { TableActionButton, TableActions, TABLE_ACTION_COLUMN_BASE } from '@/components/TableActions';
-import { getApplications } from '@/services/UAC/api/applications';
-import { getRoles } from '@/services/UAC/api/roles';
+import { getApplications } from '@/services/EADAF/api/applications';
+import { getRoles } from '@/services/EADAF/api/roles';
 import {
   deleteStorageBucket,
   getStorageBuckets,
   postStorageBucket,
   putStorageBucket,
-} from '@/services/UAC/api/storage';
+} from '@/services/EADAF/api/storage';
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';
 import { useProTableSearchCollapse } from '@/hooks/useProTableSearchCollapse';
 import { storageBucketStatusEnum } from '@/enums';

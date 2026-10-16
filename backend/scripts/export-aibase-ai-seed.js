@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 从当前库导出 aibase scopes/tools/skills/skill_tools/skill_applications
- * 以及 uac.applications.top_level_skill_markdown，生成权威种子 SQL。
+ * 以及 eadaf.applications.top_level_skill_markdown，生成权威种子 SQL。
  *
  * 用法（在 backend 目录）:
  *   node scripts/export-aibase-ai-seed.js > scripts/aibase-ai-seed.sql
@@ -101,7 +101,7 @@ async function main() {
   const topLevel = (
     await client.query(
       `SELECT application_id, code, name, top_level_skill_markdown
-       FROM uac.applications
+       FROM eadaf.applications
        WHERE top_level_skill_markdown IS NOT NULL AND btrim(top_level_skill_markdown) <> ''
        ORDER BY code`,
     )
@@ -195,7 +195,7 @@ async function main() {
     out.push(`-- 应用顶层 Skill Markdown`);
     for (const row of topLevel) {
       out.push(
-        `UPDATE uac.applications SET top_level_skill_markdown = ${sqlLiteral(row.top_level_skill_markdown)}, updated_at = CURRENT_TIMESTAMP WHERE application_id = ${sqlLiteral(row.application_id)};`,
+        `UPDATE eadaf.applications SET top_level_skill_markdown = ${sqlLiteral(row.top_level_skill_markdown)}, updated_at = CURRENT_TIMESTAMP WHERE application_id = ${sqlLiteral(row.application_id)};`,
       );
     }
     out.push(``);

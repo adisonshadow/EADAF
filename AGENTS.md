@@ -1,6 +1,6 @@
 # Agent 协作说明
 
-本仓库远程为 [adisonshadow/UAC2](https://github.com/adisonshadow/UAC2)，默认主干分支是 **`main`**。Issue / PR / checks / release 一律用 GitHub CLI（`gh`），不要手写 curl 调 GitHub API。
+本仓库远程为 [adisonshadow/EADAF](https://github.com/adisonshadow/EADAF)，默认主干分支是 **`main`**。Issue / PR / checks / release 一律用 GitHub CLI（`gh`），不要手写 curl 调 GitHub API。
 
 ## 大陆网络：进程级代理
 

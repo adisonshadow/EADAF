@@ -10,7 +10,7 @@ import {
   postBizdataMetadataSyncFromSchema,
   putBizdataMetadataTable,
   putBizdataMetadataTableFields,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { getApiData, isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import CodePathTreeTable from '../components/CodePathTreeTable';
 import {

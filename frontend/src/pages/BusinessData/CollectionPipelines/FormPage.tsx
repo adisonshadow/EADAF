@@ -17,7 +17,7 @@ import {
   patchCollectionPipeline,
   postCollectionPipeline,
   postCollectionPipelinePublish,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { apiServiceStatusEnum } from '@/enums';
 import { renderStatusBadge } from '@/utils/statusBadge';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';

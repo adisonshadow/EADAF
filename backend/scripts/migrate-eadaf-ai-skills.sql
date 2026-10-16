@@ -16,7 +16,7 @@ ON CONFLICT (slug) DO UPDATE SET
   updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO aibase.scopes (id, name, slug, description, is_active, created_at, updated_at)
-VALUES ('55555555-5555-4555-8555-555555555501', '业务数据', 'business-data', 'EUAC 业务数据模型设计与物化', true, '2026-06-22T11:33:21.110Z', '2026-06-22T11:35:04.808Z')
+VALUES ('55555555-5555-4555-8555-555555555501', '业务数据', 'business-data', 'EADAF 业务数据模型设计与物化', true, '2026-06-22T11:33:21.110Z', '2026-06-22T11:35:04.808Z')
 ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
@@ -3386,9 +3386,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777716',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '分配用户角色', 'uac-assign-user-roles', 'uac_assign_user_roles',
+  '分配用户角色', 'eadaf-assign-user-roles', 'eadaf_assign_user_roles',
   '全量替换用户直接绑定的角色', 'client',
-  '{"type":"object","required":["userId","roleIds"],"properties":{"userId":{"type":"string"},"roleIds":{"type":"array","items":{"type":"string"}}}}'::jsonb, '## uac_assign_user_roles', '{}'::jsonb,
+  '{"type":"object","required":["userId","roleIds"],"properties":{"userId":{"type":"string"},"roleIds":{"type":"array","items":{"type":"string"}}}}'::jsonb, '## eadaf_assign_user_roles', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3407,9 +3407,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777722',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '创建数据权限规则', 'uac-create-data-rule', 'uac_create_data_rule',
+  '创建数据权限规则', 'eadaf-create-data-rule', 'eadaf_create_data_rule',
   '为角色创建数据权限规则（如 bizdata_scope 限定）', 'client',
-  '{"type":"object","required":["roleId","resourceType","conditions"],"properties":{"roleId":{"type":"string"},"conditions":{"type":"object"},"resourceType":{"type":"string"}}}'::jsonb, '## uac_create_data_rule
+  '{"type":"object","required":["roleId","resourceType","conditions"],"properties":{"roleId":{"type":"string"},"conditions":{"type":"object"},"resourceType":{"type":"string"}}}'::jsonb, '## eadaf_create_data_rule
 
 ### equipment 域示例
 ```json
@@ -3440,9 +3440,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-77777777771e',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '创建权限', 'uac-create-permission', 'uac_create_permission',
+  '创建权限', 'eadaf-create-permission', 'eadaf_create_permission',
   '创建权限', 'client',
-  '{"type":"object","required":["code","resourceType","actions"],"properties":{"code":{"type":"string"},"actions":{"type":"array","items":{"type":"string"}},"description":{"type":"string"},"resourceType":{"enum":["MENU","BUTTON","API"],"type":"string"}}}'::jsonb, '## uac_create_permission', '{}'::jsonb,
+  '{"type":"object","required":["code","resourceType","actions"],"properties":{"code":{"type":"string"},"actions":{"type":"array","items":{"type":"string"}},"description":{"type":"string"},"resourceType":{"enum":["MENU","BUTTON","API"],"type":"string"}}}'::jsonb, '## eadaf_create_permission', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3461,9 +3461,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777719',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '创建角色', 'uac-create-role', 'uac_create_role',
+  '创建角色', 'eadaf-create-role', 'eadaf_create_role',
   '创建新角色', 'client',
-  '{"type":"object","required":["roleName","code"],"properties":{"code":{"type":"string"},"status":{"enum":["ACTIVE","ARCHIVED"],"type":"string"},"roleName":{"type":"string"},"description":{"type":"string"}}}'::jsonb, '## uac_create_role
+  '{"type":"object","required":["roleName","code"],"properties":{"code":{"type":"string"},"status":{"enum":["ACTIVE","ARCHIVED"],"type":"string"},"roleName":{"type":"string"},"description":{"type":"string"}}}'::jsonb, '## eadaf_create_role
 
 code 支持冒号分层，如 `equipment:data-operator`', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
@@ -3484,9 +3484,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777713',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '创建用户', 'uac-create-user', 'uac_create_user',
+  '创建用户', 'eadaf-create-user', 'eadaf_create_user',
   '创建新用户并可选绑定角色', 'client',
-  '{"type":"object","required":["username","password","name","departmentId"],"properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"gender":{"enum":["MALE","FEMALE","OTHER"],"type":"string"},"roleIds":{"type":"array","items":{"type":"string"}},"password":{"type":"string"},"username":{"type":"string"},"departmentId":{"type":"string"}}}'::jsonb, '## uac_create_user
+  '{"type":"object","required":["username","password","name","departmentId"],"properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"gender":{"enum":["MALE","FEMALE","OTHER"],"type":"string"},"roleIds":{"type":"array","items":{"type":"string"}},"password":{"type":"string"},"username":{"type":"string"},"departmentId":{"type":"string"}}}'::jsonb, '## eadaf_create_user
 
 - **departmentId 必填**
 - password 可自动生成 6 位数字
@@ -3509,9 +3509,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-77777777771b',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '删除角色', 'uac-delete-role', 'uac_delete_role',
+  '删除角色', 'eadaf-delete-role', 'eadaf_delete_role',
   '软删除指定角色', 'client',
-  '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"}}}'::jsonb, '## uac_delete_role', '{}'::jsonb,
+  '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"}}}'::jsonb, '## eadaf_delete_role', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3530,9 +3530,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777715',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '删除用户', 'uac-delete-user', 'uac_delete_user',
+  '删除用户', 'eadaf-delete-user', 'eadaf_delete_user',
   '软删除指定用户', 'client',
-  '{"type":"object","required":["userId"],"properties":{"userId":{"type":"string"}}}'::jsonb, '## uac_delete_user', '{}'::jsonb,
+  '{"type":"object","required":["userId"],"properties":{"userId":{"type":"string"}}}'::jsonb, '## eadaf_delete_user', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3551,9 +3551,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777724',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '过滤用户', 'uac-filter-users', 'uac_filter_users',
+  '过滤用户', 'eadaf-filter-users', 'eadaf_filter_users',
   '按过滤项检索用户，返回命中项（内部固定 page=1&size=500）。勿传 size=-1', 'client',
-  '{"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"userId":{"type":"string","description":"用户ID精确匹配"},"username":{"type":"string"},"departmentId":{"type":"string","description":"部门ID"}}}'::jsonb, '## uac_filter_users
+  '{"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"userId":{"type":"string","description":"用户ID精确匹配"},"username":{"type":"string"},"departmentId":{"type":"string","description":"部门ID"}}}'::jsonb, '## eadaf_filter_users
 
 参数全可选；不传则返回最多 500 条。返回 { items, total }。
 
@@ -3577,9 +3577,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777718',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '获取角色详情', 'uac-get-role', 'uac_get_role',
+  '获取角色详情', 'eadaf-get-role', 'eadaf_get_role',
   '按 role_id 获取角色详情（含权限）', 'client',
-  '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"}}}'::jsonb, '## uac_get_role', '{}'::jsonb,
+  '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"}}}'::jsonb, '## eadaf_get_role', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3598,9 +3598,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777712',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '获取用户详情', 'uac-get-user', 'uac_get_user',
+  '获取用户详情', 'eadaf-get-user', 'eadaf_get_user',
   '按 user_id 获取用户详情（含角色）', 'client',
-  '{"type":"object","required":["userId"],"properties":{"userId":{"type":"string"}}}'::jsonb, '## uac_get_user', '{}'::jsonb,
+  '{"type":"object","required":["userId"],"properties":{"userId":{"type":"string"}}}'::jsonb, '## eadaf_get_user', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3619,9 +3619,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777721',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '列出 bizdata Scope', 'uac-list-bizdata-scopes', 'uac_list_bizdata_scopes',
+  '列出 bizdata Scope', 'eadaf-list-bizdata-scopes', 'eadaf_list_bizdata_scopes',
   '从业务数据实体 code 推导 Scope 树（如 equipment）', 'client',
-  '{"type":"object","properties":{}}'::jsonb, '## uac_list_bizdata_scopes
+  '{"type":"object","properties":{}}'::jsonb, '## eadaf_list_bizdata_scopes
 
 返回 bizdata 业务域 Scope，**不是** aibase.scopes。
 
@@ -3644,9 +3644,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777723',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '列出数据权限规则', 'uac-list-data-rules', 'uac_list_data_rules',
+  '列出数据权限规则', 'eadaf-list-data-rules', 'eadaf_list_data_rules',
   '列出数据权限规则，可按 roleId / resourceType 筛选', 'client',
-  '{"type":"object","properties":{"roleId":{"type":"string"},"resourceType":{"type":"string"}}}'::jsonb, '## uac_list_data_rules', '{}'::jsonb,
+  '{"type":"object","properties":{"roleId":{"type":"string"},"resourceType":{"type":"string"}}}'::jsonb, '## eadaf_list_data_rules', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3665,9 +3665,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777720',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '部门树', 'uac-list-departments-tree', 'uac_list_departments_tree',
+  '部门树', 'eadaf-list-departments-tree', 'eadaf_list_departments_tree',
   '获取组织架构部门树', 'client',
-  '{"type":"object","properties":{}}'::jsonb, '## uac_list_departments_tree', '{}'::jsonb,
+  '{"type":"object","properties":{}}'::jsonb, '## eadaf_list_departments_tree', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3686,9 +3686,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-77777777771d',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '列出权限', 'uac-list-permissions', 'uac_list_permissions',
+  '列出权限', 'eadaf-list-permissions', 'eadaf_list_permissions',
   '列出权限，可按 resourceType 筛选', 'client',
-  '{"type":"object","properties":{"code":{"type":"string"},"page":{"type":"integer"},"size":{"type":"integer"},"resourceType":{"enum":["MENU","BUTTON","API"],"type":"string"}}}'::jsonb, '## uac_list_permissions', '{}'::jsonb,
+  '{"type":"object","properties":{"code":{"type":"string"},"page":{"type":"integer"},"size":{"type":"integer"},"resourceType":{"enum":["MENU","BUTTON","API"],"type":"string"}}}'::jsonb, '## eadaf_list_permissions', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3707,9 +3707,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777717',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '列出角色', 'uac-list-roles', 'uac_list_roles',
+  '列出角色', 'eadaf-list-roles', 'eadaf_list_roles',
   '列出系统角色，size=-1 返回全部', 'client',
-  '{"type":"object","properties":{"page":{"type":"integer"},"size":{"type":"integer"},"status":{"type":"string"}}}'::jsonb, '## uac_list_roles', '{}'::jsonb,
+  '{"type":"object","properties":{"page":{"type":"integer"},"size":{"type":"integer"},"status":{"type":"string"}}}'::jsonb, '## eadaf_list_roles', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3728,13 +3728,13 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777711',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '列出用户', 'uac-list-users', 'uac_list_users',
-  '分页列出系统用户，支持 username/name/status 筛选。禁止 size=-1；拉较多数据用 page=1&size=500，或改用 uac_filter_users', 'client',
-  '{"type":"object","properties":{"name":{"type":"string"},"page":{"type":"integer","description":"页码，从 1 起"},"size":{"type":"integer","maximum":500,"minimum":1,"description":"每页条数，1–500；禁止 -1"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"username":{"type":"string"}}}'::jsonb, '## uac_list_users
+  '列出用户', 'eadaf-list-users', 'eadaf_list_users',
+  '分页列出系统用户，支持 username/name/status 筛选。禁止 size=-1；拉较多数据用 page=1&size=500，或改用 eadaf_filter_users', 'client',
+  '{"type":"object","properties":{"name":{"type":"string"},"page":{"type":"integer","description":"页码，从 1 起"},"size":{"type":"integer","maximum":500,"minimum":1,"description":"每页条数，1–500；禁止 -1"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"username":{"type":"string"}}}'::jsonb, '## eadaf_list_users
 
 - **禁止** `size=-1`（用户接口不支持，会 HTTP 500）
 - 拉较多数据：`page=1&size=500`
-- 按条件检索优先 `uac_filter_users`（内部固定 size=500）', '{}'::jsonb,
+- 按条件检索优先 `eadaf_filter_users`（内部固定 size=500）', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-29T16:00:55.864Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3753,9 +3753,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-77777777771c',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '设置角色权限', 'uac-set-role-permissions', 'uac_set_role_permissions',
+  '设置角色权限', 'eadaf-set-role-permissions', 'eadaf_set_role_permissions',
   '全量替换角色的功能权限', 'client',
-  '{"type":"object","required":["roleId","permissionIds"],"properties":{"roleId":{"type":"string"},"permissionIds":{"type":"array","items":{"type":"string"}}}}'::jsonb, '## uac_set_role_permissions', '{}'::jsonb,
+  '{"type":"object","required":["roleId","permissionIds"],"properties":{"roleId":{"type":"string"},"permissionIds":{"type":"array","items":{"type":"string"}}}}'::jsonb, '## eadaf_set_role_permissions', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3774,9 +3774,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-77777777771f',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '更新权限', 'uac-update-permission', 'uac_update_permission',
+  '更新权限', 'eadaf-update-permission', 'eadaf_update_permission',
   '更新权限描述或状态', 'client',
-  '{"type":"object","required":["permissionId"],"properties":{"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"actions":{"type":"array","items":{"type":"string"}},"description":{"type":"string"},"permissionId":{"type":"string"}}}'::jsonb, '## uac_update_permission', '{}'::jsonb,
+  '{"type":"object","required":["permissionId"],"properties":{"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"actions":{"type":"array","items":{"type":"string"}},"description":{"type":"string"},"permissionId":{"type":"string"}}}'::jsonb, '## eadaf_update_permission', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3795,9 +3795,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-77777777771a',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '更新角色', 'uac-update-role', 'uac_update_role',
+  '更新角色', 'eadaf-update-role', 'eadaf_update_role',
   '更新角色名称与描述', 'client',
-  '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"},"roleName":{"type":"string"},"description":{"type":"string"}}}'::jsonb, '## uac_update_role', '{}'::jsonb,
+  '{"type":"object","required":["roleId"],"properties":{"roleId":{"type":"string"},"roleName":{"type":"string"},"description":{"type":"string"}}}'::jsonb, '## eadaf_update_role', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3816,9 +3816,9 @@ INSERT INTO aibase.tools (id, scope_id, name, slug, function_name, description, 
 VALUES (
   '77777777-7777-4777-8777-777777777714',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '更新用户', 'uac-update-user', 'uac_update_user',
+  '更新用户', 'eadaf-update-user', 'eadaf_update_user',
   '更新用户基本信息', 'client',
-  '{"type":"object","required":["userId"],"properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"gender":{"type":"string"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"userId":{"type":"string"},"departmentId":{"type":"string"}}}'::jsonb, '## uac_update_user', '{}'::jsonb,
+  '{"type":"object","required":["userId"],"properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"gender":{"type":"string"},"status":{"enum":["ACTIVE","DISABLED","ARCHIVED"],"type":"string"},"userId":{"type":"string"},"departmentId":{"type":"string"}}}'::jsonb, '## eadaf_update_user', '{}'::jsonb,
   true, '2026-06-27T06:51:24.400Z', '2026-07-10T15:16:58.364Z'
 )
 ON CONFLICT (function_name) DO UPDATE SET
@@ -3845,7 +3845,7 @@ VALUES (
 
 ## 概念
 - **AI 能力 Scope**（`aibase.scopes`）：AI Chat 路由与 Tool 分组，如 `business-data`、`ai-management`、`member-org`
-- **业务域 Scope**（bizdata）：实体 code 前缀，如 `equipment`；用 `uac_list_bizdata_scopes` 或 `bizdata_list_entities` 查询，**禁止**用 `aibase_create_scope` 创建业务域
+- **业务域 Scope**（bizdata）：实体 code 前缀，如 `equipment`；用 `eadaf_list_bizdata_scopes` 或 `bizdata_list_entities` 查询，**禁止**用 `aibase_create_scope` 创建业务域
 - **Tool**：可调用函数，functionName 全局唯一（snake_case）
 - **Skill**：系统提示与 Tool 组合，slug 为 Skill ID
 
@@ -3854,7 +3854,7 @@ VALUES (
 
 ## 设计流程
 1. `aibase_read_surfaces` 或 `aibase_list_*` 了解现状
-2. 业务域范围：先 `uac_list_bizdata_scopes` 确认 bizdata 前缀
+2. 业务域范围：先 `eadaf_list_bizdata_scopes` 确认 bizdata 前缀
 3. 设计 Tool：`executionType` 选 client（前端注册）或 server_builtin（后端 handler）
 4. 设计 Skill：编写 contentMarkdown 指令，用 toolIds 关联 Tool
 
@@ -3897,7 +3897,7 @@ VALUES (
 - 用 `aibase_read_surfaces` 读取当前页面表单/列表状态
 
 ## 业务域 vs AI 能力域
-- **业务域 Scope**：bizdata 实体 code 前缀（如 `equipment`），用 `uac_list_bizdata_scopes` / `bizdata_list_entities`
+- **业务域 Scope**：bizdata 实体 code 前缀（如 `equipment`），用 `eadaf_list_bizdata_scopes` / `bizdata_list_entities`
 - **AI 能力 Scope**：`aibase.scopes`，管理菜单暂未开放，勿引导访问 `/ai_management/scopes`
 
 ## 常用操作
@@ -4596,7 +4596,7 @@ VALUES (
   '业务数据物化', 'bizdata-materialization', '辅助 SQL/代码物化与版本对比',
   '# 业务数据物化助手
 
-你是 EUAC 数据物化助手。
+你是 EADAF 数据物化助手。
 
 ## 流程
 
@@ -4956,40 +4956,40 @@ INSERT INTO aibase.skills (id, scope_id, name, slug, description, content_markdo
 VALUES (
   '99999999-9999-4999-8999-999999999903',
   (SELECT id FROM aibase.scopes WHERE slug = 'member-org'),
-  '成员与权限管理', 'uac-access-control', '用户、角色、权限与 bizdata Scope 数据规则管理助手',
+  '成员与权限管理', 'eadaf-access-control', '用户、角色、权限与 bizdata Scope 数据规则管理助手',
   '# 成员与权限管理助手
 
-你是 EADAF UAC 访问控制助手，帮助管理员管理成员、角色、权限与数据范围规则。
+你是 EADAF 访问控制助手，帮助管理员管理成员、角色、权限与数据范围规则。
 
 ## 重要：Scope 含义
 - 用户说的「Scope / 设备域 / 业务域」指 **bizdata 实体 code 前缀**（如 `equipment`）
-- 用 `uac_list_bizdata_scopes` 或 `bizdata_list_entities` 查询
+- 用 `eadaf_list_bizdata_scopes` 或 `bizdata_list_entities` 查询
 - **禁止**调用 `aibase_create_scope` / `aibase_list_scopes`（AI 能力域 Scope 管理已暂时关闭）
 
 ## 列出用户
-- 用 `uac_list_users` 或 `uac_filter_users`
+- 用 `eadaf_list_users` 或 `eadaf_filter_users`
 - **禁止**传 `size=-1`（用户接口会 500；与角色列表不同）
 - 正确示例：`page=1, size=500`
 
 ## 创建用户
-- **departmentId 必填**（先 `uac_list_departments_tree`）
+- **departmentId 必填**（先 `eadaf_list_departments_tree`）
 - password 可自动生成 6 位数字并告知用户
-- 用 `uac_assign_user_roles` 或创建时传 roleIds 绑定角色
+- 用 `eadaf_assign_user_roles` 或创建时传 roleIds 绑定角色
 
 ## 受限用户标准流程（例：仅 equipment 域数据模型 + API 服务）
-1. `uac_list_bizdata_scopes` 确认 `equipment` 存在
-2. `uac_list_roles` 查找 code=`equipment:data-operator`；若无则创建并赋权
-3. `uac_list_permissions` 筛选 `business_data:*`、`api_services:*`、`bizdata:*`、`apiservice:*`、`api:bizdata:*`、`api:apiservice:*`
-4. `uac_set_role_permissions` 全量设置角色权限
-5. `uac_create_data_rule`：`resourceType=bizdata_scope`，conditions 含 `bizdata_scope_codes:["equipment"]`、`allowed_modules:["business_data","api_services"]`
-6. `uac_create_user` + 绑定上述角色
+1. `eadaf_list_bizdata_scopes` 确认 `equipment` 存在
+2. `eadaf_list_roles` 查找 code=`equipment:data-operator`；若无则创建并赋权
+3. `eadaf_list_permissions` 筛选 `business_data:*`、`api_services:*`、`bizdata:*`、`apiservice:*`、`api:bizdata:*`、`api:apiservice:*`
+4. `eadaf_set_role_permissions` 全量设置角色权限
+5. `eadaf_create_data_rule`：`resourceType=bizdata_scope`，conditions 含 `bizdata_scope_codes:["equipment"]`、`allowed_modules:["business_data","api_services"]`
+6. `eadaf_create_user` + 绑定上述角色
 
 ## 已有模板
 - 角色 code `equipment:data-operator`（equipment:数据与API操作员）已预置时可复用，无需重复创建
 
 ## 权限模型
 - 功能权限：Permission → Role → User
-- 数据规则：`uac.data_permission_rules`（配置契约，运行时 enforcement 待接入）', true,
+- 数据规则：`eadaf.data_permission_rules`（配置契约，运行时 enforcement 待接入）', true,
   false, true, '{"terminationStrictness":"plan-only"}'::jsonb,
   '2026-06-27T06:51:24.406Z', '2026-07-29T16:00:55.884Z'
 )
@@ -6331,155 +6331,155 @@ ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'd31967d9-30b1-46f6-9d41-b8ca9283ac0b', s.id, t.id, 0
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_assign_user_roles'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_assign_user_roles'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'f275e0a6-7b12-4200-82d8-e8bf2d580a7f', s.id, t.id, 1
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_create_data_rule'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_create_data_rule'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'fb0357ec-a2cd-4f2c-9c4e-493af76ef245', s.id, t.id, 2
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_create_permission'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_create_permission'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT '2592a85f-b095-4066-b55e-d0f35b827ac6', s.id, t.id, 3
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_create_role'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_create_role'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT '259afcd5-e001-4888-98f7-315ea289dd20', s.id, t.id, 4
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_create_user'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_create_user'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'efe96c2b-025b-44b3-bec6-5b7e7ae3b1b8', s.id, t.id, 5
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_delete_role'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_delete_role'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'e775dbe6-005d-4e6b-839d-2d51f5270fa7', s.id, t.id, 6
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_delete_user'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_delete_user'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT '9a12e02b-1f53-4115-9f38-e779bce4bfea', s.id, t.id, 7
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_filter_users'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_filter_users'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'cc9250c0-7a2c-4590-952c-ebf073e02ee8', s.id, t.id, 8
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_get_role'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_get_role'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'c4a2d347-48bb-46e3-9d39-2267ee00aa67', s.id, t.id, 9
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_get_user'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_get_user'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'b4d0405f-53c3-4aa1-892d-aeb2246957a6', s.id, t.id, 10
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_list_bizdata_scopes'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_list_bizdata_scopes'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT '0dc9343e-c4b9-4a8b-b71c-67eec054986b', s.id, t.id, 11
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_list_data_rules'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_list_data_rules'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'fc29ed8c-b618-403a-a8aa-b8dafaaec922', s.id, t.id, 12
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_list_departments_tree'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_list_departments_tree'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT '6d7c3dfd-f074-47d7-8dac-a2d305e9bb7c', s.id, t.id, 13
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_list_permissions'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_list_permissions'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT '2f0cf159-6e60-4bdd-867c-ed9470c45c76', s.id, t.id, 14
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_list_roles'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_list_roles'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT '37046dca-90cd-4fa9-8b31-5d0704a9cefe', s.id, t.id, 15
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_list_users'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_list_users'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT '628213ed-2217-44f0-a8a9-f3a9a56c169d', s.id, t.id, 16
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_set_role_permissions'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_set_role_permissions'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'edcbc1c7-7282-4369-91c1-a357e0d10eca', s.id, t.id, 17
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_update_permission'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_update_permission'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'e60a668b-f067-49c2-a73f-f485ddaf738b', s.id, t.id, 18
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_update_role'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_update_role'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT '79d0c642-6290-4fb6-a485-69fa5cb25afd', s.id, t.id, 19
 FROM aibase.skills s
-JOIN aibase.tools t ON t.function_name = 'uac_update_user'
-WHERE s.slug = 'uac-access-control'
+JOIN aibase.tools t ON t.function_name = 'eadaf_update_user'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 INSERT INTO aibase.skill_tools (id, skill_id, tool_id, sort_order)
 SELECT 'cde13e05-85ba-4fd5-9acf-75d7fe92a3c5', s.id, t.id, 99
 FROM aibase.skills s
 JOIN aibase.tools t ON t.function_name = 'aibase_read_surfaces'
-WHERE s.slug = 'uac-access-control'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, tool_id) DO UPDATE SET sort_order = EXCLUDED.sort_order;
 
 -- 收敛本批 Skill 的 Tool 绑定（删除本地已去掉的关系，不碰其他应用 Skill）
 DELETE FROM aibase.skill_tools st
 USING aibase.skills s
 WHERE st.skill_id = s.id
-  AND s.slug IN ('aibase-capability-design', 'aibase-capability-manage', 'aibase-chat-framework', 'aibase-model-manage', 'aibase-provider-manage', 'api-services-collection-pipeline', 'bizdata-api-service-create', 'bizdata-api-service-manage', 'bizdata-api-service-test-fix', 'bizdata-data-standards', 'bizdata-materialization', 'bizdata-metadata-catalog', 'bizdata-metrics', 'bizdata-model-design', 'hook-center-manage', 'outbound-webhook-manage', 'uac-access-control')
+  AND s.slug IN ('aibase-capability-design', 'aibase-capability-manage', 'aibase-chat-framework', 'aibase-model-manage', 'aibase-provider-manage', 'api-services-collection-pipeline', 'bizdata-api-service-create', 'bizdata-api-service-manage', 'bizdata-api-service-test-fix', 'bizdata-data-standards', 'bizdata-materialization', 'bizdata-metadata-catalog', 'bizdata-metrics', 'bizdata-model-design', 'hook-center-manage', 'outbound-webhook-manage', 'eadaf-access-control')
   AND NOT EXISTS (
     SELECT 1
     FROM (VALUES
@@ -6672,27 +6672,27 @@ WHERE st.skill_id = s.id
   ('outbound-webhook-manage', 'outbound_webhook_suggest_scripts'),
   ('outbound-webhook-manage', 'outbound_webhook_update'),
   ('outbound-webhook-manage', 'outbound_webhook_upsert'),
-  ('uac-access-control', 'uac_assign_user_roles'),
-  ('uac-access-control', 'uac_create_data_rule'),
-  ('uac-access-control', 'uac_create_permission'),
-  ('uac-access-control', 'uac_create_role'),
-  ('uac-access-control', 'uac_create_user'),
-  ('uac-access-control', 'uac_delete_role'),
-  ('uac-access-control', 'uac_delete_user'),
-  ('uac-access-control', 'uac_filter_users'),
-  ('uac-access-control', 'uac_get_role'),
-  ('uac-access-control', 'uac_get_user'),
-  ('uac-access-control', 'uac_list_bizdata_scopes'),
-  ('uac-access-control', 'uac_list_data_rules'),
-  ('uac-access-control', 'uac_list_departments_tree'),
-  ('uac-access-control', 'uac_list_permissions'),
-  ('uac-access-control', 'uac_list_roles'),
-  ('uac-access-control', 'uac_list_users'),
-  ('uac-access-control', 'uac_set_role_permissions'),
-  ('uac-access-control', 'uac_update_permission'),
-  ('uac-access-control', 'uac_update_role'),
-  ('uac-access-control', 'uac_update_user'),
-  ('uac-access-control', 'aibase_read_surfaces')
+  ('eadaf-access-control', 'eadaf_assign_user_roles'),
+  ('eadaf-access-control', 'eadaf_create_data_rule'),
+  ('eadaf-access-control', 'eadaf_create_permission'),
+  ('eadaf-access-control', 'eadaf_create_role'),
+  ('eadaf-access-control', 'eadaf_create_user'),
+  ('eadaf-access-control', 'eadaf_delete_role'),
+  ('eadaf-access-control', 'eadaf_delete_user'),
+  ('eadaf-access-control', 'eadaf_filter_users'),
+  ('eadaf-access-control', 'eadaf_get_role'),
+  ('eadaf-access-control', 'eadaf_get_user'),
+  ('eadaf-access-control', 'eadaf_list_bizdata_scopes'),
+  ('eadaf-access-control', 'eadaf_list_data_rules'),
+  ('eadaf-access-control', 'eadaf_list_departments_tree'),
+  ('eadaf-access-control', 'eadaf_list_permissions'),
+  ('eadaf-access-control', 'eadaf_list_roles'),
+  ('eadaf-access-control', 'eadaf_list_users'),
+  ('eadaf-access-control', 'eadaf_set_role_permissions'),
+  ('eadaf-access-control', 'eadaf_update_permission'),
+  ('eadaf-access-control', 'eadaf_update_role'),
+  ('eadaf-access-control', 'eadaf_update_user'),
+  ('eadaf-access-control', 'aibase_read_surfaces')
     ) AS keep(skill_slug, tool_fn)
     JOIN aibase.tools t ON t.function_name = keep.tool_fn
     WHERE keep.skill_slug = s.slug AND t.id = st.tool_id
@@ -6702,117 +6702,117 @@ WHERE st.skill_id = s.id
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'aibase-capability-design'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'aibase-capability-manage'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'aibase-model-manage'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'aibase-provider-manage'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'api-services-collection-pipeline'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'bizdata-api-service-create'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'bizdata-api-service-manage'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'bizdata-api-service-test-fix'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'bizdata-data-standards'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'bizdata-materialization'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'bizdata-metadata-catalog'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'bizdata-metrics'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'bizdata-model-design'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'hook-center-manage'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
+JOIN eadaf.applications a ON a.code = 'EADAF'
 WHERE s.slug = 'outbound-webhook-manage'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 INSERT INTO aibase.skill_applications (skill_id, application_id, created_at)
 SELECT s.id, a.application_id, CURRENT_TIMESTAMP
 FROM aibase.skills s
-JOIN uac.applications a ON a.code = 'EADAF'
-WHERE s.slug = 'uac-access-control'
+JOIN eadaf.applications a ON a.code = 'EADAF'
+WHERE s.slug = 'eadaf-access-control'
 ON CONFLICT (skill_id, application_id) DO NOTHING;
 
 -- EADAF 顶层 Skill Markdown
-UPDATE uac.applications
+UPDATE eadaf.applications
 SET top_level_skill_markdown = '
 # EADAF 应用顶层 Skill
 
@@ -6845,7 +6845,7 @@ SET top_level_skill_markdown = '
 ### 与用户沟通
 - 用业务语言；**禁止**向用户展示 Tool 函数名、内部 JSON 协议、原始 Tool 返回体
 - 涉及成员、权限、实体、API 等数据时**必须先调用 Tool 查询**，禁止编造 ID、version、连接信息
-- 用户说的「Scope / 业务域 / 设备域」通常指 **bizdata 实体 code 前缀**（如 `equipment`），用 `uac_list_bizdata_scopes` / `bizdata_list_entity_summaries` 查询实体列表；**不是** aibase.scopes（AI 能力域管理菜单暂未开放）
+- 用户说的「Scope / 业务域 / 设备域」通常指 **bizdata 实体 code 前缀**（如 `equipment`），用 `eadaf_list_bizdata_scopes` / `bizdata_list_entity_summaries` 查询实体列表；**不是** aibase.scopes（AI 能力域管理菜单暂未开放）
 
 ### 引用与快捷操作
 - 用户可通过页面 `@` 引用成员、实体、API 服务等上下文；优先结合引用内容理解意图
@@ -6856,10 +6856,10 @@ SET top_level_skill_markdown = '
 ### 成员与组织（/member_org、/permissions）
 | 页面 | Skill ID | 要点 |
 |------|----------|------|
-| 成员 / 组织 / 角色 | `uac-access-control` | 用户、部门树、角色、数据范围规则 |
-| 菜单 / 按钮 / API 权限 | `uac-access-control` | 权限项维护与角色授权 |
+| 成员 / 组织 / 角色 | `eadaf-access-control` | 用户、部门树、角色、数据范围规则 |
+| 菜单 / 按钮 / API 权限 | `eadaf-access-control` | 权限项维护与角色授权 |
 
-主要 Tool：`uac_list_*` / `uac_create_*` / `uac_update_*` / `uac_assign_*` / `uac_set_role_permissions` / `uac_create_data_rule`
+主要 Tool：`eadaf_list_*` / `eadaf_create_*` / `eadaf_update_*` / `eadaf_assign_*` / `eadaf_set_role_permissions` / `eadaf_create_data_rule`
 
 ### 业务数据（/business_data）
 | 页面 | Skill ID | 要点 |

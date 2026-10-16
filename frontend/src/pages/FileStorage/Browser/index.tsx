@@ -8,7 +8,7 @@ import { useAIChatPrompts, useChatReference } from '@eadaf/ai-base';
 import { buildStorageBrowserPrompts } from '@/ai/pageChatPrompts';
 import { buildStorageObjectReference } from '@/ai/chatReferenceBuilders';
 import { augmentColumnsWithChatReference } from '@/utils/augmentColumnsWithChatReference';
-import { getApplications } from '@/services/UAC/api/applications';
+import { getApplications } from '@/services/EADAF/api/applications';
 import {
   deleteStorageObject,
   getStorageBuckets,
@@ -16,7 +16,7 @@ import {
   getStorageDownloadUrl,
   getStorageObjects,
   getStoragePreviewUrl,
-} from '@/services/UAC/api/storage';
+} from '@/services/EADAF/api/storage';
 import { resolveApiUrl } from '@/constants/env';
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';
 import { useProTableSearchCollapse } from '@/hooks/useProTableSearchCollapse';

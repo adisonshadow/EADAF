@@ -22,7 +22,7 @@ import {
   deleteOutboundWebhook,
   getOutboundWebhooks,
   postOutboundWebhookPublish,
-} from '@/services/UAC/api/outboundWebhooks';
+} from '@/services/EADAF/api/outboundWebhooks';
 import { getApiData, getApiErrorMessage, isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 
 const OutboundWebhookListPage: React.FC = () => {

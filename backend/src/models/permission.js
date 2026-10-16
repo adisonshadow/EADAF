@@ -1,5 +1,6 @@
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 class Permission extends Model {}
 
@@ -71,7 +72,7 @@ Permission.init({
   sequelize,
   modelName: 'Permission',
   tableName: 'permissions',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   underscored: true,
   paranoid: true,

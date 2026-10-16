@@ -1,5 +1,5 @@
 /**
- * EADAF 平台导出:Skill/Tool、AI 目录、数据标准、系统开关、UAC 权限目录。
+ * EADAF 平台导出:Skill/Tool、AI 目录、数据标准、系统开关、EADAF 权限目录。
  * 不含业务实体 / API / 行数据 / 用户。
  */
 const { Op } = require('sequelize');
@@ -118,7 +118,7 @@ async function buildPlatformExport(rawOptions = {}) {
     ? featuresRow.value
     : {};
 
-  const uacPermissions = (await models.Permission.findAll({ raw: true }))
+  const eadafPermissions = (await models.Permission.findAll({ raw: true }))
     .map((r) => pickModelFields(models.Permission, r));
 
   const skillsSection = {
@@ -162,7 +162,7 @@ async function buildPlatformExport(rawOptions = {}) {
       capabilities: aiSection.capabilities.length,
       ioTags: aiSection.ioTags.length,
       dataStandards: dataStandards.length,
-      uacPermissions: uacPermissions.length,
+      eadafPermissions: eadafPermissions.length,
       storageBuckets: storageBuckets.length,
       // 与 payload 保持一致:未携带文件时导出 0 个对象记录
       storageObjects: options.includeFiles ? storageObjects.length : 0,
@@ -187,7 +187,7 @@ async function buildPlatformExport(rawOptions = {}) {
     ai: aiSection,
     dataStandards,
     systemFeatures,
-    uacPermissions,
+    eadafPermissions,
     storageBuckets,
     // 同 app 导出:未携带文件时不导出会悬空的对象记录(见 #20)
     storageObjects: options.includeFiles ? storageObjects : [],

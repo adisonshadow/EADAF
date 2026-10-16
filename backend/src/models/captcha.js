@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const Captcha = sequelize.define('Captcha', {
   captcha_id: {
@@ -41,7 +42,7 @@ const Captcha = sequelize.define('Captcha', {
   }
 }, {
   tableName: 'captchas',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: false
 });
 

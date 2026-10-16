@@ -7,7 +7,7 @@ import {
   getApplicationsPublicApiCatalog,
   type ApplicationApiCatalogTreeNode,
   type OutboundWebhookCatalogItem,
-} from '@/services/UAC/api/applicationsPublic';
+} from '@/services/EADAF/api/applicationsPublic';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 import { buildApplicationApiDocsPath } from '@/utils/applicationApiDocsUrl';
 import './index.css';

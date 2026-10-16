@@ -7,7 +7,7 @@
 import type { ParameterRow, ParamIn } from '@/components/OperationParameterPanel';
 import { isQueryOnlyMethod } from '@/components/OperationParameterPanel';
 import { optionsFromEnum } from '@/pages/BusinessData/utils/enumUtils';
-import { getBusinessDataEnums } from '@/services/UAC/api/businessData';
+import { getBusinessDataEnums } from '@/services/EADAF/api/businessData';
 import { isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { parseInterfaceFields, parseNestedInterfaceFields, type InterfaceField } from './parseInterfaceFields';
 

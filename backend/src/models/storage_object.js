@@ -1,5 +1,6 @@
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 class StorageObject extends Model {}
 
@@ -54,7 +55,7 @@ StorageObject.init({
   sequelize,
   modelName: 'StorageObject',
   tableName: 'storage_objects',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',

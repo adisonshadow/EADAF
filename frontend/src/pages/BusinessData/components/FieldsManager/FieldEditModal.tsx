@@ -25,7 +25,7 @@ import {
   requiresScaleConfig,
   shouldShowConfig,
 } from '../../utils/fieldTypeConfig';
-import { getStorageBuckets } from '@/services/UAC/api/storage';
+import { getStorageBuckets } from '@/services/EADAF/api/storage';
 import { isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import MetadataEditor from '../MetadataEditor';
 import EnumSelectModal from '../EnumManager/EnumSelectModal';

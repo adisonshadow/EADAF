@@ -1,5 +1,5 @@
 import * as tus from 'tus-js-client';
-import { getStorageTusResult } from '@/services/UAC/api/storage';
+import { getStorageTusResult } from '@/services/EADAF/api/storage';
 import { getApiData } from '@/utils/apiResponse';
 
 const TUS_ENDPOINT = '/api/v1/storage/tus';

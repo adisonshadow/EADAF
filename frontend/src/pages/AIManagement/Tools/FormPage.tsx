@@ -8,12 +8,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAIFormSurface } from '@/ai/useAIFormSurface';
 import MilkdownCrepeEditor from '@/components/MilkdownCrepeEditor';
 import PageContainerTitleWithBack from '@/components/PageContainerTitleWithBack';
-import { getAdminScopes } from '@/services/UAC/api/adminScopes';
+import { getAdminScopes } from '@/services/EADAF/api/adminScopes';
 import {
   getAdminToolsId,
   patchAdminToolsId,
   postAdminTools,
-} from '@/services/UAC/api/adminTools';
+} from '@/services/EADAF/api/adminTools';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { EXECUTION_TYPE_OPTIONS } from '../constants';
 

@@ -1,7 +1,7 @@
 import { ProFormColumnsType } from "@ant-design/pro-components";
 import UUIDDisplay from "@/components/UUIDDisplay";
 import { Tag } from 'antd';
-import { getDepartmentsTree } from "@/services/UAC/api/departments";
+import { getDepartmentsTree } from "@/services/EADAF/api/departments";
 import { useEffect, useState } from "react";
 import type { MixedFieldType } from "@/types/schema";
 import { attachCreatedUpdatedAtColumnRender, createdUpdatedAtTableField } from '@/utils/createdUpdatedAtColumn';

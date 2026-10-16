@@ -1,13 +1,13 @@
 import { createMutatingHandler } from '@/ai/toolMutation';
-import { getBusinessDataScopes } from '@/services/UAC/api/businessData';
-import { getDepartmentsTree } from '@/services/UAC/api/departments';
+import { getBusinessDataScopes } from '@/services/EADAF/api/businessData';
+import { getDepartmentsTree } from '@/services/EADAF/api/departments';
 import {
   getPermissions,
   getPermissionsRules,
   postPermissions,
   postPermissionsRules,
   putPermissionsPermissionId,
-} from '@/services/UAC/api/permissions';
+} from '@/services/EADAF/api/permissions';
 import {
   deleteRolesRoleId,
   getRoles,
@@ -15,7 +15,7 @@ import {
   postRoles,
   postRolesRoleIdPermissions,
   putRolesRoleId,
-} from '@/services/UAC/api/roles';
+} from '@/services/EADAF/api/roles';
 import {
   deleteUsersUserId,
   getUsers,
@@ -23,11 +23,11 @@ import {
   postUsers,
   putUsersUserId,
   putUsersUserIdRoles,
-} from '@/services/UAC/api/users';
+} from '@/services/EADAF/api/users';
 import { getApiData, isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { registerFunctionCall, unregisterFunctionCall } from '@eadaf/ai-base';
 
-const UAC_DOMAIN = 'uac';
+const EADAF_DOMAIN = 'eadaf';
 
 /** /api/v1/users 不支持 size=-1；无效/负数按「大页」处理，上限 500 */
 function normalizeUserPageSize(size: unknown, fallback = 500): number {
@@ -37,26 +37,26 @@ function normalizeUserPageSize(size: unknown, fallback = 500): number {
 }
 
 const TOOL_NAMES = [
-  'uac_list_users',
-  'uac_filter_users',
-  'uac_get_user',
-  'uac_create_user',
-  'uac_update_user',
-  'uac_delete_user',
-  'uac_assign_user_roles',
-  'uac_list_roles',
-  'uac_get_role',
-  'uac_create_role',
-  'uac_update_role',
-  'uac_delete_role',
-  'uac_set_role_permissions',
-  'uac_list_permissions',
-  'uac_create_permission',
-  'uac_update_permission',
-  'uac_list_departments_tree',
-  'uac_list_bizdata_scopes',
-  'uac_create_data_rule',
-  'uac_list_data_rules',
+  'eadaf_list_users',
+  'eadaf_filter_users',
+  'eadaf_get_user',
+  'eadaf_create_user',
+  'eadaf_update_user',
+  'eadaf_delete_user',
+  'eadaf_assign_user_roles',
+  'eadaf_list_roles',
+  'eadaf_get_role',
+  'eadaf_create_role',
+  'eadaf_update_role',
+  'eadaf_delete_role',
+  'eadaf_set_role_permissions',
+  'eadaf_list_permissions',
+  'eadaf_create_permission',
+  'eadaf_update_permission',
+  'eadaf_list_departments_tree',
+  'eadaf_list_bizdata_scopes',
+  'eadaf_create_data_rule',
+  'eadaf_list_data_rules',
 ] as const;
 
 function pickDefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
@@ -69,11 +69,11 @@ function generatePassword(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-export function registerUacTools() {
+export function registerEadafTools() {
   registerFunctionCall({
-    name: 'uac_list_users',
+    name: 'eadaf_list_users',
     description:
-      '分页列出用户。禁止传 size=-1（用户接口不支持，会 500）；拉较多数据用 page=1&size=500，或改用 uac_filter_users',
+      '分页列出用户。禁止传 size=-1（用户接口不支持，会 500）；拉较多数据用 page=1&size=500，或改用 eadaf_filter_users',
     parameters: {
       type: 'object',
       properties: {
@@ -103,7 +103,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_filter_users',
+    name: 'eadaf_filter_users',
     description:
       '按过滤项检索用户（用户名/姓名/邮箱/电话/状态/部门/用户ID），内部固定 page=1&size=500；勿传 size=-1',
     parameters: {
@@ -136,7 +136,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_get_user',
+    name: 'eadaf_get_user',
     description: '获取用户详情',
     parameters: {
       type: 'object',
@@ -147,7 +147,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_create_user',
+    name: 'eadaf_create_user',
     description: '创建用户',
     parameters: {
       type: 'object',
@@ -164,7 +164,7 @@ export function registerUacTools() {
       required: ['username', 'name', 'departmentId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'user.created',
       scope: 'member_org.member',
       buildResourceId: (_args, data) => (data as { user_id?: string })?.user_id,
@@ -188,7 +188,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_update_user',
+    name: 'eadaf_update_user',
     description: '更新用户信息',
     parameters: {
       type: 'object',
@@ -204,7 +204,7 @@ export function registerUacTools() {
       required: ['userId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'user.updated',
       scope: 'member_org.member',
       buildResourceId: (args) => String(args.userId),
@@ -228,7 +228,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_delete_user',
+    name: 'eadaf_delete_user',
     description: '删除用户',
     parameters: {
       type: 'object',
@@ -236,7 +236,7 @@ export function registerUacTools() {
       required: ['userId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'user.deleted',
       scope: 'member_org.member',
       buildResourceId: (args) => String(args.userId),
@@ -248,7 +248,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_assign_user_roles',
+    name: 'eadaf_assign_user_roles',
     description: '全量分配用户角色',
     parameters: {
       type: 'object',
@@ -259,7 +259,7 @@ export function registerUacTools() {
       required: ['userId', 'roleIds'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'user.roles_updated',
       scope: 'member_org.member',
       buildResourceId: (args) => String(args.userId),
@@ -274,7 +274,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_list_roles',
+    name: 'eadaf_list_roles',
     description: '列出角色',
     parameters: {
       type: 'object',
@@ -295,7 +295,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_get_role',
+    name: 'eadaf_get_role',
     description: '获取角色详情',
     parameters: {
       type: 'object',
@@ -306,7 +306,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_create_role',
+    name: 'eadaf_create_role',
     description: '创建角色',
     parameters: {
       type: 'object',
@@ -319,7 +319,7 @@ export function registerUacTools() {
       required: ['roleName', 'code'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'role.created',
       scope: 'member_org.role',
       buildResourceId: (_args, data) => (data as { role_id?: string })?.role_id,
@@ -338,7 +338,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_update_role',
+    name: 'eadaf_update_role',
     description: '更新角色',
     parameters: {
       type: 'object',
@@ -350,7 +350,7 @@ export function registerUacTools() {
       required: ['roleId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'role.updated',
       scope: 'member_org.role',
       buildResourceId: (args) => String(args.roleId),
@@ -370,7 +370,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_delete_role',
+    name: 'eadaf_delete_role',
     description: '删除角色',
     parameters: {
       type: 'object',
@@ -378,7 +378,7 @@ export function registerUacTools() {
       required: ['roleId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'role.deleted',
       scope: 'member_org.role',
       buildResourceId: (args) => String(args.roleId),
@@ -390,7 +390,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_set_role_permissions',
+    name: 'eadaf_set_role_permissions',
     description: '全量设置角色权限',
     parameters: {
       type: 'object',
@@ -401,7 +401,7 @@ export function registerUacTools() {
       required: ['roleId', 'permissionIds'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'role.permissions_updated',
       scope: 'member_org.role',
       buildResourceId: (args) => String(args.roleId),
@@ -419,7 +419,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_list_permissions',
+    name: 'eadaf_list_permissions',
     description: '列出权限',
     parameters: {
       type: 'object',
@@ -442,7 +442,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_create_permission',
+    name: 'eadaf_create_permission',
     description: '创建权限',
     parameters: {
       type: 'object',
@@ -455,7 +455,7 @@ export function registerUacTools() {
       required: ['code', 'resourceType', 'actions'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'permission.created',
       scope: 'permissions',
       buildResourceId: (_args, data) => (data as { permission_id?: string })?.permission_id,
@@ -474,7 +474,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_update_permission',
+    name: 'eadaf_update_permission',
     description: '更新权限',
     parameters: {
       type: 'object',
@@ -487,7 +487,7 @@ export function registerUacTools() {
       required: ['permissionId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'permission.updated',
       scope: 'permissions',
       buildResourceId: (args) => String(args.permissionId),
@@ -508,21 +508,21 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_list_departments_tree',
+    name: 'eadaf_list_departments_tree',
     description: '获取部门树',
     parameters: { type: 'object', properties: {} },
     handler: async () => getApiData(await getDepartmentsTree()),
   });
 
   registerFunctionCall({
-    name: 'uac_list_bizdata_scopes',
+    name: 'eadaf_list_bizdata_scopes',
     description: '列出 bizdata 业务域 Scope 树',
     parameters: { type: 'object', properties: {} },
     handler: async () => getApiData(await getBusinessDataScopes()),
   });
 
   registerFunctionCall({
-    name: 'uac_create_data_rule',
+    name: 'eadaf_create_data_rule',
     description: '创建数据权限规则',
     parameters: {
       type: 'object',
@@ -534,7 +534,7 @@ export function registerUacTools() {
       required: ['roleId', 'resourceType', 'conditions'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'data_rule.created',
       scope: 'member_org.role',
       buildResourceId: (_args, data) => (data as { rule_id?: string })?.rule_id,
@@ -552,7 +552,7 @@ export function registerUacTools() {
   });
 
   registerFunctionCall({
-    name: 'uac_list_data_rules',
+    name: 'eadaf_list_data_rules',
     description: '列出数据权限规则',
     parameters: {
       type: 'object',
@@ -579,7 +579,7 @@ export function registerUacTools() {
   });
 }
 
-export function unregisterUacTools() {
+export function unregisterEadafTools() {
   for (const name of TOOL_NAMES) {
     unregisterFunctionCall(name);
   }

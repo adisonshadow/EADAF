@@ -1,7 +1,7 @@
 import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import { message } from '@/utils/antdAppApis';
 import SliderCaptcha, { ActionType } from 'rc-slider-captcha';
-import auth from '@/services/UAC/api';
+import auth from '@/services/EADAF/api';
 
 interface Props {
   onSuccess: (duration: number, trail: { x?: number; y?: number; timestamp?: number }[]) => void;

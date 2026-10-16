@@ -1,5 +1,5 @@
 #!/bin/bash
-# 立即备份当前环境对应的 PostgreSQL 全库（含 uac / aibase / bizdata 等 schema）
+# 立即备份当前环境对应的 PostgreSQL 全库（含 eadaf / aibase / bizdata 等 schema）
 
 set -euo pipefail
 

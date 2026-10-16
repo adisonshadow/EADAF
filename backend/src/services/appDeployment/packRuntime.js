@@ -6,7 +6,7 @@
  * 为什么单独一层：`pnpm pack:eadaf` / `pnpm pack:app` 本质是 Unix 脚本
  * （scripts/deploy/*.sh），现在改由后端在开发机（DEV 模式）上代跑，因此需要
  * 先确认本机有可用的 bash 与 pnpm；同时要处理 MSYS 路径问题——
- * Git Bash 下脚本内的 `$REPO_ROOT` 是 `/d/DEV/UAC2` 这类路径，
+ * Git Bash 下脚本内的 `$REPO_ROOT` 是 `/d/DEV/EADAF` 这类路径，
  * 直接交给 Windows 版 Node（require('/d/.../package.json')）必然取不到版本，
  * 反之把 `D:\...` 直接交给 MSYS 脚本又会建出字面量目录名。
  * 故统一在这里做 bash 形态 ↔ 本地路径的转换。

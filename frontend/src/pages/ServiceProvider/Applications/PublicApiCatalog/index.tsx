@@ -13,7 +13,7 @@ import {
   type ApplicationApiCatalogResult,
   type BuiltinApiCatalogItem,
   type CollectionApiCatalogItem,
-} from '@/services/UAC/api/applicationsPublic';
+} from '@/services/EADAF/api/applicationsPublic';
 import OperationParameterPanel, { isQueryOnlyMethod } from '@/components/OperationParameterPanel';
 import { ResponseExampleViewer } from '@/components/ResponseDocumentPanel/ResponseSchemaViewer';
 import {

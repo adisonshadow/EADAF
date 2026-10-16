@@ -1,8 +1,8 @@
-import { getBusinessDataEntity, getBusinessDataEntities } from '@/services/UAC/api/businessData';
+import { getBusinessDataEntity, getBusinessDataEntities } from '@/services/EADAF/api/businessData';
 import {
   postApiService,
   postApiServicePublish,
-} from '@/services/UAC/api/apiServices';
+} from '@/services/EADAF/api/apiServices';
 import {
   getApiData,
   getApiErrorMessage,

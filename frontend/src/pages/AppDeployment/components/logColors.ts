@@ -1,4 +1,4 @@
-import type { PackLogLine } from '@/services/UAC/api/appDeployment';
+import type { PackLogLine } from '@/services/EADAF/api/appDeployment';
 
 /** 控制台配色：正常输出 / 进度信息（stderr 里的 docker buildx 等）/ 警告 / 错误 */
 export const LOG_COLOR = {

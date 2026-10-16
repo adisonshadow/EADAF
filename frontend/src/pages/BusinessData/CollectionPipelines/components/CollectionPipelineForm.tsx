@@ -5,8 +5,8 @@ import type { FormInstance } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import TitleWithHelp from '@/components/TitleWithHelp';
 import ApiServiceScopeLookup from '@/pages/ApiServices/components/ApiServiceScopeLookup';
-import { getApplications } from '@/services/UAC/api/applications';
-import { getBusinessDataSchema } from '@/services/UAC/api/businessData';
+import { getApplications } from '@/services/EADAF/api/applications';
+import { getBusinessDataSchema } from '@/services/EADAF/api/businessData';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import './CollectionPipelineForm.css';
 

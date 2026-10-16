@@ -16,7 +16,7 @@ import {
   getAdminProvidersId,
   patchAdminProvidersId,
   postAdminProviders,
-} from '@/services/UAC/api/adminProviders';
+} from '@/services/EADAF/api/adminProviders';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { ADAPTER_TYPE_OPTIONS, SLUG_PATTERN } from '../constants';
 

@@ -16,7 +16,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useAIChatPrompts, useChatReference } from '@eadaf/ai-base';
 import { buildDepartmentPrompts } from '@/ai/pageChatPrompts';
 import { tableColumns } from "./Schemas";
-import { getDepartmentsTree, deleteDepartmentsDepartmentId } from "@/services/UAC/api/departments";
+import { getDepartmentsTree, deleteDepartmentsDepartmentId } from "@/services/EADAF/api/departments";
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';
 import { TableActionButton, TableActions, TABLE_ACTION_COLUMN_BASE } from '@/components/TableActions';
 import { augmentColumnsWithChatReference } from '@/utils/augmentColumnsWithChatReference';

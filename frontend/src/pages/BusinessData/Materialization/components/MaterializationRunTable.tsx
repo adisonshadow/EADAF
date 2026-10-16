@@ -3,7 +3,7 @@ import type { ProColumns } from '@ant-design/pro-components';
 import React from 'react';
 import UrlSyncedProTable from '@/components/UrlSyncedProTable';
 import { materializationRunStatusEnum } from '@/enums';
-import { getMaterializationRuns } from '@/services/UAC/api/businessData';
+import { getMaterializationRuns } from '@/services/EADAF/api/businessData';
 import { getApiErrorMessage, parseApiListResponse } from '@/utils/apiResponse';
 import { message } from '@/utils/antdAppApis';
 import { formatTableDateTime } from '@/utils/createdUpdatedAtColumn';

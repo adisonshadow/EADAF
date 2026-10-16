@@ -16,7 +16,7 @@ import { sendMockUserMessage } from '@eadaf/ai-base';
 import {
   postEntityDeletionAnalysis,
   postEntityDeletionExecute,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 
 type Decision = 'delete_entity' | 'delete_relation';

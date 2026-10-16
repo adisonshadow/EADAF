@@ -1,4 +1,4 @@
-import { getApiService, getApiServices } from '@/services/UAC/api/apiServices';
+import { getApiService, getApiServices } from '@/services/EADAF/api/apiServices';
 import { getApiData } from '@/utils/apiResponse';
 
 export interface ApiServiceVerification {

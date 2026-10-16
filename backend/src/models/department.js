@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SCHEMA = require('./schemaName');
 
 const Department = sequelize.define('Department', {
   department_id: {
@@ -52,7 +53,7 @@ const Department = sequelize.define('Department', {
   }
 }, {
   tableName: 'departments',
-  schema: 'uac',
+  schema: SCHEMA,
   timestamps: true,
   underscored: true,
   paranoid: true,

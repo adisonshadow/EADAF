@@ -6,8 +6,8 @@ import { LeftOutlined } from '@ant-design/icons';
 import {
   postUsersRequestPasswordReset,
   postUsersResetPasswordWithToken,
-} from '@/services/UAC/api/users';
-import { getApplicationsSsoId } from '@/services/UAC/api/applicationsSso';
+} from '@/services/EADAF/api/users';
+import { getApplicationsSsoId } from '@/services/EADAF/api/applicationsSso';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import {
   mergeAppBranding,

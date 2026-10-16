@@ -14,9 +14,9 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "缺少命令: $1"
 }
 
-# MSYS（Git Bash）下 $REPO_ROOT 形如 /d/DEV/UAC2，Windows 版 node 无法 require 这种路径，
+# MSYS（Git Bash）下 $REPO_ROOT 形如 /d/DEV/EADAF，Windows 版 node 无法 require 这种路径，
 # 于是 `package_version` 会取不到版本（旧行为：默认版本为空或与 package.json 不一致）。
-# cygpath 存在时统一转成 D:\DEV\UAC2 形态；Linux/macOS 上原样返回。
+# cygpath 存在时统一转成 D:\DEV\EADAF 形态；Linux/macOS 上原样返回。
 to_native_path() {
   local p="$1"
   if command -v cygpath >/dev/null 2>&1; then

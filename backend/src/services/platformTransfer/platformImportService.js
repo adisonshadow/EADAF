@@ -8,6 +8,7 @@ const logger = require('../../utils/logger');
 const { pickModelFields } = require('../appTransfer/appExportService');
 const { parsePlatformExportFile } = require('./platformPreviewService');
 const { resolveEadafApplication } = require('./platformExportService');
+const transferCompat = require('../appTransfer/transferCompat');
 const {
   importStorageBucketsSection,
   importStorageObjectsSection,
@@ -405,11 +406,11 @@ class ImportContext {
     return section;
   }
 
-  async importUacPermissions() {
-    const section = this.beginSection('uacPermissions');
-    const items = Array.isArray(this.file.uacPermissions) ? this.file.uacPermissions : [];
+  async importEadafPermissions() {
+    const section = this.beginSection('eadafPermissions');
+    const items = Array.isArray(transferCompat.readSection(this.file, 'eadafPermissions')) ? transferCompat.readSection(this.file, 'eadafPermissions') : [];
     if (!items.length) {
-      return this.skipSection(section, '文件无 UAC 权限目录');
+      return this.skipSection(section, '文件无 EADAF 权限目录');
     }
     try {
       await this.withSectionTransaction(async (transaction) => {
@@ -472,7 +473,7 @@ async function importPlatformFile(filePath, strategy = 'overwrite') {
     ['ai', () => ctx.importAi()],
     ['dataStandards', () => ctx.importDataStandards()],
     ['systemFeatures', () => ctx.importSystemFeatures()],
-    ['uacPermissions', () => ctx.importUacPermissions()],
+    ['eadafPermissions', () => ctx.importEadafPermissions()],
     ['storageBuckets', () => ctx.importStorageBuckets()],
     ['storageObjects', () => ctx.importStorageObjects()],
   ];

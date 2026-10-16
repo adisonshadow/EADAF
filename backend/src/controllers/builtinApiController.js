@@ -9,7 +9,7 @@ const {
  * 内置 API 管理控制器（清单只读 + 限制配置）
  *
  * - 清单元数据来自代码常量 catalog.js（固定、不可新建/编辑/删除）。
- * - 限制配置存 uac.builtin_api_configs（access_restriction JSONB）。
+ * - 限制配置存 eadaf.builtin_api_configs（access_restriction JSONB）。
  */
 class BuiltinApiController {
   /**
