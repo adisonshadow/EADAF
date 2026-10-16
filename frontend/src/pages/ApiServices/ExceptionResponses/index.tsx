@@ -21,7 +21,7 @@ import {
   deleteExceptionResponse,
   getExceptionResponses,
   patchExceptionResponse,
-} from '@/services/UAC/api/exceptionResponses';
+} from '@/services/EADAF/api/exceptionResponses';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 import { buildExceptionResponsePrompt } from '../ai/buildExceptionResponsePrompt';
 

@@ -12,7 +12,7 @@ import {
   getDatabaseConnections,
   patchBizdataMetric,
   postBizdataMetric,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import MetricCronPicker, { metricScheduleToCronExpression } from './MetricCronPicker';
 import MetadataEditor from '../components/MetadataEditor';

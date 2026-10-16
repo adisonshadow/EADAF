@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import { LOG_COLOR, logLineColor } from './components/logColors';
-import type { PackLogLine } from '@/services/UAC/api/appDeployment';
+import type { PackLogLine } from '@/services/EADAF/api/appDeployment';
 
 const stderr = (text: string): PackLogLine => ({ seq: 1, stream: 'stderr', text, at: '' });
 const stdout = (text: string): PackLogLine => ({ seq: 1, stream: 'stdout', text, at: '' });

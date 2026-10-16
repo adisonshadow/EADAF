@@ -1,6 +1,6 @@
 import { history } from '@/utils/navigation';
 import { message } from '@/utils/antdAppApis';
-import { getAuthCheck } from '@/services/UAC/api/auth';
+import { getAuthCheck } from '@/services/EADAF/api/auth';
 import { saveSsoAuth } from './ssoTokenStore';
 
 import { getApiData } from './apiResponse';

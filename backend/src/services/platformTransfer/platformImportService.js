@@ -405,7 +405,7 @@ class ImportContext {
     return section;
   }
 
-  async importUacPermissions() {
+  async importEadafPermissions() {
     const section = this.beginSection('uacPermissions');
     const items = Array.isArray(this.file.uacPermissions) ? this.file.uacPermissions : [];
     if (!items.length) {
@@ -472,7 +472,7 @@ async function importPlatformFile(filePath, strategy = 'overwrite') {
     ['ai', () => ctx.importAi()],
     ['dataStandards', () => ctx.importDataStandards()],
     ['systemFeatures', () => ctx.importSystemFeatures()],
-    ['uacPermissions', () => ctx.importUacPermissions()],
+    ['uacPermissions', () => ctx.importEadafPermissions()],
     ['storageBuckets', () => ctx.importStorageBuckets()],
     ['storageObjects', () => ctx.importStorageObjects()],
   ];

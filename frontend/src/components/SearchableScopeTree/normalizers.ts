@@ -1,6 +1,6 @@
 import type { ScopeTreeNode } from './index';
 import type { ApiServiceDomainTreeItem } from '@/utils/buildApiServiceDomainTree';
-import type { BuiltinApiTreeNode } from '@/services/UAC/api/builtinApis';
+import type { BuiltinApiTreeNode } from '@/services/EADAF/api/builtinApis';
 
 /**
  * 业务 API 域树（{ name, isApiNode, code, serviceCount, children }）

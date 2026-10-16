@@ -8,7 +8,7 @@ import { TableActionButton, TableActions, TABLE_ACTION_COLUMN_BASE } from '@/com
 import {
   getAdminAiRequestLogs,
   getAdminAiRequestLogsId,
-} from '@/services/UAC/api/adminAiRequestLogs';
+} from '@/services/EADAF/api/adminAiRequestLogs';
 import { isApiSuccess, parseApiListResponse, getApiData } from '@/utils/apiResponse';
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';
 import { requestLogTableColumns } from './schema';

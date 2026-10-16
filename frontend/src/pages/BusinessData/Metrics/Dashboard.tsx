@@ -13,7 +13,7 @@ import {
   deleteBizdataMetricCard,
   getBizdataMetricsDashboard,
   postBizdataMetricExecute,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 import MetricCardFormDrawer from './MetricCardFormDrawer';
 import './Dashboard.css';

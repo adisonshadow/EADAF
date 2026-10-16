@@ -4,7 +4,7 @@ import { Button, Empty, Select, Space, Spin } from 'antd';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FixHeaderPage from '@/components/FixHeaderPage';
 import PageContainerTitleWithBack from '@/components/PageContainerTitleWithBack';
-import { getBusinessDataSchema } from '@/services/UAC/api/businessData';
+import { getBusinessDataSchema } from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 import { message } from '@/utils/antdAppApis';
 import { useUiTheme } from '@/theme/uiTheme';

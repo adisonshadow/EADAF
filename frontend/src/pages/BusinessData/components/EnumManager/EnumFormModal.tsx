@@ -10,7 +10,7 @@ import React, { useEffect, useState } from 'react';
 import {
   patchBusinessDataEnum,
   postBusinessDataEnum,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { isApiSuccess } from '@/utils/apiResponse';
 import {
   buildEnumPayloadFromOptions,

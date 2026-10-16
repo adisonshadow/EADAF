@@ -4,9 +4,9 @@ import { LogoutOutlined } from '@ant-design/icons';
 import React, { useState } from 'react';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import { request } from '@/utils/request';
-import api from '@/services/UAC/api';
+import api from '@/services/EADAF/api';
 import { parseAuthUser } from '@/utils/auth';
-import { getAuthCheck } from '@/services/UAC/api/auth';
+import { getAuthCheck } from '@/services/EADAF/api/auth';
 import { history } from '@/utils/navigation';
 
 interface FirstLoginSetupModalProps {

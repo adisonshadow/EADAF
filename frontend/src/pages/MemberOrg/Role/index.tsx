@@ -19,8 +19,8 @@ import {
   getRolesRoleId,
   postRolesRoleIdPermissions,
   putRolesRoleIdPermissions,
-} from "@/services/UAC/api/roles";
-import { getPermissions } from "@/services/UAC/api/permissions";
+} from "@/services/EADAF/api/roles";
+import { getPermissions } from "@/services/EADAF/api/permissions";
 import { tableColumns, formFields, editFormFields, detailFields } from "./schema";
 import { buildRoleTree } from "./utils";
 import type { Role } from "./types";

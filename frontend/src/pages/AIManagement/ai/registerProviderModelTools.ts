@@ -6,14 +6,14 @@ import {
   getAdminModelsId,
   patchAdminModelsId,
   postAdminModels,
-} from '@/services/UAC/api/adminModels';
+} from '@/services/EADAF/api/adminModels';
 import {
   deleteAdminProvidersId,
   getAdminProviders,
   getAdminProvidersId,
   patchAdminProvidersId,
   postAdminProviders,
-} from '@/services/UAC/api/adminProviders';
+} from '@/services/EADAF/api/adminProviders';
 import { getApiData, parseApiListResponse } from '@/utils/apiResponse';
 
 const DOMAIN = 'aibase';

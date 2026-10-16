@@ -76,7 +76,7 @@ pnpm refresh:ai-base  # 重新链接 / 刷新 @eadaf/ai-base 本地包
 1. **先启动后端**（`EADAF_backend`，默认 `29526`），否则页面请求会失败。
 2. **Monorepo 依赖**：`@eadaf/ai-base` 来自 `package/ai-base`；改 ai-base 源码后需在其目录 `pnpm build`，再执行 `pnpm refresh:ai-base`。
 3. **React 单例**：`vite.config.ts` 已对 `react` / `react-dom` 做 dedupe，勿在子包中引入第二份 React。
-4. **OpenAPI 类型**：后端接口变更后执行 `pnpm openapi2ts` 更新 `src/services/UAC/api/`。
+4. **OpenAPI 类型**：后端接口变更后执行 `pnpm openapi2ts` 更新 `src/services/EADAF/api/`。
 5. **菜单与路由**：菜单数据在 `src/routes/config.ts` 的 `appRouteMeta`，新增页面需同步注册路由与菜单项。
 6. **AISurface**：业务页通过 `useAISurface` 暴露可读状态，供 AI Tool 读取与 `applyMutation` 刷新；物化等写操作见 `toolMutation` / `registerBizDataTools`。
 7. **开发热更新**：后端 nodemon 自动重启，前端 Vite HMR，一般无需手动重启。

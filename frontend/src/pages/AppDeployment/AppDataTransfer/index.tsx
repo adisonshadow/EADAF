@@ -1,9 +1,9 @@
-import { getApplications } from '@/services/UAC/api/applications';
+import { getApplications } from '@/services/EADAF/api/applications';
 import {
   postAppTransferExport,
   postAppTransferImport,
   postAppTransferPreview,
-} from '@/services/UAC/api/system';
+} from '@/services/EADAF/api/system';
 import { message, modal } from '@/utils/antdAppApis';
 import {
   getApiData,

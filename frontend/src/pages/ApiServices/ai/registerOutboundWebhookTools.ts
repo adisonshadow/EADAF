@@ -11,7 +11,7 @@ import {
   postOutboundWebhookDisable,
   getOutboundWebhookTestProfile,
   postOutboundWebhookTest,
-} from '@/services/UAC/api/outboundWebhooks';
+} from '@/services/EADAF/api/outboundWebhooks';
 import { isApiSuccess, getApiData, parseApiListResponse } from '@/utils/apiResponse';
 
 const DOMAIN = 'apiservice';

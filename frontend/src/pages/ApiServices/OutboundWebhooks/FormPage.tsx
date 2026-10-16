@@ -13,8 +13,8 @@ import {
   getOutboundWebhook,
   patchOutboundWebhook,
   postOutboundWebhook,
-} from '@/services/UAC/api/outboundWebhooks';
-import { getApiServices } from '@/services/UAC/api/apiServices';
+} from '@/services/EADAF/api/outboundWebhooks';
+import { getApiServices } from '@/services/EADAF/api/apiServices';
 import { isApiSuccess, getApiData } from '@/utils/apiResponse';
 import { buildDefaultRequestExample } from '../components/ApiServiceForm';
 import { buildOutboundWebhookGeneratePrompt } from '../ai/buildOutboundWebhookGeneratePrompt';

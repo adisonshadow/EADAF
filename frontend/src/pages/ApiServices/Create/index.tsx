@@ -11,7 +11,7 @@ import {
   getApiServiceOperationCatalog,
   postApiService,
   postApiServicePublish,
-} from '@/services/UAC/api/apiServices';
+} from '@/services/EADAF/api/apiServices';
 import {
   getApiData,
   getApiErrorMessage,
@@ -24,7 +24,7 @@ import ApiServiceForm, {
 } from '../components/ApiServiceForm';
 import { scopeCodeFromEntityCode, suggestServiceSlugFromEntity } from '@/pages/ApiServices/ai/apiServiceCodeUtils';
 import { buildApiServiceCreatePrompts } from '@/pages/ApiServices/ai/buildApiServiceCreatePrompts';
-import { getBusinessDataEntity } from '@/services/UAC/api/businessData';
+import { getBusinessDataEntity } from '@/services/EADAF/api/businessData';
 import { buildOperationResponsePreview } from '../utils/buildOperationResponsePreview';
 import { buildResponseOverridesPayload, resolveResponseExample } from '../utils/responseOverrides';
 import { buildRequestOverridesPayload } from '../utils/requestOverrides';

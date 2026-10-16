@@ -8,7 +8,7 @@ import { TableActionButton, TableActions, TABLE_ACTION_COLUMN_BASE } from '@/com
 import {
   getAdminOperationLogs,
   getAdminOperationLogsId,
-} from '@/services/UAC/api/adminOperationLogs';
+} from '@/services/EADAF/api/adminOperationLogs';
 import { isApiSuccess, parseApiListResponse, getApiData } from '@/utils/apiResponse';
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';
 import { useProTableSearchCollapse } from '@/hooks/useProTableSearchCollapse';

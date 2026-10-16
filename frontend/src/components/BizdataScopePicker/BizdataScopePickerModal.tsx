@@ -2,7 +2,7 @@ import { PartitionOutlined } from '@ant-design/icons';
 import { Input, Modal, Spin, Tree, Typography } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import React, { useEffect, useMemo, useState } from 'react';
-import { getBusinessDataScopes } from '@/services/UAC/api/businessData';
+import { getBusinessDataScopes } from '@/services/EADAF/api/businessData';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import type { BizdataScopeOption, BizdataScopePickerModalProps } from './types';
 

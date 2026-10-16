@@ -18,7 +18,7 @@ import {
   type PackHistoryRecord,
 } from './storage';
 import { aliasProjectPath, describePackMeta, joinProjectPath } from './components/packOptions';
-import type { PackJob } from '@/services/UAC/api/appDeployment';
+import type { PackJob } from '@/services/EADAF/api/appDeployment';
 
 /* localStorage 替身（storage.ts 只依赖 window.localStorage） */
 const store = new Map<string, string>();

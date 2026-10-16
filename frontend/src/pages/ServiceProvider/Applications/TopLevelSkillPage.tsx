@@ -9,7 +9,7 @@ import PageContainerTitleWithBack from '@/components/PageContainerTitleWithBack'
 import {
   getApplicationsIdTopLevelSkill,
   putApplicationsIdTopLevelSkill,
-} from '@/services/UAC/api/applications';
+} from '@/services/EADAF/api/applications';
 import { request } from '@/utils/request';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 

@@ -11,7 +11,7 @@ import {
   postCollectionPipelineDisable,
   postCollectionPipelinePublish,
   postCollectionPipelineTest,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 
 const DOMAIN = 'bizdata';

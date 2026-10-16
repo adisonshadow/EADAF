@@ -21,7 +21,7 @@ import {
   getAutomationHooks,
   postAutomationHookDisable,
   postAutomationHookEnable,
-} from '@/services/UAC/api/automationHooks';
+} from '@/services/EADAF/api/automationHooks';
 import { getApiErrorMessage, isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { buildHookTableColumns, hookStatusEnum } from './schema';
 

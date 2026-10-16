@@ -1,9 +1,9 @@
 import { useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import defaultSettings from '../../config/defaultSettings';
-import { getDepartments } from '@/services/UAC/api/departments';
-import { getAuthCheck } from '@/services/UAC/api/auth';
-import { getSystemFeatures } from '@/services/UAC/api/system';
-import { getPermissions } from '@/services/UAC/api/permissions';
+import { getDepartments } from '@/services/EADAF/api/departments';
+import { getAuthCheck } from '@/services/EADAF/api/auth';
+import { getSystemFeatures } from '@/services/EADAF/api/system';
+import { getPermissions } from '@/services/EADAF/api/permissions';
 import { clearAuth, consumeEmbedAuthFromUrl, getAuth, parseAuthUser, type CurrentUser } from '@/utils/auth';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Spin, Typography } from 'antd';
 import { history } from '@/utils/navigation';
 import { clearAllSsoAuth, clearAuth, clearSsoSid, getAuth, getSsoSid } from '@/utils/auth';
-import { postAuthLogout } from '@/services/UAC/api/auth';
+import { postAuthLogout } from '@/services/EADAF/api/auth';
 
 /**
  * 登出中转页（`/auth/logout`）—— 单点登出的浏览器侧入口。

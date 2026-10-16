@@ -1,7 +1,7 @@
 import { Button, Popover, Typography } from 'antd';
 import { DatabaseOutlined } from '@ant-design/icons';
 import React, { useEffect, useMemo, useState } from 'react';
-import { getBusinessDataSchema } from '@/services/UAC/api/businessData';
+import { getBusinessDataSchema } from '@/services/EADAF/api/businessData';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import './index.css';
 

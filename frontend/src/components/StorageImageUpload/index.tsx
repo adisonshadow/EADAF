@@ -5,7 +5,7 @@ import type { UploadFile, UploadProps } from 'antd';
 import ImgCrop from 'antd-img-crop';
 import React, { useEffect, useRef, useState } from 'react';
 import { SYSTEM_STORAGE_BUCKET_CODE } from '@/constants/storage';
-import { postStorageObjectUpload } from '@/services/UAC/api/storage';
+import { postStorageObjectUpload } from '@/services/EADAF/api/storage';
 import { isApiSuccess, getApiData } from '@/utils/apiResponse';
 import { resolveMediaUrl } from '@/utils/mediaUrl';
 import { isSvgFile, prepareLogoUploadFile } from '@/utils/prepareLogoUploadFile';

@@ -80,7 +80,7 @@
 | 20 | cron 复用 metricScheduler：DB 驱动 + node-cron + Redis 锁 | ✅ | `metricScheduler.js:51-86`；`metricRedis.acquireRunLock`；`app.js:203-220` 启动 |
 | 21 | `PAGE_LAYOUT_STANDARD.md`、FixHeaderPage、UrlSyncedProTable | ✅ | 规范存在；ApiServices 多数列定义仍内联，新页建议新建 `schema.tsx` |
 | 22 | 新建 `HooksAI.tsx` wrapper | ❌ | `api_services` 仅一个 `SCOPE_WRAPPERS` 入口（`routes/index.tsx` → `ApiServicesAI`）。应在 `ApiServicesAI.tsx` 按 pathname 分支，对齐 collection-pipelines |
-| 23 | 菜单权限 `api_services:manage` | ✅ | `uac-permissions-catalog-seed.sql`；`config.ts:128-132` |
+| 23 | 菜单权限 `api_services:manage` | ✅ | `eadaf-permissions-catalog-seed.sql`；`config.ts:128-132` |
 | 24 | outbound 公开文档页 / application scope | ❌ 原文 M4 遗漏 | 公开页 `/public/.../outbound-webhooks`；`outbound_webhook_scope` 只管 catalog 展示。收编必须同步迁移 |
 
 ### 1.6 原文内部矛盾

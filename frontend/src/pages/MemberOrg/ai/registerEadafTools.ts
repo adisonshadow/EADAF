@@ -1,13 +1,13 @@
 import { createMutatingHandler } from '@/ai/toolMutation';
-import { getBusinessDataScopes } from '@/services/UAC/api/businessData';
-import { getDepartmentsTree } from '@/services/UAC/api/departments';
+import { getBusinessDataScopes } from '@/services/EADAF/api/businessData';
+import { getDepartmentsTree } from '@/services/EADAF/api/departments';
 import {
   getPermissions,
   getPermissionsRules,
   postPermissions,
   postPermissionsRules,
   putPermissionsPermissionId,
-} from '@/services/UAC/api/permissions';
+} from '@/services/EADAF/api/permissions';
 import {
   deleteRolesRoleId,
   getRoles,
@@ -15,7 +15,7 @@ import {
   postRoles,
   postRolesRoleIdPermissions,
   putRolesRoleId,
-} from '@/services/UAC/api/roles';
+} from '@/services/EADAF/api/roles';
 import {
   deleteUsersUserId,
   getUsers,
@@ -23,11 +23,11 @@ import {
   postUsers,
   putUsersUserId,
   putUsersUserIdRoles,
-} from '@/services/UAC/api/users';
+} from '@/services/EADAF/api/users';
 import { getApiData, isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { registerFunctionCall, unregisterFunctionCall } from '@eadaf/ai-base';
 
-const UAC_DOMAIN = 'uac';
+const EADAF_DOMAIN = 'uac';
 
 /** /api/v1/users 不支持 size=-1；无效/负数按「大页」处理，上限 500 */
 function normalizeUserPageSize(size: unknown, fallback = 500): number {
@@ -69,7 +69,7 @@ function generatePassword(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-export function registerUacTools() {
+export function registerEadafTools() {
   registerFunctionCall({
     name: 'uac_list_users',
     description:
@@ -164,7 +164,7 @@ export function registerUacTools() {
       required: ['username', 'name', 'departmentId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'user.created',
       scope: 'member_org.member',
       buildResourceId: (_args, data) => (data as { user_id?: string })?.user_id,
@@ -204,7 +204,7 @@ export function registerUacTools() {
       required: ['userId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'user.updated',
       scope: 'member_org.member',
       buildResourceId: (args) => String(args.userId),
@@ -236,7 +236,7 @@ export function registerUacTools() {
       required: ['userId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'user.deleted',
       scope: 'member_org.member',
       buildResourceId: (args) => String(args.userId),
@@ -259,7 +259,7 @@ export function registerUacTools() {
       required: ['userId', 'roleIds'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'user.roles_updated',
       scope: 'member_org.member',
       buildResourceId: (args) => String(args.userId),
@@ -319,7 +319,7 @@ export function registerUacTools() {
       required: ['roleName', 'code'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'role.created',
       scope: 'member_org.role',
       buildResourceId: (_args, data) => (data as { role_id?: string })?.role_id,
@@ -350,7 +350,7 @@ export function registerUacTools() {
       required: ['roleId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'role.updated',
       scope: 'member_org.role',
       buildResourceId: (args) => String(args.roleId),
@@ -378,7 +378,7 @@ export function registerUacTools() {
       required: ['roleId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'role.deleted',
       scope: 'member_org.role',
       buildResourceId: (args) => String(args.roleId),
@@ -401,7 +401,7 @@ export function registerUacTools() {
       required: ['roleId', 'permissionIds'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'role.permissions_updated',
       scope: 'member_org.role',
       buildResourceId: (args) => String(args.roleId),
@@ -455,7 +455,7 @@ export function registerUacTools() {
       required: ['code', 'resourceType', 'actions'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'permission.created',
       scope: 'permissions',
       buildResourceId: (_args, data) => (data as { permission_id?: string })?.permission_id,
@@ -487,7 +487,7 @@ export function registerUacTools() {
       required: ['permissionId'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'permission.updated',
       scope: 'permissions',
       buildResourceId: (args) => String(args.permissionId),
@@ -534,7 +534,7 @@ export function registerUacTools() {
       required: ['roleId', 'resourceType', 'conditions'],
     },
     handler: createMutatingHandler({
-      domain: UAC_DOMAIN,
+      domain: EADAF_DOMAIN,
       type: 'data_rule.created',
       scope: 'member_org.role',
       buildResourceId: (_args, data) => (data as { rule_id?: string })?.rule_id,
@@ -579,7 +579,7 @@ export function registerUacTools() {
   });
 }
 
-export function unregisterUacTools() {
+export function unregisterEadafTools() {
   for (const name of TOOL_NAMES) {
     unregisterFunctionCall(name);
   }

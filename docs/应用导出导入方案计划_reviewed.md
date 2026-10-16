@@ -54,7 +54,7 @@
 |---|---|---|---|
 | 10 | Settings `Tabs.items` 目前三项，可追加 | ✅ | `pages/System/Settings/index.tsx:10-14` |
 | 11 | `tabs.tsx` 已 450 行，不宜再加厚 | ✅ | 文件止于 L450 |
-| 12 | 应用列表 `GET /api/v1/applications` | ✅ | `applicationRoutes.js` prefix + `getApplications`（`services/UAC/api/applications.ts`） |
+| 12 | 应用列表 `GET /api/v1/applications` | ✅ | `applicationRoutes.js` prefix + `getApplications`（`services/EADAF/api/applications.ts`） |
 | 13 | 内置应用 code = `EADAF` | ✅ | `applicationController.js:15` `SYSTEM_APPLICATION_CODE`；`builtinApiPermissionService.js:5-6` |
 | 14 | 下载复用 `triggerBlobDownload` | ✅ | `FileStorage/Browser/index.tsx:52-61`。但该处拿的是 **blob 响应**，不是把 JSON envelope 再转 Blob |
 | 15 | 恢复 Modal 交互可参考 `tabs.tsx:251-282`；超时 30 分钟 | ✅ | `system.ts:51` `timeout: 30 * 60 * 1000`；上传 `beforeUpload={() => false}` |
@@ -284,7 +284,7 @@ function prefixHit(code, scopes) {
 
 ### 5.1 权限码（必须登记，否则 guard 放行）
 
-在 `services/builtinApi/catalog.js` 的 system 域追加，并同步 `scripts/uac-permissions-catalog-seed.sql`（**禁止**复用已占用的 permission 数字后缀，参见操作日志 review 对 082 的警告）：
+在 `services/builtinApi/catalog.js` 的 system 域追加，并同步 `scripts/eadaf-permissions-catalog-seed.sql`（**禁止**复用已占用的 permission 数字后缀，参见操作日志 review 对 082 的警告）：
 
 | code | method + path |
 |---|---|
@@ -321,7 +321,7 @@ function prefixHit(code, scopes) {
 - 导出：`applicationId` Select（过滤 EADAF）+ `dataMode` + 两勾选 + **静态清单按实际 节来**（不要写「8 类」）。
 - 导出请求：`responseType: 'blob'`，`timeout` 与恢复相同；从 `Content-Disposition` 取文件名，失败时 blob 可能是 JSON 错误信封（参考 Browser 页对 `application/json` blob 的处理，`:39-40` 一带）。
 - 导入：**禁止**本地 `JSON.parse` 整文件。选文件 → 直接 `POST /preview` → 展示后端摘要 → 选策略 → confirm → `POST /import`。
-- API 封装仍放 `services/UAC/api/system.ts` + `typings.d.ts`。
+- API 封装仍放 `services/EADAF/api/system.ts` + `typings.d.ts`。
 - 敏感警示、不可自动撤销，保留原文。
 
 本功能是系统设置上的备份类能力，**不走 AI Chat**，与现有备份 Tab 同类，不违反「业务 AI 必须走 Chat」规则。
@@ -346,10 +346,10 @@ function prefixHit(code, scopes) {
 
 - `backend/src/routes/index.js`
 - `backend/src/services/builtinApi/catalog.js`（三条权限，必须）
-- `backend/scripts/uac-permissions-catalog-seed.sql`（同步权限种子）
+- `backend/scripts/eadaf-permissions-catalog-seed.sql`（同步权限种子）
 - `frontend/src/pages/System/Settings/index.tsx`
-- `frontend/src/services/UAC/api/system.ts`
-- `frontend/src/services/UAC/api/typings.d.ts`
+- `frontend/src/services/EADAF/api/system.ts`
+- `frontend/src/services/EADAF/api/typings.d.ts`
 
 ---
 

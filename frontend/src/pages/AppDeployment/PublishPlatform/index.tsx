@@ -4,7 +4,7 @@ import {
   postPlatformPack,
   type AppDeploymentStatus,
   type PackJob,
-} from '@/services/UAC/api/appDeployment';
+} from '@/services/EADAF/api/appDeployment';
 import { message } from '@/utils/antdAppApis';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { CopyOutlined, PlayCircleOutlined } from '@ant-design/icons';

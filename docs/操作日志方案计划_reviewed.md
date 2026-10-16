@@ -73,7 +73,7 @@
 | 21 | `AppLayout.iconMap` 需补 `AuditOutlined` | ❌ | **已经有**（`AppLayout.tsx:4,24`）。`/permissions` 分组已用该图标 |
 | 22 | catalog 按 `ai:request_log:list/get` 模式登记 | ✅ | `catalog.js:985-1001`；system 域已有 features/backup（`:1041-1077`） |
 | 23 | SUPER_ADMIN 角色 ID 实施时取自 `superadmin.sql` | ✅ | 角色 ID = `10000000-0000-0000-0000-000000000001`（`superadmin.sql:4`） |
-| 24 | 菜单权限 seed 用 `660e8400-…-090` 的 `system:manage` | ⚠️ | 该 ID 目前未占用。但同文件 **`440082` 已被 `collection_pipeline:read` 与 `system:settings:manage` 重复使用**（`uac-permissions-catalog-seed.sql:37-39`）。新 seed **禁止**再复用 082，且不要在本功能里顺手「修」082（另开迁移） |
+| 24 | 菜单权限 seed 用 `660e8400-…-090` 的 `system:manage` | ⚠️ | 该 ID 目前未占用。但同文件 **`440082` 已被 `collection_pipeline:read` 与 `system:settings:manage` 重复使用**（`eadaf-permissions-catalog-seed.sql:37-39`）。新 seed **禁止**再复用 082，且不要在本功能里顺手「修」082（另开迁移） |
 
 ### 1.4 绕过 HTTP 中间件的写路径
 
@@ -362,7 +362,7 @@ ON CONFLICT (code) DO UPDATE SET access_restriction = EXCLUDED.access_restrictio
 | `routeElements.tsx` | `operationLogs: lazy(() => import('@/pages/System/OperationLogs'))` |
 | `routeUi.ts` | `/system`: `{ name:'系统', icon:'SettingOutlined' }`；`/system/operation-logs`: `{ name:'操作日志', icon:'AuditOutlined' }`。`/system/settings` 保持 hideInMenu |
 | `AppLayout.tsx` | **不改** |
-| `services/UAC/api/adminOperationLogs.ts` | 手写，对齐 `adminAiRequestLogs.ts` |
+| `services/EADAF/api/adminOperationLogs.ts` | 手写，对齐 `adminAiRequestLogs.ts` |
 | `enums.ts` | `OPERATION_LOG_DOMAIN` / `OPERATION_LOG_TYPE` / `OPERATION_LOG_STATUS` |
 
 存量 `operator_*` 为空显示「—」，hover「历史数据未记录操作者」。

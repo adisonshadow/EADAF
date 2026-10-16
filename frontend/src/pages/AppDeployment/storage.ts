@@ -6,7 +6,7 @@
  * 只用 localStorage，键名带版本号，读失败（旧格式/脏数据）一律降级为空，不抛错。
  */
 
-import type { PackJob, PackJobStatus } from '@/services/UAC/api/appDeployment';
+import type { PackJob, PackJobStatus } from '@/services/EADAF/api/appDeployment';
 
 const HISTORY_KEY = 'eadaf.app-deployment.pack-history.v1';
 const APP_DIR_KEY = 'eadaf.app-deployment.app-dirs.v1';

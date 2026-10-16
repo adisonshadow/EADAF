@@ -1,4 +1,4 @@
-import { patchBusinessDataEntity } from '@/services/UAC/api/businessData';
+import { patchBusinessDataEntity } from '@/services/EADAF/api/businessData';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 import { loadEntity, resolveBizDataEntityId } from './bizdataFieldUtils';
 

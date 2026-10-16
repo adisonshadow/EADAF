@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getDepartmentsTree } from '@/services/UAC/api/departments';
+import { getDepartmentsTree } from '@/services/EADAF/api/departments';
 import type { DepartmentTreeOption } from '@/providers/InitialStateProvider';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 

@@ -1,4 +1,4 @@
-import { getBusinessDataEntity, getBusinessDataEntities } from '@/services/UAC/api/businessData';
+import { getBusinessDataEntity, getBusinessDataEntities } from '@/services/EADAF/api/businessData';
 import { getApiData, parseApiListResponse } from '@/utils/apiResponse';
 
 const SKIP_BODY_KEYS = new Set([

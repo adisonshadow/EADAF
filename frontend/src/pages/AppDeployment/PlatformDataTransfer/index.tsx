@@ -2,7 +2,7 @@ import {
   postPlatformTransferExport,
   postPlatformTransferImport,
   postPlatformTransferPreview,
-} from '@/services/UAC/api/system';
+} from '@/services/EADAF/api/system';
 import { message, modal } from '@/utils/antdAppApis';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { DownloadOutlined, InboxOutlined } from '@ant-design/icons';

@@ -3,7 +3,7 @@ import { Alert, Button, Card, Spin, Typography } from 'antd';
 import { history } from '@/utils/navigation';
 import { getAuth } from '@/utils/auth';
 import { getApiErrorMessage } from '@/utils/apiResponse';
-import { postOauthAuthorize } from '@/services/UAC/api/oauth';
+import { postOauthAuthorize } from '@/services/EADAF/api/oauth';
 import AuthPageFrame from '@/components/AuthPageFrame';
 
 /**

@@ -16,7 +16,7 @@ import {
   getAdminScopesId,
   patchAdminScopesId,
   postAdminScopes,
-} from '@/services/UAC/api/adminScopes';
+} from '@/services/EADAF/api/adminScopes';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { SLUG_PATTERN } from '../constants';
 

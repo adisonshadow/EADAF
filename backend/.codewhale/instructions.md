@@ -100,7 +100,7 @@ DIR: scripts
   FILE: migrate-skill-completion-strategy.sql
   FILE: migrate-system-storage-bucket.sql
   FILE: migrate-tighten-one-thing-and-materialization-phase.sql
-  FILE: migrate-uac-users-size-no-minus-one.sql
+  FILE: migrate-eadaf-users-size-no-minus-one.sql
   FILE: migrate-users-must-change-password.sql
   FILE: migrate-workcardtemplate-is-active.sql
   FILE: mock_data.sql
@@ -109,7 +109,7 @@ DIR: scripts
   FILE: seed_data.sql
   FILE: setup-backup-cron.sh
   FILE: superadmin.sql
-  FILE: uac-permissions-catalog-seed.sql
+  FILE: eadaf-permissions-catalog-seed.sql
 DIR: src
   FILE: app.js
   DIR: config

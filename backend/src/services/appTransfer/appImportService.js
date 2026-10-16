@@ -624,7 +624,7 @@ class ImportContext {
   // ---------- 各节实现 ----------
 
   /** uac 最小结构:roles / permissions / rolePermissions */
-  async importUacCore() {
+  async importEadafCore() {
     const section = this.beginSection('uac');
     const uac = this.file.uac || {};
     const roles = Array.isArray(uac.roles) ? uac.roles : [];
@@ -658,7 +658,7 @@ class ImportContext {
   }
 
   /** uac 用户数据(可选节):departments + closure / users / userRoles / dataPermissionRules */
-  async importUacUsers() {
+  async importEadafUsers() {
     const section = this.beginSection('uacUsers');
     if (!this.includeUac) {
       return this.skipSection(section, '未勾选 includeUac,跳过用户/部门数据');
@@ -1967,8 +1967,8 @@ async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
   }
 
   const chainSteps = [
-    ['uac', () => ctx.importUacCore()],
-    ['uacUsers', () => ctx.importUacUsers()],
+    ['uac', () => ctx.importEadafCore()],
+    ['uacUsers', () => ctx.importEadafUsers()],
     ['application', () => ctx.importApplication()],
     ['entities', () => ctx.importEntities()],
     ['databaseConnections', () => ctx.ensureDatabaseConnections()],

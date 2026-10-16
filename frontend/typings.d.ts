@@ -1,1 +1,1 @@
-/// <reference path="./src/services/UAC/api/typings.d.ts" />
+/// <reference path="./src/services/EADAF/api/typings.d.ts" />

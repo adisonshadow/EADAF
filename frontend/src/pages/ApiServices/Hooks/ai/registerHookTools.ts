@@ -14,7 +14,7 @@ import {
   postAutomationHookRunRetry,
   getAutomationHookEventTypes,
   postAutomationHookValidateScript,
-} from '@/services/UAC/api/automationHooks';
+} from '@/services/EADAF/api/automationHooks';
 import { isApiSuccess, getApiData } from '@/utils/apiResponse';
 
 const DOMAIN = 'apiservice';

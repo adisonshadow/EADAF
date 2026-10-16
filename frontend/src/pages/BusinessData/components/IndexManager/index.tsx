@@ -4,7 +4,7 @@ import { message } from '@/utils/antdAppApis';
 import type { ColumnsType } from 'antd/es/table';
 import React, { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { patchBusinessDataEntity } from '@/services/UAC/api/businessData';
+import { patchBusinessDataEntity } from '@/services/EADAF/api/businessData';
 import { getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
 
 export interface IndexManagerRef {

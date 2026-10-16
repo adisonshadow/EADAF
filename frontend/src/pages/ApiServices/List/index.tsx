@@ -29,7 +29,7 @@ import {
   getApiServiceTree,
   getApiServices,
   postApiServicePublish,
-} from '@/services/UAC/api/apiServices';
+} from '@/services/EADAF/api/apiServices';
 import {
   getApiData,
   getApiErrorMessage,

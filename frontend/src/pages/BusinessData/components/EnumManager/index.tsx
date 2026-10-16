@@ -18,7 +18,7 @@ import {
   message,
 } from 'antd';
 import React, { useMemo, useState } from 'react';
-import { deleteBusinessDataEnum } from '@/services/UAC/api/businessData';
+import { deleteBusinessDataEnum } from '@/services/EADAF/api/businessData';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import MetadataEditor from '../MetadataEditor';
 import EnumFormModal from './EnumFormModal';

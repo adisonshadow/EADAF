@@ -1,4 +1,4 @@
-import { getDatabaseConnections, getMaterializationStatus } from '@/services/UAC/api/businessData';
+import { getDatabaseConnections, getMaterializationStatus } from '@/services/EADAF/api/businessData';
 import { getApiData } from '@/utils/apiResponse';
 import {
   deriveScopePrefixes,

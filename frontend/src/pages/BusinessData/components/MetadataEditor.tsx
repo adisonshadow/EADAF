@@ -5,7 +5,7 @@ import {
   getBizdataMetadataByTarget,
   postBizdataMetadataField,
   postBizdataMetadataTable,
-} from '@/services/UAC/api/businessData';
+} from '@/services/EADAF/api/businessData';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { useDataStandardOptions } from './useDataStandardOptions';

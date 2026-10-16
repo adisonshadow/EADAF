@@ -7,7 +7,7 @@ import { message, modal } from '@/utils/antdAppApis';
 import { QuestionCircleOutlined } from "@ant-design/icons";
 import { useState, useMemo } from "react";
 import { Form } from 'antd';
-import { postApplicationsIdGenerateSecret } from "@/services/UAC/api/applications";
+import { postApplicationsIdGenerateSecret } from "@/services/EADAF/api/applications";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

@@ -13,9 +13,9 @@ import {
   getAdminSkillsId,
   patchAdminSkillsId,
   postAdminSkills,
-} from '@/services/UAC/api/adminSkills';
-import { getApplications } from '@/services/UAC/api/applications';
-import { getAdminTools } from '@/services/UAC/api/adminTools';
+} from '@/services/EADAF/api/adminSkills';
+import { getApplications } from '@/services/EADAF/api/applications';
+import { getAdminTools } from '@/services/EADAF/api/adminTools';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { SLUG_PATTERN } from '../constants';
 import {

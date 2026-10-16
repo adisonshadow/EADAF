@@ -10,8 +10,8 @@ import {
   putBuiltinApiBatchAccessRestriction,
   type BuiltinApiItem,
   type BuiltinApiAccessRestriction,
-} from '@/services/UAC/api/builtinApis';
-import { getRoles } from '@/services/UAC/api/roles';
+} from '@/services/EADAF/api/builtinApis';
+import { getRoles } from '@/services/EADAF/api/roles';
 import DepartmentLookup from '@/pages/ApiServices/components/DepartmentLookup';
 import { isApiSuccess, getApiData } from '@/utils/apiResponse';
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';

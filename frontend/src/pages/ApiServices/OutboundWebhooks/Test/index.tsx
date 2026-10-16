@@ -10,7 +10,7 @@ import FixHeaderPage, { useFixHeaderPageScroll } from '@/components/FixHeaderPag
 import {
   getOutboundWebhookTestProfile,
   postOutboundWebhookTest,
-} from '@/services/UAC/api/outboundWebhooks';
+} from '@/services/EADAF/api/outboundWebhooks';
 import { isApiSuccess, getApiData } from '@/utils/apiResponse';
 import { buildOutboundWebhookTestPrompt } from '../../ai/buildOutboundWebhookTestPrompt';
 import '../outboundWebhookForm.css';

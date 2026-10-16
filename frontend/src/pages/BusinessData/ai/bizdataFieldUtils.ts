@@ -1,4 +1,4 @@
-import { getBusinessDataEntities, getBusinessDataEntity } from '@/services/UAC/api/businessData';
+import { getBusinessDataEntities, getBusinessDataEntity } from '@/services/EADAF/api/businessData';
 import { getApiData, parseApiListResponse } from '@/utils/apiResponse';
 
 const UUID_RE =

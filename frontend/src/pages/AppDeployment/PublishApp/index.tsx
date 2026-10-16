@@ -6,8 +6,8 @@ import {
   type AppDeploymentStatus,
   type AppDirInspection,
   type PackJob,
-} from '@/services/UAC/api/appDeployment';
-import { getApplications } from '@/services/UAC/api/applications';
+} from '@/services/EADAF/api/appDeployment';
+import { getApplications } from '@/services/EADAF/api/applications';
 import { message } from '@/utils/antdAppApis';
 import {
   getApiData,

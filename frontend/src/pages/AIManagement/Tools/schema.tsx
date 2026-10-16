@@ -1,6 +1,6 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { Tag } from 'antd';
-import { getAdminScopes } from '@/services/UAC/api/adminScopes';
+import { getAdminScopes } from '@/services/EADAF/api/adminScopes';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { EXECUTION_TYPE_OPTIONS } from '../constants';
 
