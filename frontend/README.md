@@ -33,14 +33,33 @@ pnpm dev
 
 ### 环境配置
 
-端口与 API 代理在 **`config/env.ts`**（唯一入口）：
+分两层，**别再往构建期里塞跨环境的值**：
+
+**1. 开发期**（`config/env.ts`，vite 读取）
 
 | 项 | 默认 |
 |----|------|
 | 前端端口 | `29527` |
 | 开发 API | `http://localhost:29526`（Vite proxy 转发 `/api`） |
 
-生产构建时修改 `prodApiBaseUrl`；若 Nginx 同源代理 `/api` 可留空。
+**2. 运行时可配**（同一份 `dist` 可跨环境部署，无需重新构建）
+
+解析顺序见 `src/config/deployConfig.ts`：
+
+1. `public/runtime-config.js` 注入的 `window.__EADAF_DEPLOY__`（部署时覆盖该文件即可，支持
+   `apiBaseUrl`、`systemStorageBucketCode`；**不要放密钥**，它是公开静态资源）；
+2. 后端 `GET /api/v1/system/runtime-config`（同源部署时由后端 env 下发，例如
+   `SYSTEM_STORAGE_BUCKET_CODE`）；
+3. 构建期兜底/代码默认值（`APP_API_BASE_URL` 仅用于跨域部署的 bootstrap）。
+
+启动顺序由 `src/main.tsx` 保证：先加载运行时可配，**再**动态 `import('./App')`，
+这样依赖链里的模块级常量（如 `constants/storage.ts` 的桶 code）才拿到最终值。自检：
+
+```bash
+node --import tsx src/config/deployConfig.verify.ts
+```
+
+> 生产环境跨域时优先改 `runtime-config.js`（不必重新构建）；Nginx 同源代理 `/api` 时两者都可留空。
 
 ### 常用命令
 

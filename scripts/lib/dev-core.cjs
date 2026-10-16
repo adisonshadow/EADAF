@@ -17,7 +17,7 @@
  *   node scripts/dev-core.cjs --help
  */
 
-const { spawn } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const http = require('node:http');
 const net = require('node:net');
@@ -222,15 +222,18 @@ function readApiPort() {
   if (process.env.API_PORT && /^[0-9]+$/.test(process.env.API_PORT)) {
     return Number(process.env.API_PORT);
   }
-  const envFile = path.join(REPO_ROOT, 'backend', '.env.development');
-  if (fileExists(envFile)) {
-    const text = fs.readFileSync(envFile, 'utf8');
-    for (const line of text.split(/\r?\n/)) {
-      const m = line.match(/^\s*API_PORT\s*=\s*(.*)$/);
-      if (m) {
-        const val = m[1].trim().replace(/^["']|["']$/g, '');
-        if (/^[0-9]+$/.test(val)) return Number(val);
-      }
+  // 与后端、shell 脚本共用同一套 env 级联（.env → .env.{NODE_ENV} → .env.{NODE_ENV}.local）。
+  // 不要再自己 grep 单个文件：端口写在个人覆盖层里时那样会读到旧值。
+  const loader = path.join(REPO_ROOT, 'backend', 'scripts', 'lib', 'load-env.cjs');
+  if (fileExists(loader)) {
+    try {
+      const out = String(execFileSync(process.execPath, [loader, '--value', 'API_PORT'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }) || '').trim();
+      if (/^[0-9]+$/.test(out)) return Number(out);
+    } catch {
+      /* 忽略：解析失败就用默认端口 */
     }
   }
   return CFG.defaultPort;

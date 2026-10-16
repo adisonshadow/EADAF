@@ -16,6 +16,8 @@ node_modules/
 .env.production
 .env.test
 !.env.example
+# 由 `pnpm --filter ./backend compose:env` 依同一套 env 级联生成，供 docker compose --env-file 使用
+.env.compose
 # app_example 是纯前端示例：.env 里只有公开的 VITE_* 值（无密钥），入库以便开箱即用
 !app_example/.env
 

@@ -121,7 +121,8 @@ curl -s -X POST http://localhost:29526/api/v1/system/app-transfer/import \
 ```
 
 > ⚠️ 数据包含**用户密码哈希**与明文密钥/数据库口令等敏感信息：不要提交进仓库、不要外发。
-> 仓库已忽略 `app_example/eadaf-app-export-*.zip`。
+> 这个 zip 随仓库提供，方便开箱导入。它包含**演示用的用户密码哈希与应用密钥**（仅供本示例）；
+> 如果你的导出包含真实环境的凭据，请勿提交进仓库，改用本机传递。
 
 
 
@@ -181,7 +182,7 @@ app_example/
 │   └── App.tsx               # AIChatProvider + 路由
 ├── server/index.mjs          # BFF：授权码 + PKCE 换票、/api 代理（令牌只落服务端）
 ├── scripts/                  # 销售 Demo 种子 SQL 与生成器、dev:all 启动器
-├── eadaf-app-export-YS-*.zip # 应用数据包（本机导出，含敏感信息，已 gitignore）→ §3.1
+├── eadaf-app-export-YS-*.zip # 应用数据包（随仓库提供；含演示凭据，勿放真实密钥）→ §3.1
 └── vite.config.ts            # 端口 29529；/auth 与 /api 代理到 BFF；直连 ai-base 源码（HMR）
 ```
 

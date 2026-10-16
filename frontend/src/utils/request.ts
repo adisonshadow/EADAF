@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig, type Method } from 'axios';
 import { API_BASE_URL } from '@/constants/env';
+import { resolveApiBaseUrl } from '@/config/deployConfig';
 import { enrichAxiosError } from '@/utils/apiResponse';
 import {
   errorConfig,
@@ -32,6 +33,12 @@ axiosInstance.interceptors.request.use((config) => {
   const url = config.url || '';
   let nextUrl = url;
   let nextConfig: AxiosRequestConfig = { ...config };
+
+  // 运行时可配的 API 基址优先于构建期注入（同一份产物跨环境部署，见 @/config/deployConfig）
+  const runtimeBase = resolveApiBaseUrl('');
+  if (runtimeBase && process.env.NODE_ENV !== 'development') {
+    nextConfig = { ...nextConfig, baseURL: runtimeBase };
+  }
 
   for (const interceptor of requestInterceptors) {
     const result = interceptor(nextUrl, nextConfig);

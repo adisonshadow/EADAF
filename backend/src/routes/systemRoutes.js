@@ -65,6 +65,9 @@ const restoreUploadMiddleware = koaBody({
  *             schema:
  *               $ref: '#/components/schemas/EnvelopeSystemFeatures'
  */
+// 运行时可配（公开只读：前端启动时读取，用于同一产物跨环境部署）
+router.get('/runtime-config', SystemController.getRuntimeConfig);
+
 router.get('/features', authWithBuiltinApiGuard, SystemController.getFeatures);
 router.put('/features', authWithBuiltinApiGuard, operationAudit({
   domain: 'system',

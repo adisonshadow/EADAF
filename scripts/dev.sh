@@ -33,14 +33,16 @@ CLEANUP_DONE=0
 # ----------------------------- 工具函数 -----------------------------
 
 read_api_port() {
-  local env_file val
+  local val helper
   if [[ -n "${API_PORT:-}" && "${API_PORT}" =~ ^[0-9]+$ ]]; then
     printf '%s\n' "$API_PORT"
     return
   fi
-  env_file="$REPO_ROOT/backend/.env.development"
-  if [[ -f "$env_file" ]]; then
-    val="$(grep -E '^API_PORT=' "$env_file" | tail -n1 | cut -d= -f2- | tr -d '[:space:]' | tr -d "\"'")"
+  # 与后端共用同一套 env 级联（含 .env.$NODE_ENV.local 的个人覆盖），不要再手工 grep 单个文件：
+  # 否则端口写在覆盖层里时这里读到的是旧值。
+  helper="$REPO_ROOT/backend/scripts/lib/load-env.cjs"
+  if [[ -f "$helper" ]] && command -v node >/dev/null 2>&1; then
+    val="$(node "$helper" --value API_PORT 2>/dev/null || true)"
     if [[ "$val" =~ ^[0-9]+$ ]]; then
       printf '%s\n' "$val"
       return

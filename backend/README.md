@@ -51,6 +51,40 @@ pnpm migrate-eadaf-ai-skills # 在目标库幂等 upsert（不重置、不删业
 npm run db:maintenance:all  # VACUUM / ANALYZE / REINDEX
 ```
 
+### 配置（env）加载
+
+**加载逻辑只有一处实现**：`src/config/envFiles.js`（决定顺序）+ `scripts/lib/load-env.cjs`（解析并输出）。
+shell 脚本通过 `scripts/env.sh` 的 `load_env_file()` 调用同一个解析器，**不要在任何脚本里再写一套**
+（历史上 `env.sh` 只读 `.env.$NODE_ENV`，读不到 `.env.$NODE_ENV.local`，导致备份脚本连错库端口）。
+
+优先级（应用与脚本一致）：
+
+```
+真实环境变量(CI / pm2 / docker -e / 命令行)  >  .env.{NODE_ENV}.local  >  .env.{NODE_ENV}  >  .env
+```
+
+手工查看某个键最终生效的值：
+
+```bash
+node scripts/lib/load-env.cjs --value POSTGRES_PORT   # 单个键
+node scripts/lib/load-env.cjs --files                 # 实际加载了哪些文件
+```
+
+**`.env.example` 是生成物**（从 `.env.development` 生成，勿手改）：
+
+```bash
+pnpm --filter ./backend config:example   # 重新生成 .env.example
+pnpm --filter ./backend config:check     # 一致性检查（CI 可跑）
+```
+
+`config:check` 会拦住这几类漂移：**死键**（写了没人读）、**示例过期**（`.env.example` 与生成结果不一致）、
+**`NODE_ENV` 写进 env 文件**（应由 cross-env/pm2/compose 决定），并提示未文档化的键、
+多文件重复定义、compose 默认值与 env 不一致、`.env.production` 缺键。
+
+**前端运行时可配**：`GET /api/v1/system/runtime-config`（**公开只读**，不含密钥）向下发
+`systemStorageBucketCode` 等跨环境会变的值，前端启动时读取——同一份前端产物可部署到不同环境，
+不必为"桶 code 不同"重新构建。前端侧解析顺序见 `EADAF_frontend/src/config/deployConfig.ts`。
+
 ### 同步 EADAF Skill / Tool
 
 `init-db` 会执行 `scripts/migrate-eadaf-ai-skills.sql`：写入**全局 Skill** 以及绑定应用 `EADAF` 的专用 Skill/Tool（如 `bizdata-model-design`）。不含 SFDEP、sales-demo 等业务应用 Skill，也不含销售域测试实体。

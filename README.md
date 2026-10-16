@@ -136,11 +136,20 @@ cd frontend && pnpm dev    # 管理端，默认 29527
 文件上传、预览和裁剪走本机 MinIO。在 `backend` 目录用开发 Compose 拉起（数据卷 `EADAF_minio_data`，账号与 `backend/.env.example` 一致）：
 
 ```bash
-cd backend
-docker compose -f docker-compose.yml up -d          # PostgreSQL + Redis + MinIO
-docker compose -f docker-compose.yml up -d minio    # 只要 MinIO
-# 需要 MySQL 时改用：docker compose -f docker-compose_with_MySQL.yml up -d minio
+# 端口/库名等跟随同一套 env 级联（.env → .env.development → .env.development.local），
+# 不要在 compose 里再抄一份：脚本会先生成 backend/.env.compose 再拉起
+pnpm --filter ./backend compose:up            # PostgreSQL + Redis + MinIO
+pnpm --filter ./backend compose:mysql:up      # 另含 MySQL
+pnpm --filter ./backend compose:down
+
+# 只想拉某个服务（minio 等）：先生成 env，再自己指定服务名
+pnpm --filter ./backend compose:env
+cd backend && docker compose --env-file .env.compose up -d minio
 ```
+
+> 为什么不在 compose 里写死默认值：`${POSTGRES_PORT:-25432}` 这类默认值只认 shell 环境，
+> 读不到 `.env.development.local` 的个人覆盖 —— 于是"应用连 35432、compose 却把容器发布到 25432"。
+> `compose:env` 用与后端相同的解析器生成 `backend/.env.compose`（已 gitignore），从根上避免这类漂移。
 
 - 管理端：[http://localhost:29527](http://localhost:29527)
 - API 文档：[http://localhost:29526/swagger](http://localhost:29526/swagger)
@@ -158,7 +167,7 @@ docker compose -f docker-compose.yml up -d minio    # 只要 MinIO
   ✗ MinIO       127.0.0.1:9000    ECONNREFUSED   必需
   ✗ Redis       localhost:26379   ECONNREFUSED   可选（降级）
   ⚠️  2 项必需依赖不可用（PostgreSQL、MinIO）：服务仍会启动，但数据库不可用，几乎所有接口都会失败；上传 / 预览 / 导出不可用。
-  🔧 修复：cd backend && docker compose up -d   （本机 Docker 似乎没启动）
+  🔧 修复：pnpm --filter ./backend compose:up   （本机 Docker 似乎没启动）
 ```
 
 - 必需依赖是 PostgreSQL 与 MinIO，不可用时服务仍会启动（便于 nodemon / 前端继续连着），但相关接口会失败；Redis 不可用自动降级为「仅 PostgreSQL」，并每 30s 自动重试，起好容器后无需重启即可恢复。
