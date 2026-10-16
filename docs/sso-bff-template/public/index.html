@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>EADAF SSO · BFF 模板</title>
+    <style>
+      body { font-family: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 40px auto; max-width: 720px; color: #222; }
+      h1 { font-size: 20px; }
+      pre { background: #f6f8fa; padding: 12px; border-radius: 6px; overflow: auto; }
+      button { padding: 8px 14px; margin-right: 8px; cursor: pointer; }
+      .muted { color: #666; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>EADAF SSO · BFF 模板</h1>
+    <p class="muted">
+      令牌只存在这个 BFF 里（浏览器只有 httpOnly 会话 Cookie）。访问令牌由 EADAF 平台
+      RS256 签发，本 BFF 用 JWKS 公钥**本地验签**，不需要共享密钥。
+    </p>
+
+    <p>
+      <button id="login">登录（授权码 + PKCE）</button>
+      <button id="me">看当前用户（本地验签）</button>
+      <button id="call">调 EADAF 业务接口（经 BFF 代理）</button>
+      <button id="logout">退出</button>
+    </p>
+    <pre id="out">点击按钮查看结果…</pre>
+
+    <script>
+      const out = document.getElementById('out');
+      const show = (value) => { out.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
+      const request = async (url, options) => {
+        const res = await fetch(url, { credentials: 'same-origin', ...options });
+        const text = await res.text();
+        try { return { status: res.status, body: JSON.parse(text) }; }
+        catch { return { status: res.status, body: text }; }
+      };
+
+      document.getElementById('login').onclick = () => { window.location.href = '/login'; };
+
+      document.getElementById('me').onclick = async () => show(await request('/auth/me'));
+
+      document.getElementById('call').onclick = async () => {
+        // 经 BFF 代理调 EADAF；BFF 会带访问令牌，并在 401 TOKEN_EXPIRED 时自动刷新后重放
+        show(await request('/api/v1/ai/capabilities'));
+      };
+
+      document.getElementById('logout').onclick = async () => {
+        const result = await request('/auth/logout', { method: 'POST' });
+        show(result);
+        // 再走 EADAF 的登出中转页：撤销会话 ⇒ 该设备上所有应用一起退出
+        if (result.body && result.body.end_session_url) {
+          window.location.href = result.body.end_session_url;
+        }
+      };
+
+      // 打开页面时先看会话状态
+      request('/auth/me').then(show);
+    </script>
+  </body>
+</html>
