@@ -45,8 +45,12 @@ async function callSvc<T>(path: string, params: Record<string, string | number |
   const json = await res.json();
   // 401：交给 auth 层先复核会话（可能只是这个接口的问题），确认无效才清登录态回 /auth/login
   if (res.status === 401 || json.code === 401) {
-    void handleUnauthorized();
-    throw new Error('登录已失效，正在跳转登录页…');
+    const state = await handleUnauthorized();
+    throw new Error(
+      state === 'invalid'
+        ? '登录已失效，正在跳转登录页…'
+        : '该请求未被授权（可能缺少应用参数或权限），请稍后重试或重新登录',
+    );
   }
   if (!res.ok || (json.code && json.code !== 200)) {
     throw new Error(json.message || json.error?.message || '请求失败');

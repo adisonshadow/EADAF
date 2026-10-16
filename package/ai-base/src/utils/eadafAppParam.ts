@@ -51,7 +51,16 @@ export function withEadafAppParam(url: string, applicationId?: string | null): s
  * 按令牌自述的应用补参：
  * - SSO 用户 JWT（带 application_id）→ 补 `?app=<该应用>`；
  * - 平台会话令牌 / 应用 Token（不带声明，如 EADAF 控制台）→ 原样返回。
+ *
+ * `ssoApplicationId` 是给**老令牌**兜底用的：老版本 EADAF 签发的用户 JWT 不带
+ * `application_id` 声明，业务应用可以显式告诉本库"我的令牌就是这个 SSO 应用签的"。
+ * ⚠️ 只有确实是 SSO 应用时才能配它 —— 控制台的 `applicationId` 是「AI 归属应用」
+ * （内置应用 EADAF 未启用 SSO），配成它就会被判「无效的第三方应用认证」。
  */
-export function withEadafAppParamForToken(url: string, token?: string | null): string {
-  return withEadafAppParam(url, readTokenApplicationId(token));
+export function withEadafAppParamForToken(
+  url: string,
+  token?: string | null,
+  ssoApplicationId?: string | null,
+): string {
+  return withEadafAppParam(url, readTokenApplicationId(token) || ssoApplicationId);
 }

@@ -159,6 +159,8 @@ export async function streamChatRound(
     signal?: AbortSignal;
     apiBase: string;
     getToken: () => string | null;
+    /** 老令牌兼容：令牌不带 application_id 时用它补 ?app=（= 本应用的 SSO 应用 ID） */
+    ssoApplicationId?: string;
     /** MS6：贯穿本回合的 turnId，写入请求头供后端关联 */
     turnId?: string;
   },
@@ -174,7 +176,9 @@ export async function streamChatRound(
   // 仅在拿到流之前的失败（突发/限流 429）做指数退避重试；
   // 一旦进入流式读取即不再重试。
   const doFetch = () =>
-    fetch(withEadafAppParamForToken(`${params.apiBase}/v1/ai/chat/completions`, token), {
+    fetch(
+      withEadafAppParamForToken(`${params.apiBase}/v1/ai/chat/completions`, token, params.ssoApplicationId),
+      {
       method: 'POST',
       headers,
       signal: params.signal,

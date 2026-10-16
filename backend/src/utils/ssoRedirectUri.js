@@ -185,6 +185,46 @@ function requestHostInfo(ctx) {
   };
 }
 
+/**
+ * 登出后回跳目标是否允许：必须与应用的**回调地址**或**前端地址**同源。
+ *
+ * 单点登出是"浏览器直接跳走"的流程，不校验就是开放重定向。这里按 origin 比对
+ * （应用的登录页路径与 BFF 回调路径通常不同，只比 origin）；两套回调地址
+ * （默认 + DEV）都参与比对，避免平台运行模式与应用部署模式不一致时误拒。
+ *
+ * @param {object|null|undefined} ssoConfig 应用的 sso_config
+ * @param {string} candidate 应用请求的 post_logout_redirect_uri
+ * @param {{ protocol?: string, host?: string }} req
+ * @returns {boolean}
+ */
+function isAllowedPostLogoutRedirect(ssoConfig, candidate, req = {}) {
+  if (!candidate || typeof candidate !== 'string') return false;
+
+  let target;
+  try {
+    target = new URL(candidate.trim());
+  } catch {
+    return false;
+  }
+  if (target.protocol !== 'http:' && target.protocol !== 'https:') return false;
+
+  const origins = new Set();
+  const addOrigin = (uri) => {
+    if (!uri || typeof uri !== 'string') return;
+    try {
+      origins.add(new URL(uri).origin);
+    } catch {
+      // 跟随 Host 的后缀地址在 req 缺失时拼不出来，忽略即可
+    }
+  };
+
+  addOrigin(resolveSsoRedirectUri(ssoConfig, req, { isDevMode: false }));
+  addOrigin(resolveSsoRedirectUri(ssoConfig, req, { isDevMode: true }));
+  addOrigin(ssoConfig?.frontend_url);
+
+  return origins.has(target.origin);
+}
+
 module.exports = {
   isValidSystemHostRedirectSuffix,
   isAbsoluteHttpUrl,
@@ -192,5 +232,6 @@ module.exports = {
   shouldUseDevRedirectUri,
   validateSsoRedirectUriConfig,
   resolveSsoRedirectUri,
+  isAllowedPostLogoutRedirect,
   requestHostInfo,
 };

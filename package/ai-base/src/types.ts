@@ -26,6 +26,15 @@ export interface AIChatConfig {
    * 未配置：仅加载 fallbackSkillSlugs 指定的本地 Skill。
    */
   applicationId?: string;
+  /**
+   * 本前端的令牌由哪个 **SSO 应用**签发（可选，老令牌兼容用）。
+   *
+   * 新版 EADAF 签发的用户 JWT 自带 `application_id` 声明，本库据此自动补 `?app=`；
+   * 老令牌没有声明，业务应用可在这里显式声明自己的 SSO 应用 ID 让本库补上。
+   * ⚠️ 与上面的 `applicationId`（AI 归属应用）不是一回事：控制台配的是内置应用
+   * EADAF（未启用 SSO），把它配到这里会被判「无效的第三方应用认证」。
+   */
+  ssoApplicationId?: string;
   getToken?: () => string | null;
   /** 本地 client 代码显式配置的 Skill slug 列表（如页面 AIChatPageScope 传入） */
   fallbackSkillSlugs?: string[];
@@ -175,6 +184,8 @@ export interface ResolvedAIChatConfig {
   apiBase: string;
   scopeSlug?: string;
   applicationId?: string;
+  /** 本前端令牌的 SSO 应用（老令牌补 ?app= 用，见 AIChatConfig.ssoApplicationId） */
+  ssoApplicationId?: string;
   getToken: () => string | null;
   fallbackSkillSlugs: string[];
   topLevelSkillMarkdown: string;
@@ -359,6 +370,11 @@ export interface AIBaseModelInfo {
 export interface AIBaseClientOptions {
   baseUrl?: string;
   getToken?: () => string | null;
+  /**
+   * 本前端的令牌由哪个 SSO 应用签发（老令牌兼容用）。
+   * 注意与 `AIChatConfig.applicationId`（AI 归属应用）不是一回事，别把归属应用配到这里。
+   */
+  ssoApplicationId?: string;
 }
 
 export interface ToolInvokeResult {

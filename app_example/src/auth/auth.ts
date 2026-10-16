@@ -57,6 +57,9 @@ function onAuthPage(): boolean {
 
 let verifying = false;
 
+/** {@link handleUnauthorized} 的结论，供调用方决定提示文案 */
+export type SessionState = 'valid' | 'invalid' | 'unknown';
+
 /**
  * 令牌失效时的统一处置：**先复核会话**，确认无效才清登录态 → 跳 `/auth/login`。
  *
@@ -65,19 +68,23 @@ let verifying = false;
  * 见 `docs/sso-integration-guide.md` §8.3。
  *
  * 幂等：并发请求同时 401 时只复核一次；确认无效后保持标记，避免重复跳转。
+ *
+ * @returns `invalid`：会话确已失效（已清并跳转）；`valid`：会话没问题，是接口自身的 401；
+ *          `unknown`：网络/5xx 或已在认证页，未做处置
  */
-export async function handleUnauthorized(): Promise<void> {
-  if (verifying || onAuthPage()) return;
+export async function handleUnauthorized(): Promise<SessionState> {
+  if (verifying || onAuthPage()) return 'unknown';
   verifying = true;
 
   const state = await verifySession();
   if (state === 'invalid') {
     clearAuth();
     window.location.replace('/auth/login');
-    return;
+    return 'invalid';
   }
   // valid：该接口的 401 与会话无关；unknown：网络/5xx，都不清登录态
   verifying = false;
+  return state;
 }
 
 /** 拦截器安装标记（StrictMode 下 main.tsx 可能被执行两次） */
@@ -121,4 +128,24 @@ export function buildSsoLoginUrl(applicationId?: string) {
   const appId = applicationId || import.meta.env.VITE_SSO_APPLICATION_ID;
   const EADAFFrontend = import.meta.env.VITE_SSO_EADAF_FRONTEND || 'http://localhost:29527';
   return `${EADAFFrontend}/auth/login?app=${appId}`;
+}
+
+/**
+ * 单点登出：把浏览器交给 EADAF 的登出中转页。
+ *
+ * 只清本地令牌不叫退出：EADAF 的 IdP 会话还在，下次点登录会被静默 SSO 登回来。
+ * 走这个地址后 EADAF 会撤刷新令牌、清掉平台与各应用令牌，再带着 `logged_out=1`
+ * 回到本应用登录页（登录页据此显示"已退出"且不自动登录）。
+ */
+export function buildSsoLogoutUrl(state = 'logout'): string {
+  const appId = import.meta.env.VITE_SSO_APPLICATION_ID;
+  const EADAFFrontend = import.meta.env.VITE_SSO_EADAF_FRONTEND || 'http://localhost:29527';
+  if (!appId) return `${EADAFFrontend}/auth/logout`;
+  const qs = new URLSearchParams({
+    app: appId,
+    // 回跳地址必须与应用的 redirect_uri / frontend_url 同源（EADAF 侧会校验）
+    post_logout_redirect_uri: `${window.location.origin}/auth/login`,
+    state,
+  });
+  return `${EADAFFrontend}/auth/logout?${qs.toString()}`;
 }

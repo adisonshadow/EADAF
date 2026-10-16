@@ -7,7 +7,6 @@ import PasswordForm from './components/PasswordForm';
 import FirstLoginSetupModal from './components/FirstLoginSetupModal';
 import styles from './index.module.scss';
 import { LeftOutlined, LogoutOutlined } from '@ant-design/icons';
-import api from '@/services/UAC/api';
 import { history } from '@/utils/navigation';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import goodJobLottie from '@/assets/lotties/good-job.json';
@@ -77,27 +76,13 @@ const AccountCenterPage: React.FC<{ pageTheme: 'light' | 'dark' }> = ({ pageThem
     }, 2000);
   };
 
-  const loginOut = async () => {
-    try {
-      const refresh_token = localStorage.getItem('refresh_token');
-      if (refresh_token) {
-        await api.auth.postAuthLogout({ refresh_token });
-      }
-    } catch (error) {
-      console.error('登出失败:', error);
-    } finally {
-      // 清除本地存储的 token
-      localStorage.removeItem('token');
-      localStorage.removeItem('refresh_token');
-      // 跳转到登录页
-      const urlParams = new URL(window.location.href).searchParams;
-      const app_id = urlParams.get('app');
-      if (app_id) {
-        history.push(`/auth/login?app=${app_id}`);
-      } else {
-        history.push('/auth/login');
-      }
-    }
+  /**
+   * 退出登录：统一走 `/auth/logout` 中转页（撤 refresh + 清平台会话位与所有应用令牌，
+   * 带 `?app=` 时登出后回该应用）。
+   */
+  const loginOut = () => {
+    const app_id = new URL(window.location.href).searchParams.get('app');
+    history.push(app_id ? `/auth/logout?app=${encodeURIComponent(app_id)}` : '/auth/logout');
   };
 
   if (!initialState?.currentUser) {

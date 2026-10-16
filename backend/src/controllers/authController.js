@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const config = require('../config');
 const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSecret');
-const { resolveSsoRedirectUri, requestHostInfo, isPlatformDevMode } = require('../utils/ssoRedirectUri');
+const { resolveSsoRedirectUri, requestHostInfo, isPlatformDevMode, isAllowedPostLogoutRedirect } = require('../utils/ssoRedirectUri');
 const { isLoginVerifyRequired } = require('../utils/ssoLoginVerify');
 const logger = require('../utils/logger');
 const User = require('../models/user');
@@ -558,6 +558,75 @@ class AuthController {
         code: 500,
         message: '登出失败',
         error: error.message
+      };
+    }
+  }
+
+  /**
+   * 单点登出中转（RP-Initiated Logout 的最小实现）
+   *
+   * 浏览器侧先在管理台 `/auth/logout` 页面撤销 refresh 并清掉本地令牌，
+   * 再跳到这里；本接口只做「回跳目标白名单校验 + state 回传 + logged_out 标记」后 302。
+   *
+   * 之所以不在这里撤令牌：Phase 0 的刷新令牌还在浏览器 localStorage 里，
+   * 服务端拿不到；等 Phase 1 引入服务端会话（sid）后改为服务端直接撤销。
+   *
+   * GET /api/v1/auth/end-session?app=<application_id>&post_logout_redirect_uri=<url>&state=<opaque>
+   */
+  static async endSession(ctx) {
+    const { app, post_logout_redirect_uri: postLogoutRedirect, state } = ctx.query;
+
+    try {
+      let target = null;
+
+      if (app && postLogoutRedirect) {
+        const application = await Application.findOne({
+          where: {
+            application_id: app,
+            status: 'ACTIVE',
+            sso_enabled: true,
+          },
+        });
+
+        if (
+          application
+          && isAllowedPostLogoutRedirect(application.sso_config, postLogoutRedirect, requestHostInfo(ctx))
+        ) {
+          target = String(postLogoutRedirect).trim();
+        } else {
+          // 记下来但不把用户送过去：可能是配置写错，也可能是伪造的开放重定向尝试
+          logger.warn('登出回跳目标未通过白名单校验', {
+            app,
+            post_logout_redirect_uri: postLogoutRedirect,
+            ip: ctx.ip,
+          });
+        }
+      }
+
+      if (!target) {
+        ctx.status = 400;
+        ctx.body = {
+          code: 400,
+          message: '登出回跳地址无效：请携带合法的 app 与 post_logout_redirect_uri（该地址需与应用的 redirect_uri / frontend_url 同源）',
+          data: null,
+        };
+        return;
+      }
+
+      const url = new URL(target);
+      url.searchParams.set('logged_out', '1');
+      if (state) url.searchParams.set('state', String(state));
+
+      logger.debug('单点登出回跳', { app, target: url.origin });
+
+      ctx.redirect(url.toString());
+    } catch (error) {
+      logger.error('单点登出中转失败', { error: error.message, app });
+      ctx.status = 500;
+      ctx.body = {
+        code: 500,
+        message: '单点登出中转失败',
+        error: error.message,
       };
     }
   }

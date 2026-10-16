@@ -6,7 +6,6 @@ import type { MenuInfo } from 'rc-menu/lib/interface';
 import React, { useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import HeaderDropdown from '../HeaderDropdown';
-import api from '@/services/UAC/api';
 import { getImageUrlIfValid } from '@/utils/image';
 
 export type GlobalHeaderRightProps = {
@@ -22,23 +21,15 @@ export const AvatarName = () => {
 
 export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, children }) => {
   /**
-   * 退出登录，并且将当前的 url 保存
+   * 退出登录。
+   *
+   * 统一走登出中转页 `/auth/logout`：由它撤销刷新令牌、清掉平台会话位**与所有应用的
+   * `sso_token:<app_id>`**，再决定回管理台登录页还是回业务应用。
+   * （原先直接在组件里 POST + 只清两个 key，会漏掉应用令牌，业务应用也收不到通知。）
    */
-  const loginOut = async () => {
-    try {
-      const refresh_token = localStorage.getItem('refresh_token');
-      if (refresh_token) {
-        await api.auth.postAuthLogout({ refresh_token });
-      }
-    } catch (error) {
-      console.error('登出失败:', error);
-    } finally {
-      // 清除本地存储的 token
-      localStorage.removeItem('token');
-      localStorage.removeItem('refresh_token');
-      // 跳转到登录页
-      history.push('/auth/login');
-    }
+  const loginOut = () => {
+    const appId = new URLSearchParams(window.location.search).get('app');
+    history.push(appId ? `/auth/logout?app=${encodeURIComponent(appId)}` : '/auth/logout');
   };
 
   const { initialState, setInitialState } = useInitialState();

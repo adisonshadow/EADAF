@@ -1,8 +1,12 @@
-import { Badge, Button, Card, Typography } from 'antd';
+import { Alert, Badge, Button, Card, Typography } from 'antd';
 import { buildSsoLoginUrl } from './auth';
 
 /** 登录页：跳 EADAF 管理端做 SSO（示例应用不自己管账号密码） */
 export default function LoginPage() {
+  // 从 EADAF 登出中转回来：明确告知"已退出"，且必须用户主动点击才发起登录。
+  // 这里刻意不做"自动跳 SSO" —— IdP 会话若还在，自动跳会让人以为没退出成功。
+  const loggedOut = new URLSearchParams(window.location.search).get('logged_out') === '1';
+
   const handleLogin = () => {
     window.location.href = buildSsoLoginUrl();
   };
@@ -30,6 +34,16 @@ export default function LoginPage() {
             账号与权限由 EADAF 统一管理，请先通过单点登录进入（应用：
             {import.meta.env.VITE_SSO_APPLICATION_ID || '未配置'}）。
           </Typography.Paragraph>
+
+          {loggedOut ? (
+            <Alert
+              type="success"
+              showIcon
+              message="已退出登录"
+              description="EADAF 会话已一并退出。如需继续使用，请重新登录。"
+              style={{ marginBottom: 16 }}
+            />
+          ) : null}
 
           <Button type="primary" block size="large" onClick={handleLogin}>
             前往登录

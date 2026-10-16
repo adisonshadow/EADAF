@@ -35,6 +35,11 @@ export {
 } from './utils/aiChatBridge';
 export type { AIChatControls, AIChatSessionControls } from './utils/aiChatBridge';
 export { formatMessageWithReferences, formatReferencePointer } from './utils/formatChatReferences';
+export {
+  readTokenApplicationId,
+  withEadafAppParam,
+  withEadafAppParamForToken,
+} from './utils/eadafAppParam';
 export { extractAiChatErrorMessage, readChatErrorMessage } from './utils/formatAiChatError';
 export { setToolInvokeLogger, logToolInvoke, withToolInvokeLog, formatToolInvokeError, subscribeToolInvoke } from './utils/toolInvokeLogger';
 export type { ToolInvokeLogEntry, ToolInvokeLogger, ToolInvokeSide, ToolInvokeListener } from './utils/toolInvokeLogger';

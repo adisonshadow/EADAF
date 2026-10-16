@@ -86,4 +86,22 @@ assert.equal(
 assert.equal(withEadafAppParamForToken('/api/v1/ai/models', null), '/api/v1/ai/models');
 assert.equal(withEadafAppParamForToken('/api/v1/ai/models', 'garbage'), '/api/v1/ai/models');
 
-console.log('eadafAppParam.verify.ts ok：只有应用签发的令牌才补 ?app=<application_id>');
+/* ---------- 4. 老令牌兜底：显式配置 ssoApplicationId（业务应用才配） ---------- */
+
+assert.equal(
+  withEadafAppParamForToken('/api/v1/ai/models', platformToken, APP),
+  `/api/v1/ai/models?app=${APP}`,
+  '老令牌（无声明）+ 显式 ssoApplicationId → 补 ?app=',
+);
+assert.equal(
+  withEadafAppParamForToken('/api/v1/ai/models', ssoToken, OTHER),
+  `/api/v1/ai/models?app=${APP}`,
+  '令牌自述优先于显式配置',
+);
+assert.equal(
+  withEadafAppParamForToken('/api/v1/ai/models', 'garbage', ''),
+  '/api/v1/ai/models',
+  '既没声明也没配置 → 不补（控制台场景，避免误塞内置应用）',
+);
+
+console.log('eadafAppParam.verify.ts ok：只有应用签发的令牌（或显式配置）才补 ?app=<application_id>');

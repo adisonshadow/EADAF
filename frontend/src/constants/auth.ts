@@ -14,6 +14,7 @@ export const NO_TOKEN_APIS = [
 // 认证相关的页面路径
 export const AUTH_PAGES = [
   '/auth/login',
+  '/auth/logout',
   '/auth/reset-password',
 ] as const;
 

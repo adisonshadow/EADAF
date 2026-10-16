@@ -29,6 +29,7 @@ export function resolveConfig(config: AIChatConfig = {}): ResolvedAIChatConfig {
     apiBase: config.apiBase || '/api',
     scopeSlug: config.scopeSlug,
     applicationId: config.applicationId,
+    ssoApplicationId: config.ssoApplicationId,
     getToken: config.getToken || defaultGetToken,
     fallbackSkillSlugs: config.fallbackSkillSlugs ?? [],
     topLevelSkillMarkdown: config.topLevelSkillMarkdown ?? '',

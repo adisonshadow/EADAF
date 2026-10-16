@@ -159,7 +159,21 @@ EADAF 侧按顺序挑验签密钥，因此**同一个 token 带不带 `?app=` �
 - 用户 JWT（应用密钥签发）与**应用 Token**（`POST /applications/token`，平台密钥签发）是两把密钥，过去靠「URL 上有没有 `?app=`」区分，客户端漏带/多带都会 401 —— 业务侧若把 401 当会话失效，用户就会「一发请求就掉登录」。
 - 客户端的稳妥做法仍是**显式带 `?app={application_id}`**（兼容旧后端与旧令牌）；`@eadaf/ai-base` 会自动读**令牌自述的 `application_id`** 补上它。
 - ⚠️ **别把「AI 归属应用」当 SSO 应用**：ai-base 配置里的 `applicationId`（EADAF 控制台用的是内置应用 `EADAF`，它并未启用 SSO）只用于 Skill/Scope 归属，把它塞进 `?app=` 会得到 401「无效的第三方应用认证」。`?app=` 只能是**签发该用户 JWT 的那个应用**。
-- 旧版本签发的用户 JWT 不带 `application_id` 声明，重新登录一次即可；在此之前请带 `?app=`。
+- 旧版本签发的用户 JWT 不带 `application_id` 声明：ai-base 支持用 `ssoApplicationId` 显式声明"本前端的令牌由哪个 SSO 应用签发"（示例应用已配）。**注意它和 `applicationId` 不是一个东西**，别把归属应用配进去。
+
+### 6.4 401 的可编程错误码
+
+`auth` 中间件的 401 响应带 `error_code`，客户端据此区分「该刷新/重新登录」还是「只是这个接口没权限」：
+
+| `error_code` | 含义 | 客户端建议动作 |
+|--------------|------|----------------|
+| `TOKEN_EXPIRED` | 访问令牌过期 | 静默刷新一次；失败则重新登录 |
+| `TOKEN_INVALID` | 验签失败 / 载荷不合法 / 应用令牌无效 | 清应用会话 → 回登录页 |
+| `SESSION_REVOKED` | 会话被撤销（Phase 1 起） | 清应用会话 → 回登录页 |
+| `AUTH_MISSING` / `AUTH_MALFORMED` | 没带 / 格式不对的 Authorization 头 | 清应用会话 → 回登录页 |
+| `APP_CONTEXT_INVALID` | `?app=` 指向的应用不可用于 SSO | **不要清会话**：这是配置/接口问题，提示并联系管理员 |
+
+> 401 一律当"掉登录"是历史坑（见 §10）；接口级问题请只提示、不清登录态。
 
 
 ---
@@ -174,7 +188,27 @@ EADAF 侧按顺序挑验签密钥，因此**同一个 token 带不带 `?app=` �
 | `GET` 或 `POST /auth/callback` | 接 EADAF 回调；与应用配置的 `redirect_mode` 一致 |
 | `GET /auth/check` | 校验用户 JWT（见 §6） |
 | `GET /auth/me` | 可选，返回当前用户声明 |
-| `POST /auth/logout` | 可选；用户态清理由前端完成即可 |
+| `POST /auth/logout` | 可选；**优先走 EADAF 登出中转页**，见 §7.1 |
+
+### 7.1 单点登出（RP-Initiated Logout）
+
+只清应用本地令牌**不叫退出**：EADAF 的 IdP 会话还在，用户下次点登录会被静默 SSO 登回来（看起来像"没退出成功"）。应用退出时应把浏览器交给 EADAF 的登出中转页：
+
+```text
+{eadaf_frontend_url}/auth/logout?app={application_id}&post_logout_redirect_uri={应用登录页}&state={opaque}
+```
+
+中转页会做三件事：① 撤销本地 refresh 令牌；② 清掉平台令牌与**所有应用**的 `sso_token:<app_id>`；③ 带 `logged_out=1` 与 `state` 回跳 `post_logout_redirect_uri`。
+
+- `post_logout_redirect_uri` 必须与应用的 `redirect_uri`（含 DEV 那套）或 `frontend_url` **同源**，否则 EADAF 返回 400（防开放重定向）；
+- 应用登录页收到 `logged_out=1` 应显示"已退出"，并且**不要自动跳 SSO**，必须等用户主动点击，否则会被登回去；
+- 纯服务端场景（无浏览器）可直接调后端中转，由它校验并 302：
+
+```http
+GET {eadaf}/api/v1/auth/end-session?app={application_id}&post_logout_redirect_uri={url}&state={opaque}
+```
+
+**阶段边界**（见 [方案计划](./SSO会话与登出方案计划.md)）：Phase 0 的登出只会撤当前会话的 refresh 并清**本浏览器**的令牌，其它已登录应用要等它下次探测到会话失效才回登录页；Phase 1 引入 `sid` 后，撤销即让该设备上所有应用立即失效；Phase 3 的 back-channel logout 让应用无需探测、1 秒内回登录页。
 
 前端登录入口推荐：
 
@@ -219,6 +253,8 @@ GET {eadaf}/api/v1/applications-sso/{application_id}
 | 现象 | 优先排查 |
 |------|----------|
 | 登录后又回登录页 | Hash 回调格式错误；StrictMode 双跑；check 误清 token；回跳路径写成了 `/login` |
+| **应用里退出后，一点登录又自动登进去** | 只清了应用本地令牌，没退 EADAF 的 IdP 会话。退出要走登出中转页（§7.1），登录页收到 `logged_out=1` 时不要自动跳 SSO |
+| **EADAF 退出后，应用仍停着 / 只报"无效的令牌"** | Phase 0 的能力边界：其它应用要等自己下次探测（`/auth/check` 返回 401）才回登录页；Phase 1 起 `sid` 撤销即时生效，Phase 3 back-channel 后无需探测 |
 | **一发后端请求就掉登录** | 客户端把 401 一律当会话失效：某些接口（AI / DataAPI / 存储）漏带 `?app=` 时必然 401。先复核 `/auth/check?app=` 再决定是否清 token（见 §8.3）；`@eadaf/ai-base` 会按令牌自述的 `application_id` 自动补 `?app=` |
 | 401 **无效的第三方应用认证** | `?app=` 指向的应用不可用于 SSO：不存在 / 非 `ACTIVE` / `sso_enabled=false` / 没生成统一密钥。常见误用是把「AI 归属应用」（如控制台的内置应用 EADAF）塞进了 `?app=`，以及把「AI 归属应用」和「签发该 JWT 的应用」混为一谈 |
 | 回调 400「缺少 token」 | `redirect_mode` / 参数名与 BFF 不一致（EADAF 下发的是 `access_token`） |
@@ -280,6 +316,22 @@ Content-Type: application/json
 ```
 
 详见 [外部应用接入指南](./external-app-integration-guide.md)。
+
+### 11.6 单点登出
+
+浏览器（应用退出按钮用这个）：
+
+```text
+{eadaf_frontend}/auth/logout?app={application_id}&post_logout_redirect_uri={应用登录页}&state={opaque}
+```
+
+服务端/无浏览器（校验回跳地址后 302）：
+
+```http
+GET {eadaf}/api/v1/auth/end-session?app={application_id}&post_logout_redirect_uri={url}&state={opaque}
+```
+
+说明见 §7.1（回跳地址必须与应用同源，否则 400）。
 
 ---
 

@@ -88,6 +88,7 @@ module.exports = async (ctx, next) => {
     ctx.body = {
       code: 401,
       message: '未提供认证令牌',
+      error_code: 'AUTH_MISSING',
       data: null
     };
     return;
@@ -106,6 +107,7 @@ module.exports = async (ctx, next) => {
     ctx.body = {
       code: 401,
       message: '认证令牌格式错误，请使用 Bearer 格式',
+      error_code: 'AUTH_MALFORMED',
       data: null
     };
     return;
@@ -124,6 +126,7 @@ module.exports = async (ctx, next) => {
     ctx.body = {
       code: 401,
       message: '认证令牌不能为空',
+      error_code: 'AUTH_MISSING',
       data: null
     };
     return;
@@ -153,6 +156,7 @@ module.exports = async (ctx, next) => {
         ctx.body = {
           code: 401,
           message: '无效的第三方应用认证',
+          error_code: 'APP_CONTEXT_INVALID',
           data: null
         };
         return;
@@ -217,7 +221,7 @@ module.exports = async (ctx, next) => {
           application_id: payload.application_id,
         });
         ctx.status = 401;
-        ctx.body = { code: 401, message: '无效的应用令牌', data: null };
+        ctx.body = { code: 401, message: '无效的应用令牌', error_code: 'TOKEN_INVALID', data: null };
         return;
       }
       ctx.state.application = application;
@@ -246,6 +250,7 @@ module.exports = async (ctx, next) => {
       ctx.body = {
         code: 401,
         message: '无效的令牌',
+        error_code: 'TOKEN_INVALID',
         data: null
       };
       return;
@@ -265,6 +270,7 @@ module.exports = async (ctx, next) => {
       ctx.body = {
         code: 401,
         message: '认证令牌已过期',
+        error_code: 'TOKEN_EXPIRED',
         data: null
       };
       return;
@@ -310,6 +316,8 @@ module.exports = async (ctx, next) => {
     ctx.body = {
       code: 401,
       message: errorMessage,
+      // 机器可读：客户端据此区分「该刷新还是该重新登录」
+      error_code: error.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'TOKEN_INVALID',
       data: null
     };
   }

@@ -22,6 +22,7 @@ import { setNavigate } from '@/utils/navigation';
 /* ------------------------- 特殊路由（手写，不进语义清单） ------------------------- */
 
 const Auth = lazy(() => import('@/pages/Auth'));
+const Logout = lazy(() => import('@/pages/Auth/Logout'));
 const ResetPSWD = lazy(() => import('@/pages/ResetPSWD'));
 const ApplicationPublicApiCatalog = lazy(() => import('@/pages/ServiceProvider/Applications/PublicApiCatalog'));
 const ApplicationExceptionResponses = lazy(() => import('@/pages/ServiceProvider/Applications/PublicApiCatalog/ExceptionResponsesPage'));
@@ -138,6 +139,7 @@ export default function AppRoutes() {
 
         <Route element={<AIChatHidden />}>
           <Route path="/auth/login" element={<Auth />} />
+          <Route path="/auth/logout" element={<Logout />} />
           <Route path="/auth/reset-password" element={<ResetPSWD />} />
         </Route>
 

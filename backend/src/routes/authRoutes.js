@@ -476,6 +476,44 @@ router.post(
 
 /**
  * @swagger
+ * /api/v1/auth/end-session:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: 单点登出中转（RP-Initiated Logout）
+ *     description: |
+ *       业务应用登出后由浏览器跳到本接口，校验回跳地址并 302 回应用。
+ *       回跳地址必须与应用配置的 `redirect_uri`（含 DEV 那套）或 `frontend_url` **同源**，
+ *       否则返回 400（防开放重定向）。
+ *
+ *       本接口**不要求认证**，也不直接撤销令牌：Phase 0 的刷新令牌在浏览器侧，
+ *       由管理台 `/auth/logout` 页面先调 `POST /api/v1/auth/logout` 撤销再跳到这里。
+ *     parameters:
+ *       - in: query
+ *         name: app
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: 应用 ID
+ *       - in: query
+ *         name: post_logout_redirect_uri
+ *         required: true
+ *         schema: { type: string }
+ *         description: 登出后回跳地址（需与应用同源）
+ *       - in: query
+ *         name: state
+ *         required: false
+ *         schema: { type: string }
+ *         description: 原样回传（防 CSRF / 保留应用上下文）
+ *     responses:
+ *       302:
+ *         description: 回跳到 post_logout_redirect_uri（附带 logged_out=1 与 state）
+ *       400:
+ *         description: app 或回跳地址不合法
+ */
+router.get('/end-session', authController.endSession);
+
+/**
+ * @swagger
  * /api/v1/auth/captcha:
  *   get:
  *     tags:

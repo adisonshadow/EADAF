@@ -115,6 +115,36 @@ check "刷新后 GET /v1/ai/capabilities 不带 app" 200 "$(code "$BASE/ai/capab
 check "刷新（显式带 app）"                      200 "$(code -X POST "$BASE/auth/refresh" -H 'Content-Type: application/json' -H "Authorization: Bearer $NEW_TOK" -d "{\"refresh_token\":\"$NEW_REFRESH\",\"app\":\"$APP\"}")"
 check "刷新（无效 refresh_token）"              401 "$(code -X POST "$BASE/auth/refresh" -H 'Content-Type: application/json' -H "Authorization: Bearer $NEW_TOK" -d '{"refresh_token":"garbage"}')"
 
+echo "== 6. 单点登出中转（/auth/end-session）=="
+# 只允许回跳到应用自己的 redirect_uri / frontend_url 同源地址
+POST_LOGOUT_URI="${EADAF_POST_LOGOUT_URI:-http://localhost:29529/auth/login}"
+ENCODED_TARGET=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1], safe=''))" "$POST_LOGOUT_URI")
+LOCATION=$(curl -s -o /dev/null -D - "$BASE/auth/end-session?app=$APP&post_logout_redirect_uri=$ENCODED_TARGET&state=logout" \
+  | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}')
+if printf '%s' "$LOCATION" | grep -q 'logged_out=1' && printf '%s' "$LOCATION" | grep -q 'state=logout'; then
+  printf '  ✅ %-56s %s\n' "合法回跳地址 → 302 带 logged_out/state" "$LOCATION"; pass=$((pass+1))
+else
+  printf '  ❌ %-56s 实际 Location=%s（默认目标 %s 是否与应用同源？可用 EADAF_POST_LOGOUT_URI 覆盖）\n' \
+    "合法回跳地址 → 302 带 logged_out/state" "${LOCATION:-无}" "$POST_LOGOUT_URI"; fail=$((fail+1))
+fi
+check "跨站回跳地址（开放重定向）"              400 "$(code "$BASE/auth/end-session?app=$APP&post_logout_redirect_uri=https%3A%2F%2Fevil.example.com%2Fsteal")"
+check "缺少 app 参数"                          400 "$(code "$BASE/auth/end-session?post_logout_redirect_uri=$ENCODED_TARGET")"
+
+echo "== 7. 401 可编程错误码 =="
+assert_error_code() { # assert_error_code <说明> <期望 error_code> <curl 参数...>
+  local body
+  body=$(curl -s "$@")
+  if printf '%s' "$body" | grep -q "\"error_code\":\"$2\""; then
+    printf '  ✅ %-56s %s\n' "$1" "$2"; pass=$((pass+1))
+  else
+    printf '  ❌ %-56s 响应=%s\n' "$1" "$(printf '%s' "$body" | head -c 120)"; fail=$((fail+1))
+  fi
+}
+assert_error_code "乱码 token" TOKEN_INVALID "$BASE/ai/models" -H "Authorization: Bearer garbage"
+assert_error_code "无 Authorization 头" AUTH_MISSING "$BASE/ai/models"
+assert_error_code "非 Bearer 格式" AUTH_MALFORMED "$BASE/ai/models" -H "Authorization: Token abc"
+assert_error_code "?app= 指向不可用应用" APP_CONTEXT_INVALID "$BASE/ai/models?app=00000000-0000-4000-8000-000000000000" -H "Authorization: Bearer $PLAT_TOK"
+
 echo
 echo "结果：通过 $pass / 失败 $fail / 跳过 $skip"
 [ "$fail" -eq 0 ]

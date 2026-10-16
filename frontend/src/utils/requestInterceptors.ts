@@ -15,6 +15,18 @@ export enum ErrorShowType {
   REDIRECT = 9,
 }
 
+/**
+ * 「会话已失效」的 error_code 集合（后端 auth 中间件返回，见 SSO 方案计划 §5.5）。
+ * 不在此集合里的 401（如 APP_CONTEXT_INVALID）只提示，不清会话。
+ */
+const SESSION_DEAD_ERROR_CODES = new Set([
+  'TOKEN_EXPIRED',
+  'TOKEN_INVALID',
+  'SESSION_REVOKED',
+  'AUTH_MISSING',
+  'AUTH_MALFORMED',
+]);
+
 // 响应数据结构
 export interface ResponseStructure {
   success: boolean;
@@ -97,21 +109,10 @@ export const requestInterceptors = [
 // 响应拦截器
 export const responseInterceptors = [
   async (response: AxiosResponse) => {
-    const { status, data, config } = response;
-    const requestUrl = config?.url || '';
-    const isAuthCheckRequest = requestUrl.includes('/auth/check');
-    
-    // 处理 401 未授权的情况
-    if (status === 401) {
-      const currentPath = window.location.pathname;
-      const isAuthPage = AUTH_PAGES.includes(currentPath as any);
-      
-      // auth/check 的 401 表示 token 无效，由调用方自行处理，避免重复登出
-      if (!isAuthPage && !isAuthCheckRequest) {
-        handleUnauthorized();
-      }
-      return response;
-    }
+    const { data } = response;
+
+    // 注意：401 不会走到这里 —— axios 默认把非 2xx 交给 errorHandler（见下方 errorConfig）。
+    // 会话失效的处置统一在 errorConfig.errorHandler 里按 error_code 分流。
 
     // 处理业务错误
     // 注意：这里我们只处理明确标记为失败的情况
@@ -188,12 +189,29 @@ export const errorConfig = {
       const isAuthCheckRequest = requestUrl.includes('/auth/check');
       const currentPath = window.location.pathname;
       const isAuthPage = AUTH_PAGES.includes(currentPath as any);
-      
+
       // 登录态检查或认证页面的 401 属于预期行为，不弹全局错误
       if ((isAuthPage && status === 401) || (opts?.skipErrorHandler && status === 401) || isAuthCheckRequest) {
         throw error;
       }
-      
+
+      if (status === 401) {
+        // 401 要分两层（见 SSO 方案计划 §5.5）：
+        //   会话级（令牌过期/无效/被撤销）→ 清会话回登录页；
+        //   接口级（如 ?app= 指向的应用不可用于 SSO）→ 只是这个接口的问题，会话还在，别把人踢下线。
+        const errorCode = (error.response.data as { error_code?: string } | undefined)?.error_code;
+        if (!errorCode || SESSION_DEAD_ERROR_CODES.has(errorCode)) {
+          if (!errorCode) {
+            // 老后端不带 error_code：管理台请求用的就是平台令牌，按会话失效处理
+            console.warn('401 未携带 error_code，按会话失效处理:', requestUrl);
+          }
+          handleUnauthorized();
+          throw error;
+        }
+        message.error(getApiErrorMessage(error, '当前请求未被授权，若持续出现请联系管理员'));
+        throw error;
+      }
+
       message.error(getApiErrorMessage(error, `请求错误 ${status}: ${error.response.statusText}`));
     } else if (error.request) {
       // 请求已发出但没有收到响应
