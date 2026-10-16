@@ -109,12 +109,8 @@ export function AIChatProvider({ config, plugins, children }: AIChatProviderProp
   }, [toolDisplayNamesKey]);
 
   const client = useMemo(
-    () => new AIBaseClient({
-      baseUrl: resolved.apiBase,
-      getToken: resolved.getToken,
-      applicationId: resolved.applicationId,
-    }),
-    [resolved.apiBase, resolved.applicationId, config?.getToken],
+    () => new AIBaseClient({ baseUrl: resolved.apiBase, getToken: resolved.getToken }),
+    [resolved.apiBase, config?.getToken],
   );
 
   const initialMode = getDisplayModeForPath(getCurrentPathname(), resolved.hiddenPaths);

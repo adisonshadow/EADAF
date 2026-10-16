@@ -5,7 +5,7 @@ import {
   type XRequestOptions,
 } from '@ant-design/x-sdk';
 import { extractAiChatErrorMessage } from '../utils/formatAiChatError';
-import { withEadafAppParam } from '../utils/eadafAppParam';
+import { withEadafAppParamForToken } from '../utils/eadafAppParam';
 import type { AssistantSegment } from './chatToolSteps';
 
 type SseChunk = { data?: string };
@@ -125,15 +125,9 @@ export class EADAFChatProvider extends AbstractChatProvider<EADAFChatMessage, EA
   }
 }
 
-export function createEADAFChatProvider(
-  apiBase: string,
-  getToken: () => string | null,
-  applicationId?: string,
-) {
-  // SSO 用户 JWT 是按应用密钥签发的，EADAF 要靠 ?app= 选验签密钥（否则 401）
-  const endpoint = withEadafAppParam(`${apiBase}/v1/ai/chat/completions`, applicationId);
+export function createEADAFChatProvider(apiBase: string, getToken: () => string | null) {
   return new EADAFChatProvider({
-    request: XRequest<EADAFChatInput, SseChunk, EADAFChatMessage>(endpoint, {
+    request: XRequest<EADAFChatInput, SseChunk, EADAFChatMessage>(`${apiBase}/v1/ai/chat/completions`, {
       manual: true,
       headers: { 'Content-Type': 'application/json' },
       middlewares: {
@@ -143,7 +137,9 @@ export function createEADAFChatProvider(
             ...(init.headers as Record<string, string>),
           };
           if (token) headers.Authorization = `Bearer ${token}`;
-          return [url, { ...init, headers }] as [string, typeof init];
+          // SSO 用户 JWT 是按应用密钥签发的，按令牌自述的 application_id 补 ?app=
+          const requestUrl = typeof url === 'string' ? url : String(url);
+          return [withEadafAppParamForToken(requestUrl, token), { ...init, headers }] as [string, typeof init];
         },
       },
       params: { stream: true },

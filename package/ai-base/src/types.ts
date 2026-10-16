@@ -359,8 +359,6 @@ export interface AIBaseModelInfo {
 export interface AIBaseClientOptions {
   baseUrl?: string;
   getToken?: () => string | null;
-  /** EADAF 应用 ID：SSO 用户 JWT 需要请求带 ?app= 才能按应用密钥验签 */
-  applicationId?: string;
 }
 
 export interface ToolInvokeResult {

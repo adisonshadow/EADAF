@@ -7,7 +7,7 @@ import type {
   ToolInvokeResult,
 } from '../types';
 import { extractAiChatErrorMessage } from '../utils/formatAiChatError';
-import { withEadafAppParam } from '../utils/eadafAppParam';
+import { withEadafAppParamForToken } from '../utils/eadafAppParam';
 import { getActiveTurnId } from '../observability/turnTrace';
 
 function resolveBaseUrl(baseUrl?: string) {
@@ -17,13 +17,10 @@ function resolveBaseUrl(baseUrl?: string) {
 export class AIBaseClient {
   private baseUrl: string;
   private getToken: () => string | null;
-  /** EADAF 应用 ID：请求要带 ?app= 才能用应用密钥验签（SSO 用户 JWT） */
-  private applicationId?: string;
 
   constructor(options: AIBaseClientOptions = {}) {
     this.baseUrl = resolveBaseUrl(options.baseUrl);
     this.getToken = options.getToken || (() => localStorage.getItem('token'));
-    this.applicationId = options.applicationId;
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -38,7 +35,7 @@ export class AIBaseClient {
       headers.set('X-AIBase-TurnId', turnId);
     }
 
-    const response = await fetch(withEadafAppParam(`${this.baseUrl}${path}`, this.applicationId), {
+    const response = await fetch(withEadafAppParamForToken(`${this.baseUrl}${path}`, token), {
       ...init,
       headers,
     });

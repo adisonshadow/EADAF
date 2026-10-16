@@ -1,6 +1,6 @@
 import type { OpenAIToolDefinition } from '../types';
 import { extractAiChatErrorMessage, readChatErrorMessage } from '../utils/formatAiChatError';
-import { withEadafAppParam } from '../utils/eadafAppParam';
+import { withEadafAppParamForToken } from '../utils/eadafAppParam';
 import { sleep } from '../utils/sleep';
 import type { EADAFChatMessage } from './EADAFChatProvider';
 
@@ -159,8 +159,6 @@ export async function streamChatRound(
     signal?: AbortSignal;
     apiBase: string;
     getToken: () => string | null;
-    /** EADAF 应用 ID：SSO 用户 JWT 需要 ?app= 才能按应用密钥验签 */
-    applicationId?: string;
     /** MS6：贯穿本回合的 turnId，写入请求头供后端关联 */
     turnId?: string;
   },
@@ -176,7 +174,7 @@ export async function streamChatRound(
   // 仅在拿到流之前的失败（突发/限流 429）做指数退避重试；
   // 一旦进入流式读取即不再重试。
   const doFetch = () =>
-    fetch(withEadafAppParam(`${params.apiBase}/v1/ai/chat/completions`, params.applicationId), {
+    fetch(withEadafAppParamForToken(`${params.apiBase}/v1/ai/chat/completions`, token), {
       method: 'POST',
       headers,
       signal: params.signal,

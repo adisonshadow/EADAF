@@ -1,56 +1,89 @@
 /**
  * 自检：`node --import tsx src/utils/eadafAppParam.verify.ts`
  *
- * 锁住「SSO 用户 JWT 必须带 ?app=」这条不变量：
- * 漏带 → EADAF 用平台密钥验签 → 401 → 业务应用掉登录。
+ * 锁住两条不变量：
+ *   1. SSO 用户 JWT（自带 application_id）调 EADAF 要带 `?app=`，否则平台密钥验签 → 401；
+ *   2. **平台会话令牌不能被塞 `?app=`** —— EADAF 控制台的 AI 归属应用是内置应用
+ *      （未启用 SSO），塞进去会被判成「无效的第三方应用认证」。
  */
 import assert from 'node:assert/strict';
-import { withEadafAppParam } from './eadafAppParam';
+import {
+  readTokenApplicationId,
+  withEadafAppParam,
+  withEadafAppParamForToken,
+} from './eadafAppParam';
 
 const APP = '1e71c653-630f-4006-b6df-081172b15752';
 const OTHER = '10000000-0001-4000-8000-000000000006';
 
-// 1) 无 query：补 ?app=
+/** 造个假 JWT（自检不关心签名，只关心负载） */
+const fakeJwt = (payload: Record<string, unknown>) => {
+  const b64url = (obj: unknown) =>
+    btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url(payload)}.signature`;
+};
+
+const ssoToken = fakeJwt({ user_id: 'u1', username: 'admin', application_id: APP });
+const platformToken = fakeJwt({ user_id: 'u1', username: 'admin' });
+const applicationToken = fakeJwt({ application_id: APP, type: 'application' });
+
+/* ------------------------- 1. 低层：URL 补参 ------------------------- */
+
 assert.equal(
   withEadafAppParam('/api/v1/ai/capabilities', APP),
   `/api/v1/ai/capabilities?app=${APP}`,
 );
-
-// 2) 已有 query：追加 &app=
 assert.equal(
   withEadafAppParam('/api/v1/ai/skills?slugs=aibase-chat-framework', APP),
   `/api/v1/ai/skills?slugs=aibase-chat-framework&app=${APP}`,
 );
-
-// 3) 不改写已有 query（原样保留编码）
 assert.equal(
   withEadafAppParam('/api/v1/ai/skills?slugs=a%2Cb&x=1', APP),
   `/api/v1/ai/skills?slugs=a%2Cb&x=1&app=${APP}`,
 );
-
-// 4) POST 端点（chat/completions）同样补参
-assert.equal(
-  withEadafAppParam('/api/v1/ai/chat/completions', APP),
-  `/api/v1/ai/chat/completions?app=${APP}`,
-);
-
-// 5) 没配 applicationId：原样返回（平台会话 token 不需要 app）
+assert.equal(withEadafAppParam('/api/v1/ai/chat/completions', APP), `/api/v1/ai/chat/completions?app=${APP}`);
 assert.equal(withEadafAppParam('/api/v1/ai/capabilities'), '/api/v1/ai/capabilities');
 assert.equal(withEadafAppParam('/api/v1/ai/capabilities', ''), '/api/v1/ai/capabilities');
 assert.equal(withEadafAppParam('/api/v1/ai/capabilities', '   '), '/api/v1/ai/capabilities');
-
-// 6) 调用方已显式指定 app：不覆盖
-assert.equal(withEadafAppParam(`/api/v1/ai/capabilities?app=${OTHER}`, APP), `/api/v1/ai/capabilities?app=${OTHER}`);
-assert.equal(withEadafAppParam(`/api/v1/ai/capabilities?x=1&app=${OTHER}`, APP), `/api/v1/ai/capabilities?x=1&app=${OTHER}`);
-
-// 7) 带 hash 的 URL：参数进 query，不落到 hash 后面
+assert.equal(
+  withEadafAppParam(`/api/v1/ai/capabilities?app=${OTHER}`, APP),
+  `/api/v1/ai/capabilities?app=${OTHER}`,
+);
 assert.equal(
   withEadafAppParam('/api/v1/ai/capabilities#section', APP),
   `/api/v1/ai/capabilities?app=${APP}#section`,
 );
-
-// 8) 幂等：补过一次再补不会重复
 const once = withEadafAppParam('/api/v1/ai/capabilities', APP);
-assert.equal(withEadafAppParam(once, APP), once);
+assert.equal(withEadafAppParam(once, APP), once, '补参要幂等');
 
-console.log('eadafAppParam.verify.ts ok：EADAF 请求会带上 ?app=<application_id>');
+/* ------------------- 2. 从令牌读 application_id ------------------- */
+
+assert.equal(readTokenApplicationId(ssoToken), APP);
+assert.equal(readTokenApplicationId(applicationToken), APP, '应用 Token 同样自述 application_id');
+assert.equal(readTokenApplicationId(platformToken), '', '平台会话令牌没有 application_id');
+assert.equal(readTokenApplicationId('not-a-jwt'), '');
+assert.equal(readTokenApplicationId(''), '');
+assert.equal(readTokenApplicationId(null), '');
+assert.equal(readTokenApplicationId(undefined), '');
+
+/* ------------------- 3. 按令牌补参（真实调用路径） ------------------- */
+
+assert.equal(
+  withEadafAppParamForToken('/api/v1/ai/models', ssoToken),
+  `/api/v1/ai/models?app=${APP}`,
+  'SSO 用户 JWT 必须补 ?app=',
+);
+assert.equal(
+  withEadafAppParamForToken('/api/v1/ai/capabilities?applicationId=' + OTHER, ssoToken),
+  `/api/v1/ai/capabilities?applicationId=${OTHER}&app=${APP}`,
+  'applicationId= 是 AI 归属参数，不能被当成 ?app=，也不能挡住真正的 ?app=',
+);
+assert.equal(
+  withEadafAppParamForToken('/api/v1/ai/models', platformToken),
+  '/api/v1/ai/models',
+  '平台会话令牌（EADAF 控制台）不得补 ?app=，否则 401 无效的第三方应用认证',
+);
+assert.equal(withEadafAppParamForToken('/api/v1/ai/models', null), '/api/v1/ai/models');
+assert.equal(withEadafAppParamForToken('/api/v1/ai/models', 'garbage'), '/api/v1/ai/models');
+
+console.log('eadafAppParam.verify.ts ok：只有应用签发的令牌才补 ?app=<application_id>');
