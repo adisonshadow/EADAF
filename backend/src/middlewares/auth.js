@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const Application = require('../models/application');
 const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSecret');
 const ssoSession = require('../utils/ssoSession');
+const { getPublicKey } = require('../utils/ssoKeys');
 
 /**
  * 查一个可用于验签的 SSO 应用。
@@ -30,37 +31,74 @@ async function findSsoSigningApp(applicationId) {
  * 候选验签密钥顺序（纯函数，自检见 scripts/verify-auth-secret-candidates.js）。
  *
  * 顺序决定「哪类令牌能被接受」，因此不能只按 `?app=` 判断：
- *   1. 带 `?app=`：应用密钥优先（SSO 用户 JWT），平台密钥兜底
+ *   1. 带 `?app=`：应用密钥优先（老流程的 SSO 用户 JWT），平台密钥兜底
  *      （应用 Token 是平台密钥签发的，客户端多带了个 app 也不该 401）
  *   2. 应用 Token（`type=application`，平台密钥签发）：平台密钥优先
- *   3. 其余（SSO 用户 JWT）：令牌自述的 application_id 优先
+ *   3. 其余（SSO 用户 JWT / Phase 2 授权码换来的平台签发令牌）：令牌自述 application_id 优先
+ *
+ * 平台候选有两把：HS256 的平台密钥（平台会话 JWT、应用 Token）与 RS256 的公钥
+ * （Phase 2 起由 `/oauth/token` 签发的用户令牌）。
  *
  * @param {object} input
  * @param {{application: object|null, secret: string}|null} [input.queryApp] `?app=` 解析出的应用
  * @param {{application: object|null, secret: string}|null} [input.claimedApp] 令牌自述 application_id 解析出的应用
- * @param {string} input.platformSecret 平台 JWT 密钥
+ * @param {string} input.platformSecret 平台 JWT 对称密钥
+ * @param {string} [input.platformPublicKey] 平台 RS256 公钥（PEM）
  * @param {boolean} [input.isApplicationToken] 令牌为应用 Token（type=application）
- * @returns {Array<{application: object|null, secret: string}>}
+ * @returns {Array<{key: string, algorithms: string[], application: object|null, source: 'app'|'platform'}>}
  */
-function buildSecretCandidates({ queryApp, claimedApp, platformSecret, isApplicationToken }) {
-  const platformCandidate = { application: null, secret: platformSecret };
-  const candidates = [];
+function buildSecretCandidates({
+  queryApp,
+  claimedApp,
+  platformSecret,
+  platformPublicKey,
+  isApplicationToken,
+}) {
+  const HMAC_ALGS = ['HS256', 'HS384', 'HS512'];
 
+  const platformCandidates = [
+    {
+      key: platformSecret,
+      algorithms: HMAC_ALGS,
+      application: null,
+      source: 'platform',
+    },
+    ...(platformPublicKey
+      ? [{
+          key: platformPublicKey,
+          algorithms: ['RS256'],
+          application: null,
+          source: 'platform',
+        }]
+      : []),
+  ];
+
+  /** 应用密钥签发的令牌（老流程，HMAC） */
+  const appCandidate = (entry) => (entry && entry.secret
+    ? {
+        key: entry.secret,
+        algorithms: HMAC_ALGS,
+        application: entry.application || null,
+        source: 'app',
+      }
+    : null);
+
+  const candidates = [];
   const add = (candidate) => {
-    if (!candidate || !candidate.secret) return;
-    if (candidates.some((item) => item.secret === candidate.secret)) return;
+    if (!candidate || !candidate.key) return;
+    if (candidates.some((item) => item.key === candidate.key)) return;
     candidates.push(candidate);
   };
 
   if (queryApp) {
-    add(queryApp);
-    add(platformCandidate);
+    add(appCandidate(queryApp));
+    platformCandidates.forEach(add);
   } else if (isApplicationToken) {
-    add(platformCandidate);
-    add(claimedApp);
+    platformCandidates.forEach(add);
+    add(appCandidate(claimedApp));
   } else {
-    add(claimedApp);
-    add(platformCandidate);
+    add(appCandidate(claimedApp));
+    platformCandidates.forEach(add);
   }
 
   return candidates;
@@ -186,6 +224,7 @@ module.exports = async (ctx, next) => {
       queryApp,
       claimedApp,
       platformSecret,
+      platformPublicKey: getPublicKey(),
       isApplicationToken,
     });
 
@@ -195,7 +234,7 @@ module.exports = async (ctx, next) => {
     let expiredError = null;
     for (const candidate of secretCandidates) {
       try {
-        payload = jwt.verify(token, candidate.secret);
+        payload = jwt.verify(token, candidate.key, { algorithms: candidate.algorithms });
         matchedCandidate = candidate;
         break;
       } catch (error) {
@@ -205,8 +244,8 @@ module.exports = async (ctx, next) => {
     }
     if (!matchedCandidate) throw expiredError || lastError || new Error('invalid token');
 
-    // 用应用密钥验过的用户令牌即 SSO 认证（平台密钥签发的平台会话 / 应用 Token 都不算）
-    const isSsoAuth = matchedCandidate.secret !== platformSecret;
+    // 用应用密钥验过的用户令牌即 SSO 认证（平台签发/平台会话/应用 Token 都不算）
+    const isSsoAuth = matchedCandidate.source === 'app';
 
     // 应用令牌（type=application）：外部系统通过 app_secret 换取的 JWT，用于调用内置 API。
     // 校验应用启用 API 且状态为 ACTIVE，设置 ctx.state.application（不设 user），
@@ -238,7 +277,12 @@ module.exports = async (ctx, next) => {
       return;
     }
 
-    // 用户令牌：确保 payload 包含必要的用户信息
+    // 用户令牌：确保 payload 包含必要的用户信息。
+    // Phase 2 的平台签发令牌用 OIDC 的 `sub`，这里统一映射成 `user_id` 供下游使用。
+    if (payload && !payload.user_id && payload.sub) {
+      payload.user_id = payload.sub;
+    }
+
     if (!payload || !payload.user_id) {
       logger.warn('认证失败：令牌载荷无效', {
         method: ctx.method,

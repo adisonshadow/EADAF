@@ -5,9 +5,8 @@ const config = require('../config');
 const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSecret');
 const { resolveSsoRedirectUri, requestHostInfo, isPlatformDevMode, isAllowedPostLogoutRedirect } = require('../utils/ssoRedirectUri');
 const ssoSession = require('../utils/ssoSession');
+const refreshRotation = require('../services/sso/refreshRotation');
 
-/** 刷新令牌轮换的宽限期：这段时间内的重复提交按并发处理，超过则判定为重放 */
-const REFRESH_REUSE_GRACE_MS = 60 * 1000;
 const { isLoginVerifyRequired } = require('../utils/ssoLoginVerify');
 const logger = require('../utils/logger');
 const User = require('../models/user');
@@ -453,108 +452,37 @@ class AuthController {
         logger.debug('Using SSO app secret for token refresh', { application_id: refreshAppId });
       }
 
-      // 查找刷新令牌（连已撤销的一起查：用来做轮换重放检测）
-      const tokenRecord = await RefreshToken.findOne({
-        where: {
-          token: refresh_token,
-          expires_at: {
-            [Op.gt]: new Date()
-          }
-        }
+      // 轮换 + 重放检测统一在 services/sso/refreshRotation 里（与 /oauth/token 共用一份实现）
+      const rotation = await refreshRotation.rotateRefreshToken({
+        presentedToken: refresh_token,
+        applicationIdHint: refreshAppId,
       });
 
-      if (!tokenRecord) {
-        ctx.status = 401;
+      if (!rotation.ok) {
+        ctx.status = rotation.status;
         ctx.body = {
-          code: 401,
-          message: '刷新令牌无效或已过期',
-          error_code: 'TOKEN_INVALID',
+          code: rotation.status,
+          message: rotation.message,
+          error_code: rotation.error_code,
           data: null
         };
         return;
       }
 
-      if (tokenRecord.status !== 'ACTIVE') {
-        // 已轮换的刷新令牌被再次使用 = 重放（RFC 9700 建议撤销整条会话）。
-        // 留一个短宽限，避免前端并发/StrictMode 双提交把正常用户踢下线。
-        const rotatedAt = boundInfo?.rotated_at ? Date.parse(boundInfo.rotated_at) : NaN;
-        const reusedAfterGrace = Number.isFinite(rotatedAt)
-          && Date.now() - rotatedAt > REFRESH_REUSE_GRACE_MS;
+      const { user, sid: sessionId, newRefreshToken } = rotation;
 
-        if (reusedAfterGrace) {
-          if (sid) await ssoSession.revokeSession(sid, 'refresh-token-reuse');
-          logger.warn('检测到刷新令牌重放，已撤销该会话', {
-            user_id: tokenRecord.user_id,
-            sid,
-          });
-          ctx.status = 401;
-          ctx.body = {
-            code: 401,
-            message: '刷新令牌已被使用过，会话已退出，请重新登录',
-            error_code: 'SESSION_REVOKED',
-            data: null
-          };
-          return;
-        }
-
-        ctx.status = 401;
-        ctx.body = {
-          code: 401,
-          message: '刷新令牌无效或已过期',
-          error_code: 'TOKEN_INVALID',
-          data: null
-        };
-        return;
-      }
-
-      // 获取用户信息
-      const user = await User.findOne({
-        where: { user_id: tokenRecord.user_id },
-        attributes: ['user_id', 'username', 'status']
-      });
-
-      if (!user || user.status !== 'ACTIVE') {
-        ctx.status = 401;
-        ctx.body = {
-          code: 401,
-          message: '用户不存在或已被禁用',
-          error_code: 'TOKEN_INVALID',
-          data: null
-        };
-        return;
-      }
-
-      // 生成新的访问令牌（带 sid，刷新后仍受会话撤销约束）
+      // 老流程用**应用密钥/HMAC** 签访问令牌（老应用本地验签的兼容窗口）；
+      // 新流程（/oauth/token）用平台私钥 RS256 签，应用侧走 JWKS。
       const token = jwt.sign(
         {
           user_id: user.user_id,
           username: user.username,
           ...(tokenAppId ? { application_id: tokenAppId } : {}),
-          ...(sid ? { sid } : {}),
+          ...(sessionId ? { sid: sessionId } : {}),
         },
         jwtSecret,
         { expiresIn: config.api.sso.accessTokenTtl }
       );
-
-      // 生成新的刷新令牌（不透明随机串，每次轮换必然不同）
-      const newRefreshToken = ssoSession.newRefreshToken();
-
-      // 轮换：旧记录置 REVOKED（保留痕迹供重放检测），新记录另起一行
-      await tokenRecord.update({ status: 'REVOKED' });
-      await RefreshToken.create({
-        user_id: user.user_id,
-        token: newRefreshToken,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天后过期
-        status: 'ACTIVE'
-      });
-
-      await ssoSession.markRefreshTokenRotated(refresh_token, { rotatedTo: newRefreshToken, sid });
-      await ssoSession.bindRefreshToken(newRefreshToken, {
-        sid,
-        userId: user.user_id,
-        applicationId: tokenAppId,
-      });
-      await ssoSession.touchSession(sid);
 
       ctx.status = 200;
       ctx.body = {
@@ -564,8 +492,8 @@ class AuthController {
           token,
           refresh_token: newRefreshToken,
           // expires_in 按 OAuth 约定给秒数（不是 '15m' 这种人类可读串）
-        expires_in: ssoSession.parseDurationToSeconds(config.api.sso.accessTokenTtl, 900),
-          ...(sid ? { sid } : {}),
+          expires_in: ssoSession.parseDurationToSeconds(config.api.sso.accessTokenTtl, 900),
+          ...(sessionId ? { sid: sessionId } : {}),
         }
       };
     } catch (error) {

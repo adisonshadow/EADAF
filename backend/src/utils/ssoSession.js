@@ -21,17 +21,13 @@
 const crypto = require('crypto');
 const config = require('../config');
 const logger = require('./logger');
-const { getRedisClient } = require('./redisClient');
+const { withRedis, isRedisAvailable } = require('./redisOps');
 
 const SESSION_PREFIX = 'sso:sess:';
 const USER_SIDS_PREFIX = 'sso:user:';
 const REFRESH_PREFIX = 'sso:rt:';
 const REVOKED_PREFIX = 'sso:revoked:';
 const USER_SIDS_SUFFIX = ':sids';
-
-/** 降级日志冷却（避免 Redis 长期不可用时刷日志） */
-const DEGRADE_LOG_COOLDOWN_MS = 60000;
-let lastDegradeLogAt = 0;
 
 /**
  * 解析 '15m' / '24h' / '7d' / 纯秒数 → 秒
@@ -65,31 +61,6 @@ const REFRESH_TTL_SECONDS = parseDurationToSeconds(
   config.jwt?.refreshExpiresIn || config.api?.security?.jwtRefreshExpiresIn,
   7 * 24 * 3600,
 );
-
-function noteDegrade(operation, error) {
-  const now = Date.now();
-  if (now - lastDegradeLogAt < DEGRADE_LOG_COOLDOWN_MS) return;
-  lastDegradeLogAt = now;
-  logger.warn('SSO 会话存储降级：Redis 不可用，撤销/列举将不可用（登出退化为等令牌过期）', {
-    operation,
-    error: error?.message || 'redis unavailable',
-  });
-}
-
-/** 统一包一层：Redis 不可用或报错时返回 null，绝不让会话存储拖垮认证链路 */
-async function withRedis(operation, fn) {
-  try {
-    const client = await getRedisClient();
-    if (!client) {
-      noteDegrade(operation, null);
-      return null;
-    }
-    return await fn(client);
-  } catch (error) {
-    noteDegrade(operation, error);
-    return null;
-  }
-}
 
 const userSidsKey = (userId) => `${USER_SIDS_PREFIX}${userId}${USER_SIDS_SUFFIX}`;
 
@@ -261,8 +232,7 @@ async function revokeAllSessions(userId, reason = 'logout-all') {
 
 /** 会话存储是否可用（Redis 连通）：列表接口据此区分"没有会话"与"查不到" */
 async function isSessionStoreAvailable() {
-  const client = await getRedisClient();
-  return !!client;
+  return isRedisAvailable();
 }
 
 module.exports = {

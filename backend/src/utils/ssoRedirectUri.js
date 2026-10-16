@@ -225,6 +225,46 @@ function isAllowedPostLogoutRedirect(ssoConfig, candidate, req = {}) {
   return origins.has(target.origin);
 }
 
+/**
+ * 规范化一条回调地址用于**精确比对**（忽略末尾斜杠、query、hash）
+ * @param {string} uri
+ * @returns {string} 规范化后的地址；无法解析时返回 ''
+ */
+function normalizeRedirectUriForMatch(uri) {
+  if (!uri || typeof uri !== 'string') return '';
+  try {
+    const url = new URL(uri.trim());
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+    const path = url.pathname.replace(/\/+$/, '');
+    return `${url.origin}${path}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * 应用允许的回调地址清单：默认回调 + DEV 专用回调 + 前端地址。
+ * 授权码流程要求 `redirect_uri` **完全匹配**其中之一（比同源校验更严）。
+ *
+ * @param {object|null|undefined} ssoConfig
+ * @param {{ protocol?: string, host?: string }} req
+ * @returns {string[]} 规范化后的地址
+ */
+function resolveAllowedRedirectUris(ssoConfig, req = {}) {
+  const candidates = [
+    resolveSsoRedirectUri(ssoConfig, req, { isDevMode: false }),
+    resolveSsoRedirectUri(ssoConfig, req, { isDevMode: true }),
+    ssoConfig?.frontend_url,
+  ];
+
+  const normalized = [];
+  candidates.forEach((uri) => {
+    const value = normalizeRedirectUriForMatch(uri);
+    if (value && !normalized.includes(value)) normalized.push(value);
+  });
+  return normalized;
+}
+
 module.exports = {
   isValidSystemHostRedirectSuffix,
   isAbsoluteHttpUrl,
@@ -233,5 +273,7 @@ module.exports = {
   validateSsoRedirectUriConfig,
   resolveSsoRedirectUri,
   isAllowedPostLogoutRedirect,
+  normalizeRedirectUriForMatch,
+  resolveAllowedRedirectUris,
   requestHostInfo,
 };

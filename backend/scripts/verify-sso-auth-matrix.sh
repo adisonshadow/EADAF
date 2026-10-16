@@ -17,6 +17,8 @@
 set -uo pipefail
 
 BASE="${EADAF_BASE:-http://localhost:29526/api/v1}"
+# 平台 origin（well-known / 发现文档挂在根路径）
+EADAF_ORIGIN="${EADAF_ORIGIN:-$(printf '%s' "$BASE" | sed -E 's#/api/v1/?$##')}"
 APP="${EADAF_APP_ID:-1e71c653-630f-4006-b6df-081172b15752}"
 APP_SECRET="${EADAF_APP_SECRET:-}"
 OTHER="${EADAF_OTHER_APP_ID:-}"
@@ -244,6 +246,89 @@ process.stdout.write(jwt.sign(
   { expiresIn: -10 },
 ));')
 assert_error_code "过期 access token" TOKEN_EXPIRED "$BASE/ai/models" -H "Authorization: Bearer $EXPIRED_TOK"
+
+echo "== 10. Phase 2：授权码 + PKCE + 平台签发令牌 =="
+if [ -z "$APP_SECRET" ]; then
+  skip_case "授权码流程" "未设 EADAF_APP_SECRET（需要客户端密钥）"
+else
+  O_REDIRECT="${EADAF_APP_REDIRECT_URI:-http://localhost:29529/auth/callback}"
+  O_LOGIN=$(curl -s -X POST "$BASE/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\",\"dev\":true}")
+  O_TOK=$(echo "$O_LOGIN" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("token",""))')
+  O_VERIFIER=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')
+  O_CHALLENGE=$(python3 -c 'import hashlib,base64,sys;print(base64.urlsafe_b64encode(hashlib.sha256(sys.argv[1].encode()).digest()).rstrip(b"=").decode())' "$O_VERIFIER")
+
+  O_AUTHZ=$(curl -s -X POST "$BASE/oauth/authorize" -H "Authorization: Bearer $O_TOK" -H 'Content-Type: application/json' \
+    -d "{\"client_id\":\"$APP\",\"redirect_uri\":\"$O_REDIRECT\",\"response_type\":\"code\",\"state\":\"st\",\"scope\":\"openid profile\",\"code_challenge\":\"$O_CHALLENGE\",\"code_challenge_method\":\"S256\"}")
+  O_CODE=$(echo "$O_AUTHZ" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("code",""))')
+  if [ -n "$O_CODE" ]; then
+    printf '  ✅ %-56s\n' "authorize 登记授权码（已登录 + PKCE S256）"; pass=$((pass+1))
+  else
+    printf '  ❌ %-56s %s\n' "authorize 登记授权码" "$(printf '%s' "$O_AUTHZ" | head -c 120)"; fail=$((fail+1))
+  fi
+
+  O_TOKEN=$(curl -s -X POST "$BASE/oauth/token" -H 'Content-Type: application/json' \
+    -d "{\"grant_type\":\"authorization_code\",\"code\":\"$O_CODE\",\"redirect_uri\":\"$O_REDIRECT\",\"client_id\":\"$APP\",\"client_secret\":\"$APP_SECRET\",\"code_verifier\":\"$O_VERIFIER\"}")
+  O_AT=$(echo "$O_TOKEN" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("access_token",""))')
+  O_RT=$(echo "$O_TOKEN" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("refresh_token",""))')
+  O_SID=$(echo "$O_TOKEN" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("sid",""))')
+
+  python3 - "$O_AT" "$APP" <<'PY' && pass=$((pass+1)) || fail=$((fail+1))
+import sys, base64, json
+tok, app = sys.argv[1], sys.argv[2]
+if not tok:
+    print('  ❌ %-56s' % '换票返回 access_token'); raise SystemExit(1)
+h = json.loads(base64.urlsafe_b64decode(tok.split('.')[0] + '=='))
+p = tok.split('.')[1]; p += '=' * (-len(p) % 4)
+c = json.loads(base64.urlsafe_b64decode(p))
+assert h.get('alg') == 'RS256', h
+assert c.get('aud') == app and c.get('azp') == app, c
+assert c.get('iss') and c.get('sub') and c.get('sid'), c
+print('  ✅ %-56s alg=RS256 aud=azp=%s' % ('换票：平台签发(RS256) + aud/azp/sid', app[:8] + '…'))
+PY
+
+  check "平台签发令牌调 API（不带 app）"          200 "$(code "$BASE/ai/models" -H "Authorization: Bearer $O_AT")"
+  check "平台签发令牌调 API（带 app）"            200 "$(code "$BASE/ai/models?app=$APP" -H "Authorization: Bearer $O_AT")"
+  check "平台签发令牌调业务数据（带 app）"        200 "$(code "$BASE/data/YS/product/Product?limit=1&app=$APP" -H "Authorization: Bearer $O_AT")"
+  check "授权码一次性：重复使用被拒"              400 "$(code -X POST "$BASE/oauth/token" -H 'Content-Type: application/json' -d "{\"grant_type\":\"authorization_code\",\"code\":\"$O_CODE\",\"client_id\":\"$APP\",\"client_secret\":\"$APP_SECRET\"}")"
+  check "未登记的 redirect_uri"                  400 "$(code -X POST "$BASE/oauth/authorize" -H "Authorization: Bearer $O_TOK" -H 'Content-Type: application/json' -d "{\"client_id\":\"$APP\",\"redirect_uri\":\"https://evil.example.com/cb\"}")"
+
+  # PKCE 不匹配
+  O_AUTHZ2=$(curl -s -X POST "$BASE/oauth/authorize" -H "Authorization: Bearer $O_TOK" -H 'Content-Type: application/json' \
+    -d "{\"client_id\":\"$APP\",\"redirect_uri\":\"$O_REDIRECT\",\"code_challenge\":\"$O_CHALLENGE\",\"code_challenge_method\":\"S256\"}")
+  O_CODE2=$(echo "$O_AUTHZ2" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("code",""))')
+  check "PKCE verifier 不匹配被拒"                400 "$(code -X POST "$BASE/oauth/token" -H 'Content-Type: application/json' -d "{\"grant_type\":\"authorization_code\",\"code\":\"$O_CODE2\",\"client_id\":\"$APP\",\"client_secret\":\"$APP_SECRET\",\"code_verifier\":\"wrong-verifier\"}")"
+
+  # client_secret 错误
+  O_AUTHZ3=$(curl -s -X POST "$BASE/oauth/authorize" -H "Authorization: Bearer $O_TOK" -H 'Content-Type: application/json' \
+    -d "{\"client_id\":\"$APP\",\"redirect_uri\":\"$O_REDIRECT\"}")
+  O_CODE3=$(echo "$O_AUTHZ3" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("code",""))')
+  check "client_secret 错误被拒"                  401 "$(code -X POST "$BASE/oauth/token" -H 'Content-Type: application/json' -d "{\"grant_type\":\"authorization_code\",\"code\":\"$O_CODE3\",\"client_id\":\"$APP\",\"client_secret\":\"wrong\"}")"
+
+  # refresh_token grant（同一套轮换实现，令牌形态换成 RS256）
+  O_REFRESH=$(curl -s -X POST "$BASE/oauth/token" -H 'Content-Type: application/json' \
+    -d "{\"grant_type\":\"refresh_token\",\"refresh_token\":\"$O_RT\",\"client_id\":\"$APP\",\"client_secret\":\"$APP_SECRET\"}")
+  O_AT2=$(echo "$O_REFRESH" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("access_token",""))')
+  check "refresh_token grant 换票"                200 "$(code "$BASE/ai/models" -H "Authorization: Bearer $O_AT2")"
+
+  # 会话撤销对平台签发令牌同样生效
+  curl -s -X POST "$BASE/auth/logout" -H 'Content-Type: application/json' -d "{\"sid\":\"$O_SID\"}" -o /dev/null
+  assert_error_code "撤销会话后平台签发令牌立即失效" SESSION_REVOKED "$BASE/ai/models" -H "Authorization: Bearer $O_AT2"
+
+  # 标准发现文档与 JWKS
+  JWKS=$(curl -s "$EADAF_ORIGIN/.well-known/jwks.json")
+  if printf '%s' "$JWKS" | grep -q '"kty":"RSA"' && printf '%s' "$JWKS" | grep -q '"alg":"RS256"'; then
+    printf '  ✅ %-56s\n' "JWKS 暴露 RSA/RS256 公钥"; pass=$((pass+1))
+  else
+    printf '  ❌ %-56s %s\n' "JWKS" "$(printf '%s' "$JWKS" | head -c 100)"; fail=$((fail+1))
+  fi
+  DISC=$(curl -s "$EADAF_ORIGIN/.well-known/openid-configuration")
+  if printf '%s' "$DISC" | grep -q 'authorization_endpoint' && printf '%s' "$DISC" | grep -q 'token_endpoint'; then
+    printf '  ✅ %-56s\n' "OIDC 发现文档可用"; pass=$((pass+1))
+  else
+    printf '  ❌ %-56s %s\n' "OIDC 发现文档" "$(printf '%s' "$DISC" | head -c 100)"; fail=$((fail+1))
+  fi
+fi
 
 echo
 echo "结果：通过 $pass / 失败 $fail / 跳过 $skip"

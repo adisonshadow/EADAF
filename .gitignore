@@ -116,6 +116,8 @@ backend/thumbsCache/*
 backend/backups/
 backend/db-backup/
 backend/data/*.db
+# SSO 平台签名密钥（自动生成；生产用 SSO_JWT_PRIVATE_KEY / SSO_JWT_PUBLIC_KEY 固定）
+backend/data/keys/
 backend/src/resource/
 backend/install/images/*.tar
 backend/img_crop_cache
