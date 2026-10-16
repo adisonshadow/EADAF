@@ -105,7 +105,15 @@ const api = {
   sso: {
     redirectMode: {
       default: process.env.SSO_REDIRECT_MODE || 'POST_REDIRECT'
-    }
+    },
+    /**
+     * 访问令牌有效期（Phase 1 起可收紧到 15m）。
+     *
+     * 不设时沿用 JWT_EXPIRES_IN（默认 24h）—— 还没实现静默刷新的老接入方不会突然被踢；
+     * 新接入方与示例环境把 SSO_ACCESS_TOKEN_TTL 设为 15m 即可收紧。
+     * 「登出立即失效」不依赖这个值：中间件按 sid 查撤销集，撤销即生效。
+     */
+    accessTokenTtl: process.env.SSO_ACCESS_TOKEN_TTL || process.env.JWT_EXPIRES_IN || '24h'
   }
 };
 

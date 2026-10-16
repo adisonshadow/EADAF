@@ -58,7 +58,7 @@ function parseDurationToSeconds(value, fallbackSeconds) {
 
 /** access / refresh 的有效期（秒），用于给 Redis 键设 TTL */
 const ACCESS_TTL_SECONDS = parseDurationToSeconds(
-  config.api?.security?.jwtExpiresIn,
+  config.api?.sso?.accessTokenTtl || config.api?.security?.jwtExpiresIn,
   24 * 3600,
 );
 const REFRESH_TTL_SECONDS = parseDurationToSeconds(

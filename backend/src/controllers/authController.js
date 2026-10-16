@@ -272,7 +272,7 @@ class AuthController {
           ...(sid ? { sid } : {}),
         },
         jwtSecret,
-        { expiresIn: config.api.security.jwtExpiresIn }
+        { expiresIn: config.api.sso.accessTokenTtl }
       );
       
       // 生成刷新令牌（不透明随机串：JWT 同秒会签出同一串，且带声明会超 255 列宽；
@@ -302,7 +302,8 @@ class AuthController {
       const responseData = {
         token: token,
         refresh_token: refreshToken,
-        expires_in: config.api.security.jwtExpiresIn,
+        // expires_in 按 OAuth 约定给秒数（不是 '15m' 这种人类可读串）
+        expires_in: ssoSession.parseDurationToSeconds(config.api.sso.accessTokenTtl, 900),
         user_id: user.user_id,
         must_change_password: !!fullUser?.must_change_password,
         // 会话 ID：调用方（管理台前端）保存下来，下次登录/登出带上，实现"同设备共用一个会话"
@@ -532,7 +533,7 @@ class AuthController {
           ...(sid ? { sid } : {}),
         },
         jwtSecret,
-        { expiresIn: config.api.security.jwtExpiresIn }
+        { expiresIn: config.api.sso.accessTokenTtl }
       );
 
       // 生成新的刷新令牌（不透明随机串，每次轮换必然不同）
@@ -562,7 +563,8 @@ class AuthController {
         data: {
           token,
           refresh_token: newRefreshToken,
-          expires_in: config.api.security.jwtExpiresIn,
+          // expires_in 按 OAuth 约定给秒数（不是 '15m' 这种人类可读串）
+        expires_in: ssoSession.parseDurationToSeconds(config.api.sso.accessTokenTtl, 900),
           ...(sid ? { sid } : {}),
         }
       };

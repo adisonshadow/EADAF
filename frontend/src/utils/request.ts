@@ -6,14 +6,22 @@ import {
   requestInterceptors,
   responseInterceptors,
 } from '@/utils/requestInterceptors';
+import { refreshSessionOnce, shouldTryRefresh } from '@/utils/sessionClient';
 
 export interface RequestOptions extends Omit<AxiosRequestConfig, 'url' | 'method'> {
   method?: Method | string;
   data?: unknown;
   params?: Record<string, unknown>;
   skipErrorHandler?: boolean;
+  /** 内部标记：本请求已经因 401 重放过一次，避免无限刷新 */
+  __authRetried?: boolean;
+  /** 调用方声明：本请求不希望触发静默刷新（如登出、刷新自身） */
+  skipAuthRetry?: boolean;
   [key: string]: unknown;
 }
+
+/** 这些接口自身的 401 不该触发静默刷新（会互相递归/掩盖真实结果） */
+const NO_AUTH_RETRY_URLS = ['/auth/login', '/auth/refresh', '/auth/logout', '/auth/end-session'];
 
 const axiosInstance = axios.create({
   timeout: 10000,
@@ -34,6 +42,21 @@ axiosInstance.interceptors.request.use((config) => {
   return { ...nextConfig, url: nextUrl } as InternalAxiosRequestConfig;
 });
 
+/**
+ * 401「令牌过期」→ 静默刷新 → 原样重放一次。
+ *
+ * 放在 errorHandler **之前**：否则每次静默刷新都会先弹一个"请求错误 401"，
+ * 刷新成功后用户仍会看到一闪而过的错误提示。
+ * 重放会再走一遍请求拦截器，因此自动带上新令牌。
+ */
+function shouldRetryAfterRefresh(error: any): boolean {
+  const config = error?.config || {};
+  if (config.__authRetried || config.skipAuthRetry) return false;
+  const url = String(config.url || '');
+  if (NO_AUTH_RETRY_URLS.some((path) => url.includes(path))) return false;
+  return shouldTryRefresh(error?.response?.status, error?.response?.data?.error_code);
+}
+
 axiosInstance.interceptors.response.use(
   async (response) => {
     let next = response;
@@ -42,8 +65,16 @@ axiosInstance.interceptors.response.use(
     }
     return next;
   },
-  (error) => {
+  async (error) => {
     enrichAxiosError(error);
+
+    if (shouldRetryAfterRefresh(error)) {
+      const refreshed = await refreshSessionOnce();
+      if (refreshed) {
+        return axiosInstance.request({ ...error.config, __authRetried: true });
+      }
+    }
+
     const opts = error.config?.skipErrorHandler ? { skipErrorHandler: true } : {};
     errorConfig.errorHandler(error, opts);
     return Promise.reject(error);

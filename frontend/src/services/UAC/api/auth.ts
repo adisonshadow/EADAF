@@ -171,3 +171,54 @@ export async function postAuthRefresh(
     ...(options || {}),
   });
 }
+
+/** 当前用户的活跃会话（登录设备）[需要认证] GET /api/v1/auth/sessions */
+export async function getAuthSessions(options?: { [key: string]: any }) {
+  return request<{
+    code?: number;
+    message?: string;
+    data?: {
+      /** false = 会话存储（Redis）不可用，此时 items 必为空 */
+      store_available?: boolean;
+      items?: Array<{
+        sid?: string;
+        application_id?: string | null;
+        platform?: boolean;
+        ip?: string | null;
+        user_agent?: string | null;
+        created_at?: string | null;
+        last_seen_at?: string | null;
+        current?: boolean;
+      }>;
+    };
+  }>('/api/v1/auth/sessions', {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
+/** 撤销指定会话 [需要认证] DELETE /api/v1/auth/sessions/{sid} */
+export async function deleteAuthSessionsId(
+  params: { sid: string },
+  options?: { [key: string]: any },
+) {
+  const { sid } = params;
+  return request<{ code?: number; message?: string; data?: unknown }>(
+    `/api/v1/auth/sessions/${sid}`,
+    {
+      method: 'DELETE',
+      ...(options || {}),
+    },
+  );
+}
+
+/** 退出所有设备（撤销全部会话）[需要认证] DELETE /api/v1/auth/sessions */
+export async function deleteAuthSessions(options?: { [key: string]: any }) {
+  return request<{ code?: number; message?: string; data?: { revoked_sessions?: number } }>(
+    '/api/v1/auth/sessions',
+    {
+      method: 'DELETE',
+      ...(options || {}),
+    },
+  );
+}

@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import Lottie from 'react-lottie-player';
 import ProfileForm from './components/ProfileForm';
 import PasswordForm from './components/PasswordForm';
+import LoginDevices from './components/LoginDevices';
 import FirstLoginSetupModal from './components/FirstLoginSetupModal';
 import styles from './index.module.scss';
 import { LeftOutlined, LogoutOutlined } from '@ant-design/icons';
@@ -144,6 +145,12 @@ const AccountCenterPage: React.FC<{ pageTheme: 'light' | 'dark' }> = ({ pageThem
                 key: 'password',
                 label: '修改密码',
                 children: <PasswordForm onSuccess={handleSuccess} />,
+              },
+              {
+                key: 'devices',
+                label: '登录设备',
+                // SSO 会话（sid）：一个浏览器一条，撤销即该设备上的管理台与所有业务应用一起退出
+                children: <LoginDevices />,
               },
             ]}
           />

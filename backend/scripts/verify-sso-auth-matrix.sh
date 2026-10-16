@@ -214,6 +214,37 @@ check "本会话不受影响"                          200 "$(code "$BASE/ai/mod
 assert_error_code "all=true 但无身份" AUTH_MISSING "$BASE/auth/logout" -X POST -H 'Content-Type: application/json' -d '{"all":true}'
 check "all=true 带身份（退出所有设备）"         200 "$(code -X POST "$BASE/auth/logout" -H 'Content-Type: application/json' -H "Authorization: Bearer $M1_TOK" -d '{"all":true}')"
 
+echo "== 9. 访问令牌有效期与刷新触发条件 =="
+# 令牌 TTL：默认跟 JWT_EXPIRES_IN（24h），设了 SSO_ACCESS_TOKEN_TTL 就跟随
+TTL_LOGIN=$(curl -s -X POST "$BASE/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\",\"dev\":true}")
+TTL_SECONDS=$(echo "$TTL_LOGIN" | python3 -c '
+import sys, json, base64
+d = json.load(sys.stdin).get("data") or {}
+t = d.get("token", "")
+if not t: print(""); raise SystemExit
+p = t.split(".")[1]; p += "=" * (-len(p) % 4)
+c = json.loads(base64.urlsafe_b64decode(p))
+print(c.get("exp", 0) - c.get("iat", 0))')
+TTL_EXPIRES_IN=$(echo "$TTL_LOGIN" | python3 -c 'import sys,json;print((json.load(sys.stdin).get("data") or {}).get("expires_in",""))')
+if [ -n "${EADAF_EXPECT_ACCESS_TTL:-}" ]; then
+  check "访问令牌 TTL = ${EADAF_EXPECT_ACCESS_TTL}s（expires_in=${TTL_EXPIRES_IN}）" \
+    "$EADAF_EXPECT_ACCESS_TTL" "$TTL_SECONDS"
+else
+  printf '  ℹ️  访问令牌 TTL = %ss（expires_in=%s）；可用 EADAF_EXPECT_ACCESS_TTL=900 断言\n' "$TTL_SECONDS" "$TTL_EXPIRES_IN"
+fi
+
+# 过期令牌必须回 TOKEN_EXPIRED，客户端才能据此"静默刷新再重放"
+EXPIRED_TOK=$(cd "$(dirname "$0")/.." && node -e '
+const jwt = require("jsonwebtoken");
+const config = require("./src/config");
+process.stdout.write(jwt.sign(
+  { user_id: "10000000-0000-0000-0000-000000000001", username: "admin", sid: "expired-check" },
+  config.api.security.jwtSecret,
+  { expiresIn: -10 },
+));')
+assert_error_code "过期 access token" TOKEN_EXPIRED "$BASE/ai/models" -H "Authorization: Bearer $EXPIRED_TOK"
+
 echo
 echo "结果：通过 $pass / 失败 $fail / 跳过 $skip"
 [ "$fail" -eq 0 ]

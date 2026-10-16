@@ -192,6 +192,15 @@ EADAF 侧按顺序挑验签密钥，因此**同一个 token 带不带 `?app=` �
 | `DELETE /api/v1/auth/sessions` | 退出所有设备（含当前会话，前端随后回登录页） |
 | `POST /api/v1/auth/logout` `{ all: true }` | 同上；需能确认身份（有效令牌或刷新令牌），否则 401 `AUTH_MISSING` |
 
+管理台入口：**个人中心 → 登录设备**（列表 / 撤销单台 / 退出所有设备）。
+
+### 6.6 访问令牌有效期与静默刷新
+
+- 访问令牌有效期由 `SSO_ACCESS_TOKEN_TTL` 决定（如 `15m`）；**不设时沿用 `JWT_EXPIRES_IN`**（默认 `24h`）—— 还没实现刷新的老接入方不会被突然收紧；
+- 收紧前请确认接入方已按 401 `TOKEN_EXPIRED` 做**静默刷新再重放**（`POST /api/v1/auth/refresh`，凭刷新令牌本身，不需要有效 access token）；
+- 令牌快过期/已过期时刷新即可，不必重新登录；`SESSION_REVOKED` / `TOKEN_INVALID` 则必须重新登录；
+- 参考实现：管理台 `frontend/src/utils/request.ts`（axios 拦截器 + 单飞刷新）、示例应用 `app_example/src/auth/auth.ts`（fetch 层拦截器，覆盖数据请求与 AI 助手）。
+
 
 ---
 

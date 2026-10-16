@@ -19,6 +19,57 @@ export function isAuthenticated() {
   return Boolean(getToken());
 }
 
+/** 未经拦截器包装的原生 fetch（刷新自身、重放请求都用它，避免递归） */
+let rawFetch: typeof fetch = typeof window !== 'undefined' ? window.fetch.bind(window) : fetch;
+
+let refreshing: Promise<boolean> | null = null;
+
+/**
+ * 静默刷新访问令牌（单飞）。
+ *
+ * Phase 1 起访问令牌收紧到 15 分钟，没有它用户每 15 分钟就被踢回登录页。
+ * 刷新令牌是**不透明随机串**（`rt_…`），只回传、不解码。
+ */
+async function doRefresh(): Promise<boolean> {
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!refreshToken) return false;
+  try {
+    const base = import.meta.env.VITE_API_BASE || '/api';
+    const res = await rawFetch(withApp(`${base}/v1/auth/refresh`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) return false;
+    const json = await res.json();
+    const data = json?.data;
+    if (!data?.token) return false;
+    saveAuth(data.token, data.refresh_token || refreshToken);
+    return true;
+  } catch (error) {
+    console.warn('静默刷新访问令牌失败:', error);
+    return false;
+  }
+}
+
+/** 单飞刷新：并发的 401 共用同一次刷新请求 */
+export function refreshSessionOnce(): Promise<boolean> {
+  if (!refreshing) {
+    refreshing = doRefresh().finally(() => {
+      refreshing = null;
+    });
+  }
+  return refreshing;
+}
+
+/** 用当前（可能是刚刷新过的）令牌重建请求头 */
+function withFreshToken(init?: RequestInit): RequestInit {
+  const headers = new Headers(init?.headers);
+  const token = getToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return { ...init, headers, __authRetried: true } as RequestInit & { __authRetried?: boolean };
+}
+
 /**
  * 向 EADAF 复核会话：只有明确的 401 才算「会话无效」。
  * 网络抖动 / 5xx 返回 unknown —— 调用方不得据此清登录态。
@@ -91,24 +142,33 @@ export async function handleUnauthorized(): Promise<SessionState> {
 const INTERCEPTOR_FLAG = '__ysUnauthorizedInterceptorInstalled';
 
 /**
- * 全局 401 拦截：给 `window.fetch` 包一层，任何请求拿到 401 都走
- * {@link handleUnauthorized}。
+ * 全局 401 拦截：给 `window.fetch` 包一层。
  *
- * 为什么放在这一层：本示例的数据请求（storeApi）和 AI 助手请求（`@eadaf/ai-base`
+ * 处理顺序（重要）：
+ *   1. 401 + 能刷新 → 静默刷新一次并用新令牌**重放原请求**（令牌过期不该打断用户）；
+ *   2. 刷新救不回来（会话被撤销 / 令牌无效）→ 交给 {@link handleUnauthorized} 复核后清登录态。
+ *
+ * 为什么放在 fetch 这一层：本示例的数据请求（storeApi）和 AI 助手请求（`@eadaf/ai-base`
  * 的 client）走的是两套封装，逐个改容易漏；令牌过期恰恰最常先在 AI 助手面板暴露成
  * 一句「无效的令牌」。在 fetch 这一层收口，两套都覆盖到。
- * 只读 `res.status`，不消费响应体。
+ * 只读 `res.status`，不消费响应体（重放时才重建请求）。
  */
 export function installUnauthorizedInterceptor(): void {
   const w = window as unknown as Record<string, unknown>;
   if (w[INTERCEPTOR_FLAG]) return;
   w[INTERCEPTOR_FLAG] = true;
 
-  const original = window.fetch.bind(window);
+  rawFetch = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const res = await original(input, init);
-    // 只读 res.status，不消费响应体；是否真的掉登录由 handleUnauthorized 复核后决定
-    if (res.status === 401) void handleUnauthorized();
+    const res = await rawFetch(input, init);
+    if (res.status !== 401) return res;
+
+    const retried = (init as (RequestInit & { __authRetried?: boolean }) | undefined)?.__authRetried;
+    if (!retried && (await refreshSessionOnce())) {
+      return rawFetch(input, withFreshToken(init));
+    }
+
+    void handleUnauthorized();
     return res;
   };
 }
