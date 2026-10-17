@@ -1,4 +1,4 @@
-import { BulbOutlined, CommentOutlined, MinusOutlined, PaperClipOutlined, PlusOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { BulbOutlined, CommentOutlined, MinusOutlined, PaperClipOutlined, PlusOutlined, SettingOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons';
 import type { BubbleListProps, ConversationItemType } from '@ant-design/x';
 import { Attachments, Bubble, Conversations, Prompts, Sender, Welcome, XProvider } from '@ant-design/x';
 import type { Attachment, AttachmentsRef } from '@ant-design/x/es/attachments';
@@ -7,6 +7,7 @@ import { useXConversations } from '@ant-design/x-sdk';
 import { Avatar, Button, InputNumber, Popover, Progress, Segmented, Select, Space, Switch, Tag, Tooltip, message } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAIBaseChat } from '../chat/useAIBaseChat';
+import { useLivePlan } from '../chat/useLivePlan';
 import type { AIBaseModelInfo, AIBaseThemeMode } from '../types';
 import type { DecisionPreference, ReasoningDisplayMode } from '../config/agentPrefsChannel';
 import {
@@ -43,6 +44,7 @@ import AssistantBubbleContent from './AssistantBubbleContent';
 import BubbleActions from './BubbleActions';
 import { scrollBubbleListToBottom } from './bubbleListScroll';
 import { extractBubbleCopyText } from './extractBubbleCopyText';
+import PlanItemList from './PlanItemList';
 import './AIChatPanel.css';
 import '../a2ui/NextStepA2uiDeck.css';
 import './UserChoiceCard.css';
@@ -169,6 +171,22 @@ export default function AIChatPanel({ onClose }: AIChatPanelProps) {
     persistMessages: historyReady,
     storageNamespace,
   });
+
+  /** 实时任务清单（update_plan / 自动对账都会推过来）；新会话没有 plan ⇒ 空数组 */
+  const livePlan = useLivePlan(activeConversationKey);
+  const planTotal = livePlan.length;
+  const planCompleted = useMemo(
+    () => livePlan.filter((item) => item.status === 'completed').length,
+    [livePlan],
+  );
+  // 「计划」入口只在第一步真正执行完之后出现，避免刚生成清单就多一个按钮
+  const showPlanButton = planTotal > 0 && planCompleted > 0;
+  const [planOpen, setPlanOpen] = useState(false);
+
+  // 换会话 / 开新会话：收起并复位「计划」气泡（新会话无 plan，按钮自然隐藏）
+  useEffect(() => {
+    setPlanOpen(false);
+  }, [activeConversationKey]);
 
   const selectedModel = useMemo(
     () => models.find((item) => item.slug === selectedSlug),
@@ -493,6 +511,54 @@ export default function AIChatPanel({ onClose }: AIChatPanelProps) {
     <div className="aibase-chat-header">
       <div className="aibase-chat-header-title">{config.headerCaption}</div>
       <Space size={0}>
+        {showPlanButton ? (
+          <Popover
+            placement="bottomRight"
+            trigger="click"
+            open={planOpen}
+            onOpenChange={setPlanOpen}
+            styles={{
+              container: {
+                padding: 0,
+                maxHeight: 'calc(80vh - 60px)',
+                overflowY: 'auto',
+                boxShadow:
+                  '0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05)',
+              },
+            }}
+            content={
+              <div
+                className="aibase-chat-plan-popover"
+                data-aibase-theme={resolvedTheme}
+                role="dialog"
+                aria-label="实时任务清单"
+              >
+                <div className="aibase-chat-plan-popover-head">
+                  <span className="aibase-chat-plan-popover-title">任务清单</span>
+                  <span className="aibase-chat-plan-popover-progress">
+                    {planCompleted}/{planTotal}
+                  </span>
+                </div>
+                <PlanItemList
+                  className="aibase-chat-plan-popover-list"
+                  items={livePlan.map((item) => ({
+                    id: item.id,
+                    label: item.content,
+                    status: item.status,
+                  }))}
+                />
+              </div>
+            }
+          >
+            <Button
+              type="text"
+              icon={<UnorderedListOutlined />}
+              className="aibase-chat-header-btn aibase-chat-header-plan-btn"
+              aria-label="任务清单"
+              title={`任务清单（${planCompleted}/${planTotal}）`}
+            />
+          </Popover>
+        ) : null}
         <Button
           type="text"
           icon={<PlusOutlined />}

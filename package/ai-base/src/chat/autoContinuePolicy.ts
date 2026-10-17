@@ -563,15 +563,41 @@ export function buildStructuredNudge(
 }
 
 /**
- * Plan 状态对账（每轮 loop 开头）：根据 toolOutcomes 自动推进 plan 项状态。
- * - plan 项声明 requiresVerification 的 Tool 全部 verified=true → 该项标 completed
+ * Plan 状态对账（每轮 loop 开头 / 工具轮结束后）：根据 toolOutcomes 自动推进 plan 项状态。
+ * - 只动**当前一个** in_progress 项（其余项一律不碰，避免「一步失败把后面全标完成」）
+ * - 声明 requiresVerification 的项：所列 Tool 全部 verified=true → completed
+ * - 未声明 requiresVerification 的项：游标之后出现过**成功的业务 Tool 结果** → completed
+ *   （模型常常懒得再调一次 update_plan，导致「第一步明明跑完了，状态还一直是进行中」）
  * - 标记 completed 后，下一个 pending 自动升为 in_progress（保持单一 in_progress）
  *
- * 对账是「建议性」的——它修正模型漏标的 completed，但不强制改模型主动设置的 in_progress。
- * 返回对账后的 plan（可能是原数组引用，也可能是新数组）。
+ * 对账是「建议性」的——它修正模型漏标的 completed，但不改 pending → completed。
+ * 返回对账后的 plan（无变化时返回原数组引用，零开销）。
  */
-export function reconcilePlan(plan: PlanItem[], toolOutcomes: ToolResponse[]): PlanItem[] {
+export interface ReconcilePlanOptions {
+  /** 当前 in_progress 项开始时已累积的 Tool 结果数量（只统计其后的结果） */
+  outcomeStartIndex?: number;
+  /** 关闭「无 requiresVerification 也按成功 Tool 推进」，默认开启 */
+  advanceOnSuccessfulTool?: boolean;
+}
+
+/** 可用于推进 plan 的成功业务 Tool 结果（不含 harness） */
+function isAdvancingOutcome(outcome: ToolResponse): boolean {
+  if (STRUCTURED_HARNESS_TOOL_NAMES.has(outcome.meta.tool)) return false;
+  if (outcome.kind !== 'success') return false;
+  if (outcome.ok === false || outcome.verified === false) return false;
+  return true;
+}
+
+export function reconcilePlan(
+  plan: PlanItem[],
+  toolOutcomes: ToolResponse[],
+  options: ReconcilePlanOptions = {},
+): PlanItem[] {
   if (!plan.length) return plan;
+
+  const inProgressIndex = plan.findIndex((item) => item.status === 'in_progress');
+  if (inProgressIndex < 0) return plan;
+  const target = plan[inProgressIndex];
 
   function toolVerified(name: string): boolean {
     const relevant = toolOutcomes.filter((o) => o.meta.tool === name);
@@ -581,21 +607,21 @@ export function reconcilePlan(plan: PlanItem[], toolOutcomes: ToolResponse[]): P
     );
   }
 
-  let changed = false;
-  const next = plan.map((item) => {
-    if (item.status === 'completed') return item;
-    if (item.status === 'in_progress' && item.requiresVerification?.length) {
-      if (item.requiresVerification.every(toolVerified)) {
-        changed = true;
-        return { ...item, status: 'completed' as const };
-      }
-    }
-    return item;
-  });
+  let done: boolean;
+  if (target.requiresVerification?.length) {
+    done = target.requiresVerification.every(toolVerified);
+  } else {
+    const advance = options.advanceOnSuccessfulTool !== false;
+    const startIndex = Math.max(0, options.outcomeStartIndex ?? 0);
+    done = advance && toolOutcomes.slice(startIndex).some(isAdvancingOutcome);
+  }
+  if (!done) return plan;
 
-  if (!changed) return plan;
+  const next = plan.map((item, index) =>
+    index === inProgressIndex ? { ...item, status: 'completed' as const } : item,
+  );
 
-  // 维持单一 in_progress：找第一个 pending 升级
+  // 维持单一 in_progress：下一个 pending 升级为进行中
   const hasInProgress = next.some((p) => p.status === 'in_progress');
   if (!hasInProgress) {
     const firstPendingIdx = next.findIndex((p) => p.status === 'pending');

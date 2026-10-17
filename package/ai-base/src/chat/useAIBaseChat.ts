@@ -36,12 +36,13 @@ import {
 } from '../registry/builtinTools';
 import { isUserChoiceRequestData } from './userChoice';
 import { applyTaskCompleteDelivery } from './emitTaskCompleteDelivery';
+import { syncPlanSegments } from './planSegments';
 import {
   beginTurn,
   getPlan,
+  getPlanCursor,
   setPlan,
   recordInvokedTool,
-  recordToolOutcome,
   expandAvailableTools,
 } from '../registry/agentPlanState';
 import {
@@ -757,6 +758,23 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
           });
         };
 
+        /**
+         * 每轮对账：只推进当前 in_progress 项（游标之后出现成功业务 Tool 即视为该步完成），
+         * 状态有变化时就地刷新「任务清单」卡并自动收起（见 chat/planSegments）。
+         */
+        const reconcilePlanProgress = (): boolean => {
+          const beforePlan = getPlan();
+          if (!beforePlan.length) return false;
+          const inProgress = beforePlan.find((p) => p.status === 'in_progress');
+          const reconciled = reconcilePlan(beforePlan, toolOutcomes, {
+            outcomeStartIndex: inProgress ? getPlanCursor(inProgress.id) : 0,
+          });
+          if (reconciled === beforePlan) return false;
+          setPlan(reconciled);
+          assistantSegments = syncPlanSegments(assistantSegments, reconciled);
+          return true;
+        };
+
         // 本回合 Tool 池：skill 懒加载后同回合立即扩展（见 expandTurnToolPool）
         const availableToolNames = new Set(allowedToolNames);
         turnToolPoolRef.current = {
@@ -984,52 +1002,7 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
 
               // continue：注入基于剩余 plan 的 nudge，并先做一次 plan 对账
               autoContinueNudges += 1;
-              const currentPlanSnapshot = getPlan();
-              const reconciled = reconcilePlan(currentPlanSnapshot, toolOutcomes);
-              if (reconciled !== currentPlanSnapshot) {
-                setPlan(reconciled);
-                // 对账推进进度时补一条折叠的「更新任务清单 · (n/m)」
-                const completed = reconciled.filter((p) => p.status === 'completed').length;
-                const progressTitle = '更新任务清单';
-                const progressSubtitle = `(${completed}/${reconciled.length})`;
-                const progressId = `plan-reconcile-${Date.now()}`;
-                const planPresentation = presentToolCall(UPDATE_PLAN_TOOL, {
-                  mode: 'update',
-                  plan: reconciled,
-                }).presentation;
-                assistantSegments = upsertSegment(assistantSegments, {
-                  kind: 'tool',
-                  id: progressId,
-                  step: {
-                    id: progressId,
-                    functionName: UPDATE_PLAN_TOOL,
-                    displayName: `${progressTitle} · ${progressSubtitle}`,
-                    title: progressTitle,
-                    subtitle: progressSubtitle,
-                    presentation: {
-                      ...planPresentation,
-                      title: progressTitle,
-                      collapseAfter: true,
-                      collapsedPreviewLines: 0,
-                    },
-                    status: 'success',
-                    durationMs: 0,
-                    display: {
-                      kind: 'planning',
-                      payload: {
-                        items: reconciled.map((p) => ({
-                          id: p.id,
-                          label: p.content,
-                          status: p.status,
-                        })),
-                        message: `${progressTitle} · ${progressSubtitle}`,
-                      },
-                      collapsed: true,
-                      visibility: 'transient',
-                    },
-                  },
-                });
-              }
+              reconcilePlanProgress();
 
               // 每轮对账后更新 Planning next moves
               upsertPlanningSegment(getPlan());
@@ -1320,7 +1293,6 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
                 'INVALID_ARGUMENTS_JSON',
               );
               toolOutcomes.push(envelope);
-              recordToolOutcome(envelope);
               rememberEnvelope(call.id, envelope);
               recentErrorFingerprints.push(`${functionName}::${parseError.slice(0, 80)}`);
               applyResultChrome({ ...envelope, meta: { ...envelope.meta, durationMs: 0 } });
@@ -1342,7 +1314,6 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
               const message = `参数校验失败: ${validation.message}`;
               const envelope = buildInvalidArgsEnvelope(functionName, message, 'INVALID_ARGS');
               toolOutcomes.push(envelope);
-              recordToolOutcome(envelope);
               rememberEnvelope(call.id, envelope);
               recentErrorFingerprints.push(`${functionName}::${message.slice(0, 80)}`);
               applyResultChrome({ ...envelope, meta: { ...envelope.meta, durationMs: 0 } });
@@ -1376,7 +1347,6 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
                 },
               );
               toolOutcomes.push(envelope);
-              recordToolOutcome(envelope);
               rememberEnvelope(call.id, envelope);
 
               // 结构化终止：跟踪 task_complete 的校验结果，并写入交付 segment
@@ -1444,7 +1414,6 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
                 durationMs: Date.now() - startedAt,
               });
               toolOutcomes.push(envelope);
-              recordToolOutcome(envelope);
               rememberEnvelope(call.id, envelope);
               recentErrorFingerprints.push(`${functionName}::${errorMessage.slice(0, 80)}`);
 
@@ -1464,69 +1433,21 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
             executeOneToolCall,
           );
 
-          // 工具轮结束后对账：模型漏调 update_plan 时仍推进进度，并展示「更新任务清单 · (n/m)」
+          // 工具轮结束后对账：模型漏调 update_plan 时也把「已跑完的那一步」标完成并收起清单
           if (structuredTermination) {
-            const hadExplicitUpdatePlan = result.toolCalls.some(
-              (c) => (c.function?.name || '') === UPDATE_PLAN_TOOL,
-            );
-            const beforePlan = getPlan();
-            const reconciledAfterTools = reconcilePlan(beforePlan, toolOutcomes);
-            if (reconciledAfterTools !== beforePlan) {
-              setPlan(reconciledAfterTools);
-              if (!hadExplicitUpdatePlan) {
-                const completed = reconciledAfterTools.filter((p) => p.status === 'completed').length;
-                const progressTitle = '更新任务清单';
-                const progressSubtitle = `(${completed}/${reconciledAfterTools.length})`;
-                const progressId = `plan-reconcile-${Date.now()}`;
-                const planPresentation = presentToolCall(UPDATE_PLAN_TOOL, {
-                  mode: 'update',
-                  plan: reconciledAfterTools,
-                }).presentation;
-                assistantSegments = upsertSegment(assistantSegments, {
-                  kind: 'tool',
-                  id: progressId,
-                  step: {
-                    id: progressId,
-                    functionName: UPDATE_PLAN_TOOL,
-                    displayName: `${progressTitle} · ${progressSubtitle}`,
-                    title: progressTitle,
-                    subtitle: progressSubtitle,
-                    presentation: {
-                      ...planPresentation,
-                      title: progressTitle,
-                      collapseAfter: true,
-                      collapsedPreviewLines: 0,
-                    },
-                    status: 'success',
-                    durationMs: 0,
-                    display: {
-                      kind: 'planning',
-                      payload: {
-                        items: reconciledAfterTools.map((p) => ({
-                          id: p.id,
-                          label: p.content,
-                          status: p.status,
-                        })),
-                        message: `${progressTitle} · ${progressSubtitle}`,
-                      },
-                      collapsed: true,
-                      visibility: 'transient',
-                    },
-                  },
-                });
-                // 刷新消息以展示进度步
-                patchAssistantMessage(
-                  {
-                    content: assistantDisplayContent,
-                    reasoningContent:
-                      enableThinking && accumulatedReasoning
-                        ? accumulatedReasoning
-                        : undefined,
-                    segments: assistantSegments,
-                  },
-                  { status: 'updating' },
-                );
-              }
+            if (reconcilePlanProgress()) {
+              // 刷新消息以展示更新后的任务清单（已自动收起）
+              patchAssistantMessage(
+                {
+                  content: assistantDisplayContent,
+                  reasoningContent:
+                    enableThinking && accumulatedReasoning
+                      ? accumulatedReasoning
+                      : undefined,
+                  segments: assistantSegments,
+                },
+                { status: 'updating' },
+              );
             }
           }
 
