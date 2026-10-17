@@ -90,9 +90,15 @@ pnpm install
 # 2) 导入数据包：管理台 → 应用部署 → 应用数据导出/导入 → 选择 .zip → 自动预览 → 开始导入
 #    （预览不写库；确认无误再导入。同一实例可重复导入覆盖，重跑是安全的）
 
-# 3) 启动示例应用（前端 http://localhost:29529 + BFF http://localhost:29530）
-pnpm --filter ./app_example dev:all
+# 3) 启动示例应用：BFF(http://localhost:29530) + 前端(http://localhost:29529) 一起起
+pnpm --filter ./app_example dev
+#    只想单独起其中一个：
+#    pnpm --filter ./app_example dev:web   # 仅 vite（需自己另外跑 dev:bff）
+#    pnpm --filter ./app_example dev:bff   # 仅 BFF
 ```
+
+> 只跑 `vite`（`dev:web`）而不跑 BFF 时，浏览器里的 `/auth/*`、`/api/*` 会全部
+> `ECONNREFUSED` —— 前端不再直连 EADAF，这两类请求都交给 BFF 转发。
 
 数据包从哪来：本机导出过就放在 `app_example/eadaf-app-export-YS-*.zip`
 （当前那份是 `eadaf-app-export-YS-20261016235555.zip`）。请打开EADAF，在 应用部署 > 应用数据导出/导入 中 将该zip文件拖入到上传区域，关闭 安全模式 可以更快应用 API，最后 提交 “按当前策略导入”。
@@ -151,6 +157,17 @@ EADAF_MYSQL_CMD='docker exec -i mysql-local sh -c '"'"'mysql -uroot -p"$MYSQL_RO
 2. **AI Scope（一般不用管）**：示例用 `VITE_DEMO_SCOPE_SLUG` 指定（默认 `YS`）。AI Scope /
   Skill / Tool 是**平台级**资源，不在应用数据包里（导出统计 `aiScopes: 0`）——
    先用平台自带配置即可，要定制再单独建。
+3. **让 AI 知道业务 API 长什么样**（否则它只拿到 `http_request`，会一个个地址瞎试）：
+   导入数据包后跑一次生成好的迁移，把「业务 API 手册」写进应用顶层 Skill：
+
+   ```bash
+   docker cp backend/scripts/migrate-ys-business-api-skill.sql EADAF-dev-postgres:/tmp/ys-skill.sql
+   docker exec EADAF-dev-postgres psql -U my_name -d eadaf_db -v ON_ERROR_STOP=1 -f /tmp/ys-skill.sql
+   ```
+
+   生成 / 更新方式、修复前后对比与验收方法见
+   [docs/app-api-skill/README.md](../docs/app-api-skill/README.md)（API 服务改动后重跑
+   `node backend/scripts/gen-app-business-api-skill.js ...`）。
 
 环境变量见 `[.env](.env)`：已随仓库提供示例默认值，直接改，或另建 `.env.local` 覆盖（已忽略）。
 
