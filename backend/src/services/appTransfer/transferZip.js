@@ -84,12 +84,46 @@ async function extractZip(zipPath, dest) {
   }
 }
 
+/** 解包目录里的指纹文件：记录解包时 zip 的大小 + mtime，用来判断包有没有被原地替换过。 */
+const EXTRACT_MARKER_NAME = '.package-cache.json';
+
+/** zip 指纹。只比 mtime 不够：Windows 的复制会保留源文件时间戳，得连大小一起比。 */
+function extractionSignature(zipStat) {
+  return `${zipStat.size}:${Math.round(zipStat.mtimeMs)}`;
+}
+
+/**
+ * 解包缓存是否已过期。
+ * 只按「解包目录存在」就复用，会让「同路径替换 zip」读到的还是旧包内容；
+ * 缺指纹（老缓存 / 手删）也按过期处理，重解一次即可。
+ * 说明：大小与 mtime 都相同的情况视为未变（同一秒内替换同大小包属极端情形）。
+ */
+function isExtractionStale(zipPath, extractedDir) {
+  try {
+    const marker = JSON.parse(fs.readFileSync(path.join(extractedDir, EXTRACT_MARKER_NAME), 'utf8'));
+    const zipStat = fs.statSync(zipPath);
+    return marker.signature !== extractionSignature(zipStat);
+  } catch {
+    return true;
+  }
+}
+
 async function ensureExtracted(zipPath) {
   const dest = extractedDirFor(zipPath);
   const payloadPath = path.join(dest, PAYLOAD_NAME);
-  if (fs.existsSync(payloadPath)) return dest;
+  if (fs.existsSync(payloadPath) && !isExtractionStale(zipPath, dest)) return dest;
   await fsp.rm(dest, { recursive: true, force: true }).catch(() => {});
   await extractZip(zipPath, dest);
+  try {
+    const zipStat = fs.statSync(zipPath);
+    await fsp.writeFile(
+      path.join(dest, EXTRACT_MARKER_NAME),
+      JSON.stringify({ signature: extractionSignature(zipStat), extractedAt: new Date().toISOString() }),
+      'utf8',
+    );
+  } catch {
+    // 指纹写不进去就退化成「下次重新解包」，不影响正确性
+  }
   return dest;
 }
 

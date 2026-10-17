@@ -20,7 +20,7 @@ export function resolveBrandingDisplay(branding?: AppBranding | null): BrandingD
   return {
     name,
     shortName,
-    logo: resolveMediaUrl(branding?.logo_url) || defaultSettings.logo || '/images/logo.svg',
+    logo: resolveMediaUrl(branding?.logo_url) || defaultSettings.logo || '/images/EADAF-logo.png',
     description: branding?.description?.trim() || undefined,
   };
 }

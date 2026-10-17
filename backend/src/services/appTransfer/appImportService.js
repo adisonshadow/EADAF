@@ -1199,7 +1199,17 @@ class ImportContext {
         // 列集校验:文件物理列可能比 entity_fields 多,先按导出列补 DDL 再校验
          
         let actualColumns = await readTableColumns(runtime, item.targetSchema, item.tableName);
-        const fileCols = (item.columns || []).map((c) => c.name);
+        const declaredCols = (item.columns || []).map((c) => c.name).filter(Boolean);
+        // 文件没带列清单时按行数据的键兜底,否则所有目标必填列都会被判成「文件未提供」
+        const fileCols = declaredCols.length ? declaredCols : columnsFromRows(rows);
+        if (!fileCols.length) {
+          section.counts.failed += 1;
+          section.errors.push(`${label}: 文件既无列清单也无行数据,无法确定可写列`);
+          continue;
+        }
+        if (!declaredCols.length) {
+          section.notes.push(`${label}: 文件未带列清单,已按行数据推断 ${fileCols.length} 列`);
+        }
         await ensureFileColumnsOnTarget(runtime, item.targetSchema, item.tableName, item.columns || [], actualColumns);
         actualColumns = await readTableColumns(runtime, item.targetSchema, item.tableName);
         const actualNames = new Set(actualColumns.map((c) => c.name));
@@ -1775,6 +1785,20 @@ function columnsWithNulls(cols, rows) {
 }
 
 /**
+ * 文件没带列清单时的兜底:用行数据的键集合反推列名(保留首次出现的顺序)。
+ * 旧包、以及 MySQL 源表结构读不到的包都会缺 columns,但数据本身就在文件里,
+ * 不该因此判成「目标必填列 文件未提供(DDL 差异)」。
+ */
+function columnsFromRows(rows) {
+  const names = new Set();
+  for (const row of rows || []) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+    for (const key of Object.keys(row)) names.add(key);
+  }
+  return [...names];
+}
+
+/**
  * 源物理表可空、目标物化按 entity_fields 建成 NOT NULL 时,写数前放开约束。
  * 已可空的列再执行 DROP NOT NULL 是幂等的。
  */
@@ -2032,6 +2056,7 @@ module.exports = {
   importAppFile,
   STRATEGIES,
   columnsWithNulls,
+  columnsFromRows,
   resolveImportSafeMode,
   remapHookApiServiceIds,
 };

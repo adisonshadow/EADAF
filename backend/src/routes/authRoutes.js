@@ -59,6 +59,14 @@ const router = new Router({ prefix: '/api/v1/auth' });
  *                   - 如果提供且应用启用了SSO，将返回该应用的SSO配置信息
  *                   - 系统将使用应用统一密钥（client_secret / app_secret，兼容旧 salt）作为JWT签名密钥
  *                 example: "550e8400-e29b-41d4-a716-446655440000"
+ *               login_app_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: |
+ *                   登录页所属应用ID，仅用于判定「人类验证」（sso_config.login_verify_enabled）
+ *                   - 授权码流程（/oauth/authorize）的登录页没有 application_id（那会用应用密钥签发令牌），
+ *                     用它说明这一页属于哪个应用；不影响令牌签发与 SSO 响应
+ *                 example: "550e8400-e29b-41d4-a716-446655440000"
  *               captcha_data:
  *                 type: object
  *                 description: |

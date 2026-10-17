@@ -215,7 +215,7 @@ const router = new Router();
  *           type: string
  *           nullable: true
  *           description: 应用 Logo URL（可选）
- *           example: "/images/logo.svg"
+ *           example: "/images/EADAF-logo.png"
  *         status:
  *           type: string
  *           enum: [ACTIVE, DISABLED]

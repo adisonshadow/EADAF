@@ -5,7 +5,8 @@
   "description": "EADAF 业务应用示例：雨伞品牌厂商 · 电商独立站销售管理系统（前端极简，数据全部复用 EADAF /backend）",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev-all.mjs",
+    "dev:web": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -22,6 +23,7 @@
     "antd": "^6.4.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-is": "^19.2.0",
     "react-router-dom": "^7.18.0",
     "tslib": "^2.8.1",
     "@eadaf/ai-base": "workspace:*"

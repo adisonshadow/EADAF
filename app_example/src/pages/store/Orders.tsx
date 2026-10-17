@@ -146,7 +146,7 @@ export default function OrdersPage() {
       </Card>
 
       <Drawer
-        width={560}
+        size={560}
         open={Boolean(detail)}
         loading={detailLoading}
         title={detail ? `订单 ${detail.order_no}` : '订单详情'}
