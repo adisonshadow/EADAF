@@ -1,5 +1,7 @@
 node_modules/
-logs/
+# 目录内容不入库，但保留目录本身（.gitkeep 占位；父目录整体被排除时无法放行其中文件）
+logs/*
+!logs/.gitkeep
 yarn-error.log
 .DS_Store
 src/resource/
@@ -8,6 +10,7 @@ thumbsCache/*
 coverage/
 test/
 .env.production
-backups/
+backups/*
+!backups/.gitkeep
 data/sales-demo.db
 install/images/*.tar
