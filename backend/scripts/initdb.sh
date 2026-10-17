@@ -124,6 +124,9 @@ if [[ "$*" == *"--with-aibase-seed"* ]]; then
     echo "销售 Demo AI 工具对齐完成"
 fi
 
+# API 契约查询 Tool/Skill：放在 AI 种子之后（--with-aibase-seed 会先 TRUNCATE Skill/Tool，避免被清掉）
+PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-eadaf-api-contract-skill.sql" || { echo "API 契约查询 Tool/Skill 落库失败"; exit 1; }
+
 if [[ "$*" == *"--with-mock"* ]]; then
     echo "开始导入测试数据..."
     PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/mock_data.sql" || { echo "导入测试数据失败"; exit 1; }

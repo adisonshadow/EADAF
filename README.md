@@ -356,4 +356,6 @@ pnpm pack:app      # 业务应用包 → deploy-artifacts/APP/
 3. [docs/dev-server-deploy.md](./docs/dev-server-deploy.md) — 服务器 DEV 部署
 4. [backend/README.md](./backend/README.md) — API 服务
 5. [frontend/README.md](./frontend/README.md) — 管理端前端
+6. [docs/app-api-skill/README.md](./docs/app-api-skill/README.md) — 给业务应用的 AI 准备「业务 API Skill」（生成顶层 Skill，别再让模型猜接口）
+7. [docs/ai-api-contract.md](./docs/ai-api-contract.md) — 让 AI 准确调用 API：`eadaf_api_contract` 契约查询 Tool + 全局 Skill（附实测对比）
 
