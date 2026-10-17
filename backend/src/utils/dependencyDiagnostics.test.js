@@ -159,3 +159,125 @@ test('修复建议按本地 / 远端 / 未配置区分', () => {
   }
   assert.match(diagnostics.repairHint('postgres'), /docker compose up -d/);
 });
+
+/** 把某个依赖造成「可达 / 不可达」的探测结果。 */
+function depResult(key, reachable) {
+  const dep = diagnostics.listDependencies().find((item) => item.key === key);
+  return { ...dep, reachable, code: reachable ? null : 'ECONNREFUSED' };
+}
+
+function relationError(relation = 'eadaf.storage_upload_sessions') {
+  return Object.assign(new Error(`relation "${relation}" does not exist`), {
+    name: 'SequelizeDatabaseError',
+    code: '42P01',
+  });
+}
+
+test('表缺失单独归类：不报成依赖不可用', () => {
+  diagnostics.resetDependencyState();
+  const capture = captureLogs();
+  try {
+    const error = relationError();
+    assert.deepEqual(diagnostics.isMissingDbObjectError(error), {
+      code: '42P01',
+      object: 'eadaf.storage_upload_sessions',
+      message: 'relation "eadaf.storage_upload_sessions" does not exist',
+    });
+    assert.equal(diagnostics.classifyDependencyError(error), null, '结构错误不是依赖不可用');
+
+    assert.equal(
+      diagnostics.reportDependencyError('初始化系统 Storage Bucket 失败', error, { fallbackKey: 'postgres' }),
+      true,
+      '首次应输出到控制台',
+    );
+    const record = capture.records.at(-1);
+    assert.match(record.message, /数据库结构缺失（eadaf\.storage_upload_sessions 不存在）/);
+    assert.equal(record.meta.hint, diagnostics.DB_STRUCTURE_HINT);
+    assert.ok(record.meta.stack, '首次应带堆栈');
+    assert.ok(!diagnostics.isDependencyMarkedDown('postgres'), '不应把 postgres 标成不可用');
+
+    // 同一个对象重复报：只写文件
+    assert.equal(diagnostics.reportDependencyError('初始化系统 Storage Bucket 失败', error), false);
+    assert.equal(capture.records.at(-1).meta.suppressConsole, true);
+    assert.equal(capture.records.at(-1).meta.occurrences, 2);
+  } finally {
+    capture.restore();
+    diagnostics.resetDependencyState();
+  }
+});
+
+test('没有 code 的包装错误也能从文本认出结构缺失', () => {
+  const wrapped = Object.assign(new Error('查询失败'), {
+    name: 'SequelizeDatabaseError',
+    parent: new Error('schema "uac" does not exist'),
+  });
+  assert.deepEqual(diagnostics.isMissingDbObjectError(wrapped), {
+    code: null,
+    object: 'uac',
+    message: 'schema "uac" does not exist',
+  });
+  assert.equal(diagnostics.isMissingDbObjectError(new Error('磁盘写入失败')), null);
+  assert.equal(diagnostics.isMissingDbObjectError(null), null);
+});
+
+test('启动自检：开发环境打完整清单，额外项并入同一份输出', () => {
+  diagnostics.resetDependencyState();
+  const capture = captureLogs();
+  const write = process.stdout.write;
+  let out = '';
+  process.stdout.write = (chunk) => {
+    out += chunk;
+    return true;
+  };
+  try {
+    const summary = diagnostics.printStartupReport(
+      [depResult('postgres', true), depResult('minio', true), depResult('redis', true)],
+      {
+        extra: [
+          { label: '运行环境', status: 'ok', group: 'pre', text: 'node v24.20.0' },
+          { label: '库结构', status: 'fail', group: 'post', text: '缺 3/57 张表', hint: '跑 init-db' },
+        ],
+      },
+    );
+    assert.equal(summary.ok, false);
+    assert.match(out, /启动自检/);
+    assert.match(out, /运行环境/);
+    assert.match(out, /库结构/);
+    assert.match(out, /跑 init-db/);
+    assert.match(out, /4\/5 通过 · 1 项需处理/);
+    // 顺序：额外 pre 项 → 连接项 → 额外 post 项
+    assert.ok(out.indexOf('运行环境') < out.indexOf('PostgreSQL'));
+    assert.ok(out.indexOf('PostgreSQL') < out.indexOf('库结构'));
+  } finally {
+    process.stdout.write = write;
+    capture.restore();
+    diagnostics.resetDependencyState();
+  }
+});
+
+test('生产环境全通且无告警时仍然只打一行', () => {
+  diagnostics.resetDependencyState();
+  const capture = captureLogs();
+  const write = process.stdout.write;
+  let out = '';
+  process.stdout.write = (chunk) => {
+    out += chunk;
+    return true;
+  };
+  try {
+    const summary = diagnostics.printStartupReport(
+      [depResult('postgres', true), depResult('minio', true), depResult('redis', true)],
+      {
+        verbose: false,
+        extra: [{ label: '库结构', status: 'ok', text: 'eadaf · 57/57 张表' }],
+      },
+    );
+    assert.equal(summary.ok, true);
+    assert.match(out, /✅ 启动自检通过/);
+    assert.doesNotMatch(out, /── \d+\/\d+ 通过/);
+  } finally {
+    process.stdout.write = write;
+    capture.restore();
+    diagnostics.resetDependencyState();
+  }
+});

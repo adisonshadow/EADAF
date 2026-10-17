@@ -14,6 +14,7 @@
     "pm2dev": "pm2 startOrReload ecosystem.config.cjs --only eadaf-api-dev",
     "pm2prod": "pm2 startOrReload ecosystem.config.cjs --only eadaf-api",
     "test": "jest",
+    "test:unit": "node --test src/**/*.test.js",
     "lint": "eslint src/",
     "test-with-reset-db": "cross-env RESET_DB=true jest --config=jest.config.js",
     "init-db": "bash scripts/initdb.sh",

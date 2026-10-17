@@ -9,6 +9,12 @@
  *   1. 启动前并行探一次 TCP 端口，打一张结论表 + 修复命令（一眼定位）；
  *   2. 某个依赖被判为不可用后，后续同类报错只写日志文件（完整堆栈仍在
  *      logs/error-*.log），控制台不再重复刷屏；依赖恢复后自动解除折叠。
+ *
+ * 另外两类「看着像依赖挂了、其实是别的问题」的报错在这里单独归类，不再兜到
+ * 「PostgreSQL 不可用」上：
+ *   · 表 / schema 不存在（42P01 / 3F000）—— 库是通的，是结构没建或名字不对；
+ *   · 启动时的非连接项（运行环境、env、库结构、系统桶）由 startupSelfCheck 探测，
+ *     通过 printStartupReport(results, { extra }) 并进同一张表输出。
  */
 const net = require('net');
 const config = require('../config');
@@ -38,6 +44,17 @@ const REDIS_ERROR_NAMES = new Set([
 ]);
 
 const CONNECTION_CODE_RE = new RegExp(`\\b(${[...CONNECTION_CODES].join('|')})\\b`);
+
+/** 结构类错误码：undefined_table / invalid_schema_name —— 库通，缺的是对象。 */
+const MISSING_OBJECT_CODES = new Set(['42P01', '3F000']);
+
+/** 从 Postgres 的报错文本里抠出对象名（relation "eadaf.users" does not exist）。 */
+const MISSING_OBJECT_RE = /(?:relation|table|schema) "([^"]+)" does not exist/i;
+
+/** 结构缺失时的修复建议：只有两条正路 —— 建库或迁移。 */
+const DB_STRUCTURE_HINT =
+  '表 / schema 没建或名字不对：pnpm --filter ./backend init-db（重建 POSTGRES_SCHEMA，会清空数据）'
+  + '；改名过的库先跑 pnpm --filter ./backend migrate-uac-to-eadaf';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '0.0.0.0', '::']);
 
@@ -179,77 +196,124 @@ function line(parts) {
   process.stdout.write(`${parts.join('')}\n`);
 }
 
+/** 全角字符按两列算：否则 padEnd 出来的表格在终端里是歪的。 */
+function displayWidth(text) {
+  let width = 0;
+  for (const char of String(text)) {
+    const code = char.codePointAt(0);
+    const wide = (code >= 0x1100 && code <= 0x115f)
+      || (code >= 0x2e80 && code <= 0xa4cf)
+      || (code >= 0xac00 && code <= 0xd7a3)
+      || (code >= 0xf900 && code <= 0xfaff)
+      || (code >= 0xfe30 && code <= 0xfe6f)
+      || (code >= 0xff00 && code <= 0xff60)
+      || (code >= 0xffe0 && code <= 0xffe6);
+    width += wide ? 2 : 1;
+  }
+  return width;
+}
+
+function padDisplay(text, width) {
+  const padding = width - displayWidth(text);
+  return padding > 0 ? `${text}${' '.repeat(padding)}` : String(text);
+}
+
+/** 自检项（运行环境 / env / 库结构 / 系统桶）的状态标记。 */
+const EXTRA_MARKS = {
+  ok: ['32', '✓'],
+  warn: ['33', '!'],
+  fail: ['31', '✗'],
+  skip: ['90', '·'],
+};
+
+function extraMark(status) {
+  const [color, mark] = EXTRA_MARKS[status] || EXTRA_MARKS.skip;
+  return paint(color, mark);
+}
+
 /**
- * 打印启动依赖自检结论。全通时只打一行；有不可用时打一张表 + 修复命令。
- * 返回 { ok, down, requiredDown, optionalDown } 便于调用方/测试判断。
+ * 把连接项与额外自检项拼成一张表：额外项里 group 为 'pre' 的排前面，
+ * 其余排在连接项之后，读起来是「环境 → 连接 → 结构」的顺序。
  */
-function printStartupReport(results) {
+function buildStartupRows(results, extra) {
+  const dependencyRows = results.map((item) => ({
+    mark: markOf(item),
+    label: item.label,
+    text: item.reachable
+      ? `${addressOf(item)} · 可用 · ${roleText(item)}`
+      : `${addressOf(item)} · ${statusText(item)}｜影响：${item.impact}`,
+    hints: item.reachable ? [] : [repairHint(item.key)],
+  }));
+
+  const extraRows = extra.map((item) => ({
+    group: item.group || 'post',
+    mark: extraMark(item.status),
+    label: item.label,
+    text: item.text,
+    hints: item.hint ? [].concat(item.hint) : [],
+  }));
+
+  return [
+    ...extraRows.filter((row) => row.group === 'pre'),
+    ...dependencyRows,
+    ...extraRows.filter((row) => row.group !== 'pre'),
+  ];
+}
+
+/**
+ * 打印启动自检结论（连接项 + 额外自检项）。
+ *
+ * - 开发环境：始终打完整清单，能看见每一项查了什么；
+ * - 生产环境：全通且无告警时只留一行，避免刷启动日志；有错才打表 + 修复命令。
+ *
+ * 返回 { ok, down, requiredDown, optionalDown, extra } 便于调用方/测试判断。
+ */
+function printStartupReport(results, { extra = [], verbose = process.env.NODE_ENV !== 'production' } = {}) {
   const down = results.filter((item) => !item.reachable);
   const requiredDown = down.filter((item) => item.required);
   const optionalDown = down.filter((item) => !item.required);
-  const summary = { ok: down.length === 0, down, requiredDown, optionalDown };
+  const failed = extra.filter((item) => item.status === 'fail');
+  const warned = extra.filter((item) => item.status === 'warn');
+  const summary = { ok: down.length === 0 && failed.length === 0, down, requiredDown, optionalDown, extra };
 
   // 自检已经说过的依赖，后续调用点不再重复刷控制台（细节仍写文件）
   setDependencyDownFromStartup(results);
 
-  if (!down.length) {
-    process.stdout.write(
-      `${paint('32', '✅ 依赖自检通过')}：${results.map((item) => `${item.label} ${addressOf(item)}`).join('、')}\n`,
-    );
-    logger.info('启动依赖自检通过', {
+  if (summary.ok && !warned.length && !verbose) {
+    const detail = results.map((item) => `${item.label} ${addressOf(item)}`).join('、');
+    process.stdout.write(`${paint('32', '✅ 启动自检通过')}：${detail}\n`);
+    logger.info('启动自检通过', {
       suppressConsole: true,
-      dependencies: results.map((item) => `${item.label} ${addressOf(item)}`),
+      dependencies: detail.split('、'),
+      checks: extra.map((item) => ({ label: item.label, status: item.status })),
     });
     return summary;
   }
 
-  const width = Math.max(...results.map((item) => item.label.length));
-  line([paint('90', '──────────────'), paint('36', ' 启动依赖自检 '), paint('90', '──────────────')]);
-  for (const item of results) {
-    line([
-      `  ${markOf(item)} `,
-      item.label.padEnd(width, ' '),
-      '  ',
-      addressOf(item).padEnd(16, ' '),
-      '  ',
-      statusText(item).padEnd(13, ' '),
-      '  ',
-      item.required ? paint('31', roleText(item)) : paint('90', roleText(item)),
-    ]);
-  }
+  const rows = buildStartupRows(results, extra);
+  const labelWidth = Math.max(...rows.map((row) => displayWidth(row.label)), 10);
+  const total = rows.length;
+  const passed = results.filter((item) => item.reachable).length
+    + extra.filter((item) => item.status === 'ok').length;
+  const needFix = total - passed;
+  const textIndent = ' '.repeat(labelWidth + 6);
 
-  const requiredNames = requiredDown.map((item) => item.label).join('、');
-  const optionalNames = optionalDown.map((item) => item.label).join('、');
-  if (requiredDown.length) {
-    line([
-      paint('31', `  ⚠️  ${requiredDown.length} 项必需依赖不可用（${requiredNames}）`),
-      `：服务仍会启动，但${requiredDown.map((item) => item.impact).join('；')}。`,
-    ]);
+  line([paint('90', '──────────────'), paint('36', ' 启动自检 '), paint('90', '──────────────')]);
+  for (const row of rows) {
+    line([`  ${row.mark} `, padDisplay(row.label, labelWidth), '  ', row.text]);
+    row.hints.forEach((hint, index) => {
+      // 第一条带 🔧，后续对齐到提示文本下方，避免一排小扳手
+      line([textIndent, index === 0 ? paint('36', '🔧 ') : '   ', hint]);
+    });
   }
-  if (optionalNames) {
-    line([paint('33', `  ℹ️  ${optionalNames} 不可用`), `：${optionalDown[0].impact}。`]);
-  }
+  line([paint(needFix ? '33' : '32', `  ── ${passed}/${total} 通过${needFix ? ` · ${needFix} 项需处理` : ''} ──`)]);
 
-  const localDown = down.filter((item) => isLocalHost(item.host) || item.code === 'NOT_CONFIGURED');
-  if (localDown.length) {
-    const unconfigured = down.some((item) => item.code === 'NOT_CONFIGURED');
-    line([paint('36', '  🔧 修复：'), unconfigured
-      ? 'cp backend/.env.example backend/.env.development（补齐连接配置）'
-      : 'cd backend && docker compose up -d   （本机 Docker 似乎没启动）']);
-    if (!unconfigured) {
-      line([paint('90', '           起来后按 rs 让 nodemon 重启，或在仓库根目录跑 pnpm dev')]);
-    }
+  if (down.length) {
+    line([paint('90', '  🔇 依赖不可用期间的同类报错只写入 logs/error-*.log，控制台不再重复刷屏')]);
   }
-  for (const item of down) {
-    const hint = repairHint(item.key);
-    if (item.configured && !isLocalHost(item.host)) {
-      line([paint('36', `  🔧 ${item.label}：`), hint]);
-    }
-  }
-  line([paint('90', '  🔇 依赖不可用期间的同类报错只写入 logs/error-*.log，控制台不再重复刷屏')]);
   line([paint('90', '────────────────────────────────────────────────────────────')]);
 
-  logger.warn('启动依赖自检未通过', {
+  const meta = {
     suppressConsole: true,
     dependencies: results.map((item) => ({
       key: item.key,
@@ -259,9 +323,20 @@ function printStartupReport(results) {
       code: item.code,
       required: item.required,
     })),
-    hint: requiredDown.length ? repairHint(requiredDown[0].key) : null,
+    checks: extra.map((item) => ({ label: item.label, status: item.status, text: item.text })),
     console: 'human readable report already printed to stdout',
-  });
+  };
+
+  if (summary.ok && !warned.length) {
+    logger.info('启动自检通过', meta);
+  } else {
+    logger.warn('启动自检需要关注', {
+      ...meta,
+      hint: requiredDown.length
+        ? repairHint(requiredDown[0].key)
+        : (failed[0] ? failed[0].hint : null),
+    });
+  }
 
   return summary;
 }
@@ -319,6 +394,32 @@ function classifyDependencyError(error) {
   return null;
 }
 
+/**
+ * 判断是不是「表 / schema 不存在」的结构类错误。
+ * 这类错误的连接是通的，报成「依赖不可用」会把排查方向带偏。
+ * 返回 { code, object, message }，不是结构错误返回 null。
+ */
+function isMissingDbObjectError(error) {
+  const chain = collectErrorChain(error);
+  if (!chain.length) return null;
+
+  for (const item of chain) {
+    const code = String(item.code || '');
+    if (!MISSING_OBJECT_CODES.has(code)) continue;
+    const match = MISSING_OBJECT_RE.exec(String(item.message || ''));
+    return { code, object: match ? match[1] : null, message: String(item.message || '') };
+  }
+
+  // 有些包装层（Sequelize / 业务层）会把 code 吃掉，只能看报错文本
+  for (const item of chain) {
+    const message = String(item.message || '');
+    const match = MISSING_OBJECT_RE.exec(message);
+    if (match) return { code: null, object: match[1], message };
+  }
+
+  return null;
+}
+
 /** 从错误链里提炼人类可读的一句话原因，例如 ECONNREFUSED 127.0.0.1:25432。 */
 function describeError(error) {
   const chain = collectErrorChain(error);
@@ -342,6 +443,9 @@ function describeError(error) {
 /** key -> { count, reported, startup }；reported 表示「已在控制台说过一次」。 */
 const failureState = new Map();
 
+/** 缺失对象 -> { count, reported }：结构缺失按「缺的是哪张表」各自折叠。 */
+const structureState = new Map();
+
 function failureEntry(key) {
   return failureState.get(key) || { count: 0, reported: false, startup: false };
 }
@@ -359,6 +463,7 @@ function setDependencyDownFromStartup(results) {
 
 function resetDependencyState() {
   failureState.clear();
+  structureState.clear();
 }
 
 /**
@@ -412,10 +517,43 @@ function noteDependencyUp(key) {
 }
 
 /**
- * 启动/后台任务里统一的失败上报：能归类到依赖就走折叠逻辑，
+ * 「表 / schema 不存在」的统一入口：说清缺的是哪个对象、怎么补，并按对象折叠。
+ * 首次输出到控制台（带完整堆栈），之后同类只写文件。
+ */
+function noteMissingDbObject(context, missing, error) {
+  const key = missing.object || 'unknown';
+  const entry = structureState.get(key) || { count: 0, reported: false };
+  entry.count += 1;
+  const first = !entry.reported;
+  entry.reported = true;
+  structureState.set(key, entry);
+
+  const headline = `${context ? `${context}：` : ''}数据库结构缺失（${key} 不存在）`;
+  if (first) {
+    logger.error(headline, {
+      databaseStructure: key,
+      hint: DB_STRUCTURE_HINT,
+      stack: error && error.stack,
+    });
+  } else {
+    logger.error(headline, {
+      databaseStructure: key,
+      occurrences: entry.count,
+      suppressed: true,
+      suppressConsole: true,
+    });
+  }
+  return first;
+}
+
+/**
+ * 启动/后台任务里统一的失败上报：结构缺失 / 依赖不可用各自走各自的折叠逻辑，
  * 归类不到（真正的代码错误）保持完整堆栈，方便排查。
  */
 function reportDependencyError(context, error, { fallbackKey = null } = {}) {
+  const missing = isMissingDbObjectError(error);
+  if (missing) return noteMissingDbObject(context, missing, error);
+
   const key = classifyDependencyError(error) || fallbackKey;
   if (key) return noteDependencyDown(key, error, { context });
   logger.error(context, {
@@ -432,6 +570,8 @@ module.exports = {
   printStartupReport,
   setDependencyDownFromStartup,
   classifyDependencyError,
+  isMissingDbObjectError,
+  noteMissingDbObject,
   describeError,
   noteDependencyDown,
   noteDependencyUp,
@@ -439,4 +579,5 @@ module.exports = {
   resetDependencyState,
   reportDependencyError,
   repairHint,
+  DB_STRUCTURE_HINT,
 };
