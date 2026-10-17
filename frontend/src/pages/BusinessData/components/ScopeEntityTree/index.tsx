@@ -23,6 +23,7 @@ import { useChatReference } from '@eadaf/ai-base';
 import React, { useCallback, useMemo, useState } from 'react';
 import ChatReferenceTarget from '@/components/ChatReferenceTarget';
 import { message } from '@/utils/antdAppApis';
+import { copyTextToClipboard } from '@/utils/clipboard';
 import { buildEntityReference, buildScopeReference } from '../../ai/chatReferenceUtils';
 import { buildScopeTree, type ScopeTreeItem } from '../../utils/buildScopeTree';
 import { isEntityModelValidated } from '../../utils/entityValidation';
@@ -150,12 +151,9 @@ const ScopeEntityTree: React.FC<ScopeEntityTreeProps> = ({
         return;
       }
       const text = formatEntityListText(list);
-      try {
-        await navigator.clipboard.writeText(text);
-        message.success(`已复制 ${list.length} 个下级实体`);
-      } catch {
-        message.error('复制失败，请检查浏览器剪贴板权限');
-      }
+      const ok = await copyTextToClipboard(text);
+      if (ok) message.success(`已复制 ${list.length} 个下级实体`);
+      else message.error('复制失败，请检查浏览器剪贴板权限');
     },
     [entities],
   );

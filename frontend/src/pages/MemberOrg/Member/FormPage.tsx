@@ -6,6 +6,7 @@ import {
 import { CopyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Button, Input, Modal, Space, Spin } from 'antd';
 import { message, modal } from '@/utils/antdAppApis';
+import { copyTextToClipboard } from '@/utils/clipboard';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useReturnToList } from '@/hooks/useReturnToList';
@@ -389,9 +390,10 @@ const MemberFormPage: React.FC<MemberFormPageProps> = ({ mode }) => {
           <Input.Password value={generatedPassword} readOnly style={{ width: 200 }} />
           <Button
             icon={<CopyOutlined />}
-            onClick={() => {
-              void navigator.clipboard.writeText(generatedPassword);
-              message.success('密码已复制到剪贴板');
+            onClick={async () => {
+              const ok = await copyTextToClipboard(generatedPassword);
+              if (ok) message.success('密码已复制到剪贴板');
+              else message.error('复制失败，请手动选择密码复制');
             }}
           >
             复制

@@ -1,5 +1,6 @@
 import React from 'react';
 import { message } from '@/utils/antdAppApis';
+import { copyTextToClipboard } from '@/utils/clipboard';
 import './EntityCodeChip.css';
 
 interface EntityCodeChipProps {
@@ -24,12 +25,9 @@ const EntityCodeChip: React.FC<EntityCodeChipProps> = ({ code }) => {
   if (!fullCode) return null;
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(fullCode);
-      message.success('复制成功');
-    } catch {
-      message.error('复制失败，请检查浏览器剪贴板权限');
-    }
+    const ok = await copyTextToClipboard(fullCode);
+    if (ok) message.success('复制成功');
+    else message.error('复制失败，请检查浏览器剪贴板权限');
   };
 
   return (

@@ -11,6 +11,7 @@ import {
   buildApplicationApiDocsPath,
 } from '@/utils/applicationApiDocsUrl';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
+import { copyTextToClipboard } from '@/utils/clipboard';
 import './index.css';
 
 const { Text } = Typography;
@@ -70,20 +71,18 @@ const ApiSkillPublicPage: React.FC = () => {
     };
   }, [code]);
 
-  const handleCopyUrl = useCallback(() => {
+  const handleCopyUrl = useCallback(async () => {
     if (!skillMarkdownUrl) return;
-    navigator.clipboard
-      ?.writeText(skillMarkdownUrl)
-      .then(() => message.success('已复制 API Skill URL'))
-      .catch(() => message.error('复制失败，请手动复制'));
+    const ok = await copyTextToClipboard(skillMarkdownUrl);
+    if (ok) message.success('已复制 API Skill URL');
+    else message.error('复制失败，请手动复制');
   }, [skillMarkdownUrl]);
 
-  const handleCopyMarkdown = useCallback(() => {
+  const handleCopyMarkdown = useCallback(async () => {
     if (!markdown) return;
-    navigator.clipboard
-      ?.writeText(markdown)
-      .then(() => message.success('已复制 SKILL.md 全文'))
-      .catch(() => message.error('复制失败，请手动复制'));
+    const ok = await copyTextToClipboard(markdown);
+    if (ok) message.success('已复制 SKILL.md 全文');
+    else message.error('复制失败，请手动复制');
   }, [markdown]);
 
   if (loading) {

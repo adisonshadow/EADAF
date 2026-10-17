@@ -1,6 +1,6 @@
 import { useAIChatDisplayMode } from '@eadaf/ai-base';
 import { ApiOutlined, PartitionOutlined, CopyOutlined, WarningOutlined, ReadOutlined, CloudUploadOutlined } from '@ant-design/icons';
-import { Alert, Button, Segmented, Spin, Tag, Tree, Typography } from 'antd';
+import { Alert, Button, Segmented, Spin, Tag, Tooltip, Tree, Typography } from 'antd';
 import { message } from '@/utils/antdAppApis';
 import type { DataNode } from 'antd/es/tree';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -24,6 +24,7 @@ import {
   parseApiDocsRoutePathFromPathname,
 } from '@/utils/applicationApiDocsUrl';
 import { getApiData, getApiErrorMessage, isApiSuccess } from '@/utils/apiResponse';
+import { copyTextToClipboard } from '@/utils/clipboard';
 import {
   getTransportProtocolLabel,
   normalizeTransportProtocols,
@@ -717,12 +718,11 @@ const ApplicationPublicApiCatalogPage: React.FC = () => {
     return `${window.location.origin}/api/v1/applications-public/${encodeURIComponent(code)}/apis.json`;
   }, [code]);
 
-  const handleCopyJsonUrl = useCallback(() => {
+  const handleCopyJsonUrl = useCallback(async () => {
     if (!openApiJsonUrl) return;
-    navigator.clipboard
-      ?.writeText(openApiJsonUrl)
-      .then(() => message.success('已复制 OpenAPI JSON URL'))
-      .catch(() => message.error('复制失败，请手动复制'));
+    const ok = await copyTextToClipboard(openApiJsonUrl);
+    if (ok) message.success('已复制 OpenAPI JSON URL，可直接交给 AI 读取');
+    else message.error('复制失败，请手动复制：' + openApiJsonUrl);
   }, [openApiJsonUrl]);
 
   if (loading) {
@@ -750,6 +750,8 @@ const ApplicationPublicApiCatalogPage: React.FC = () => {
             应用 <Text code style={{ color: '#fff' }}>{catalog.application.code}</Text>
             {' · '}
             以下为该应用已授权可访问的 API（公开文档，无需登录）
+            {' · '}
+            右上「复制 JSON URL」可直接给 AI 读取
           </p>
         </div>
         <div className="application-api-catalog__header-actions">
@@ -780,16 +782,29 @@ const ApplicationPublicApiCatalogPage: React.FC = () => {
           >
             API SKILL
           </Button>
-          <Button
-            type="primary"
-            ghost
-            size="small"
-            icon={<CopyOutlined />}
-            onClick={handleCopyJsonUrl}
-            disabled={!openApiJsonUrl}
+          <Tooltip
+            placement="bottomRight"
+            title={
+              <div style={{ maxWidth: 300 }}>
+                <div>复制该应用的 OpenAPI 契约地址（apis.json，免登录）。</div>
+                <div style={{ marginTop: 4 }}>
+                  可直接粘贴给 AI 读取，让它按真实路径与参数名调用；
+                  文件较大，建议让 AI 用 <Text code>eadaf_api_contract</Text> 按 path/keyword 过滤后再取。
+                </div>
+              </div>
+            }
           >
-            复制 JSON URL
-          </Button>
+            <Button
+              type="primary"
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={handleCopyJsonUrl}
+              disabled={!openApiJsonUrl}
+              aria-label="复制 OpenAPI JSON URL（可交给 AI 读取）"
+            >
+              复制 JSON URL
+            </Button>
+          </Tooltip>
         </div>
       </header>
 
