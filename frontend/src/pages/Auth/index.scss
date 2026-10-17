@@ -61,18 +61,15 @@
   }
 
   .auth-bg {
-    width: fit-content;
+    /* 侧栏固定占 40%、上限 500px：宽度由布局决定，不再随素材原始尺寸变化 */
+    flex: 0 0 auto;
+    width: 40%;
+    max-width: 500px;
     height: 100%;
     align-self: stretch;
     overflow: hidden;
     background-color: var(--auth-sidebar-bg);
     position: relative;
-
-    &.auth-bg--pending {
-      /* SSO 配置未回前占位，避免侧栏先塌成 0 再撑开 */
-      min-width: min(42vw, 560px);
-      flex: 0 0 auto;
-    }
 
     .bg-image {
       width: 100%;
@@ -128,6 +125,13 @@
         color: #fff;
         opacity: 0.8;
       }
+    }
+  }
+
+  /* ≤1024：侧栏整块收起，登录表单占满整屏 */
+  @media (max-width: 1024px) {
+    .auth-bg {
+      display: none;
     }
   }
 
