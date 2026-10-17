@@ -121,7 +121,9 @@ backend/uploads/*
 upload_test/
 !backend/uploads/.gitkeep
 backend/thumbsCache/*
-backend/backups/
+# 目录内容不入库，但保留目录本身（.gitkeep 占位；父目录整体被排除时无法放行其中文件）
+backend/backups/*
+!backend/backups/.gitkeep
 backend/db-backup/
 backend/data/*.db
 # SSO 平台签名密钥（自动生成；生产用 SSO_JWT_PRIVATE_KEY / SSO_JWT_PUBLIC_KEY 固定）
