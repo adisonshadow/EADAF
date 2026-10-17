@@ -16,7 +16,7 @@ Koa + Sequelize 实现的 EADAF REST API，提供身份权限、应用 SSO、业
 
 ### 环境
 
-- Node.js 18+
+- Node.js >= 22.13（`package.json` 的 `engines` 是硬要求，启动自检会核对）
 - PostgreSQL 14+
 - Redis（可选，部分能力依赖）
 
@@ -29,7 +29,7 @@ cp .env.development .env.development.local   # 按需修改
 # 2. 安装依赖
 npm install
 
-# 3. 初始化数据库（会重建 uac schema）
+# 3. 初始化数据库（重建 POSTGRES_SCHEMA 指定的 schema，默认 eadaf）
 pnpm init-db                                 # 结构 + 超管 + EADAF 全局/专用 Skill/Tool
 pnpm init-db-with-mock                       # 另含 Mock 用户/部门与销售示例实体
 pnpm init-db-with-aibase-seed                # 另含 Demo 全量 AI 种子（会 TRUNCATE Skill/Tool）
@@ -49,6 +49,35 @@ npm run swagger             # 生成 swagger.json
 pnpm export-eadaf-ai-skills # 从当前库导出 EADAF Skill/Tool upsert SQL 并写入仓库
 pnpm migrate-eadaf-ai-skills # 在目标库幂等 upsert（不重置、不删业务应用 Skill）
 npm run db:maintenance:all  # VACUUM / ANALYZE / REINDEX
+npm run test:unit           # src 下的纯逻辑单测（node --test）
+```
+
+### 启动自检
+
+每次启动都先跑一遍自检（`src/app.js` 的 `bootstrap()` → `src/utils/startupSelfCheck.js`），再监听端口。
+**任何一项不通过都不阻塞启动**，但结论必须准：连接失败说连接，表 / schema 缺失说结构，互不冒充。
+
+```
+────────────── 启动自检 ──────────────
+  ✓ 运行环境    node v24.20.0 · development · :29526
+  ✓ env 配置    .env.development · 关键键 10/10
+  ✓ PostgreSQL  localhost:25432 · 可用 · 必需
+  ✓ MinIO       127.0.0.1:9000 · 可用 · 必需
+  ✓ Redis       localhost:26379 · 可用 · 可选（降级）
+  ✓ 库结构       eadaf / aibase / bizdata / automation · 57/57 张表
+  ✓ 系统存储桶   eadaf-system（eadaf.storage_buckets 已就绪）
+  ── 7/7 通过 ──
+──────────────────────────────────────
+```
+
+- 开发环境始终打完整清单；生产环境全通只留一行，有 ❌ 才打表（避免刷启动日志）
+- 「库结构」以 Sequelize 模型为事实来源：新增模型自动纳入检查，不用维护第二份表清单
+- 表 / schema 缺失单独报 `数据库结构缺失（xxx 不存在）`，并给两条正路：
+  `pnpm init-db`（重建，会清空数据）或 `pnpm migrate-uac-to-eadaf`（遗留 `uac` schema 改名到 `eadaf`）
+- 只跑自检、不起服务：
+
+```bash
+node -e "require('./src/utils/startupSelfCheck').runStartupChecks().then((rows) => rows.forEach((r) => console.log(r.status, r.label, r.text)))"
 ```
 
 ### 配置（env）加载

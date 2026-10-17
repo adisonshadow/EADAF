@@ -246,20 +246,20 @@ function listLanIPv4() {
 }
 
 /**
- * 启动前先探一次依赖（PostgreSQL / MinIO / Redis）：
- * 本机 Docker 没启动时，这里一次说清「谁不可用、怎么修」，
- * 后面各调用点的重复报错会被折叠进日志文件，不再刷屏。
+ * 启动自检：先把「运行环境 / env / 依赖连接 / 库结构 / 系统桶」一次说清，再监听端口。
+ * 任何一项不通过都不阻塞启动（行为与原来的依赖自检一致），但结论要准：
+ * 连接失败说连接，表/schema 缺失说结构，不要互相冒充。
  */
 async function bootstrap() {
   const dependencies = await probeDependencies();
-  printStartupReport(dependencies);
 
-  // 确保系统内置 Storage Bucket 存在
+  // 表清单与系统桶都以模型为准，先注册模型，再跑自检
   require('./models');
-  const { ensureSystemBucket } = require('./services/storage/systemBucketService');
-  ensureSystemBucket().catch((error) => {
-    reportDependencyError('初始化系统 Storage Bucket 失败', error, { fallbackKey: 'postgres' });
-  });
+  const { runStartupChecks } = require('./utils/startupSelfCheck');
+  const checks = await runStartupChecks({ dependencies });
+  printStartupReport(dependencies, { extra: checks });
+
+  // 系统内置 Storage Bucket 已在自检里确保（失败会作为自检项报出来）
   const { ensureBucket } = require('./services/storage/objectStore');
   ensureBucket().catch((error) => {
     reportDependencyError('初始化 MinIO 存储桶失败', error, { fallbackKey: 'minio' });
