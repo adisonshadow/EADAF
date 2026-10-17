@@ -130,11 +130,7 @@ const AuthPageFrame: React.FC<AuthPageFrameProps> = ({
             <title>{helmetTitle}</title>
           </Helmet>
         ) : null}
-        <div
-          className={
-            asideReady || useCustomImage ? 'auth-bg' : 'auth-bg auth-bg--pending'
-          }
-        >
+        <div className="auth-bg">
           {showDefaultAside ? (
             <img src="/images/bg.svg" alt="" className="bg-image" />
           ) : null}
