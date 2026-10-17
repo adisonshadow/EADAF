@@ -50,13 +50,13 @@ UPDATE aibase.tools t
 
 -- 2b) Tool 的 slug（如 uac-list-users → eadaf-list-users）
 UPDATE aibase.tools t
-   SET slug = replace(slug, 'eadaf-', 'eadaf-'),
+   SET slug = replace(slug, 'uac-', 'eadaf-'),
        updated_at = now()
  WHERE slug ~* 'uac';
 
 -- 3) Skill：slug + 文本
 UPDATE aibase.skills s
-   SET slug = replace(slug, 'eadaf-', 'eadaf-'),
+   SET slug = replace(slug, 'uac-', 'eadaf-'),
        name = pg_temp.eadafify(name),
        description = pg_temp.eadafify(description),
        content_markdown = pg_temp.eadafify(content_markdown),
