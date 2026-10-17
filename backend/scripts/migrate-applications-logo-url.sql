@@ -13,7 +13,7 @@ VALUES (
     '10000000-0000-4000-8000-000000000002',
     '企业智能数据应用底座',
     'EADAF',
-    '/images/logo.svg',
+    '/images/EADAF-logo.png',
     'ACTIVE',
     'EADAF 本系统（系统内置应用，不可删除）'
 )

@@ -3,6 +3,7 @@ const materializationService = require('../businessData/materializationService')
 const materializedTableBrowseService = require('../businessData/materializedTableBrowseService');
 const { executeToolWithEnvelope } = require('./executeToolWithEnvelope');
 const { executeHttpRequest } = require('./httpRequestToolService');
+const { queryApiContract } = require('./apiContractToolService');
 const { validateToolArgs } = require('../../utils/validateToolArgs');
 const { normalizeToolResult } = require('../../utils/normalizeToolResult');
 const { writeOperationLog } = require('../operationAudit/writeOperationLog');
@@ -39,6 +40,8 @@ function builtinAuditBase(context = {}, overrides = {}) {
 const BUILTIN_HANDLERS = {
   /** 公共 HTTP 请求（类 curl）；context.userToken 用于受信主机鉴权 */
   http_request: async (args, context = {}) => executeHttpRequest(args, context),
+  /** 平台/业务 API 契约查询：先查契约再调用，避免模型猜路径与参数名 */
+  eadaf_api_contract: async (args, context = {}) => queryApiContract(args, context),
   demo_echo: async (args) => ({
     echoed: args,
     message: 'Server builtin echo succeeded'
@@ -283,6 +286,8 @@ async function invokeTool(tool, args = {}, logContext = {}) {
     userToken: logContext.userToken || null,
     userId: logContext.userId || null,
     traceId: logContext.traceId || null,
+    /** 当前请求声明的应用（`?app=` / SSO JWT 自述）；eadaf_api_contract 用它兜底 app 参数 */
+    requestedApp: logContext.requestedApp || null,
   };
 
   const parametersSchema = tool.parameters_schema || tool.parametersSchema;

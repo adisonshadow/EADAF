@@ -9,7 +9,7 @@ const Settings: ProLayoutProps & {
 } = {
   navTheme: 'light', // 主题颜色， light浅白色，realDark深色
   title: 'EADAF', // 系统名称
-  logo: '/images/logo.svg', // 系统logo地址（放在public目录下）
+  logo: '/images/EADAF-logo.png', // 系统logo地址（放在public目录下）
   colorPrimary: '#0476e7', // 拂晓蓝
 
   // 如无必要，尽量不要配置下面

@@ -1,5 +1,6 @@
 import type { PackJob, PackLogLine } from '@/services/EADAF/api/appDeployment';
 import { message } from '@/utils/antdAppApis';
+import { copyTextToClipboard } from '@/utils/clipboard';
 import {
   CopyOutlined,
   DownloadOutlined,
@@ -45,35 +46,16 @@ export function formatDuration(
   return `${Math.floor(minutes / 60)} 时 ${minutes % 60} 分`;
 }
 
-/** 复制到剪贴板；非安全上下文（如局域网 http）下回退到 execCommand */
+/** 复制到剪贴板：统一走 @/utils/clipboard（非安全上下文自动回退 execCommand） */
 export async function copyText(
   text: string,
   okMessage = '已复制',
 ): Promise<void> {
   const value = String(text ?? '');
   if (!value) return;
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      message.success(okMessage);
-      return;
-    }
-  } catch {
-    /* 回退到 execCommand */
-  }
-  try {
-    const textarea = document.createElement('textarea');
-    textarea.value = value;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-    message.success(okMessage);
-  } catch {
-    message.error('复制失败，请手动选择文本复制');
-  }
+  const ok = await copyTextToClipboard(value);
+  if (ok) message.success(okMessage);
+  else message.error('复制失败，请手动选择文本复制');
 }
 
 const STATUS_META: Record<PackJob['status'], { color: string; text: string }> =

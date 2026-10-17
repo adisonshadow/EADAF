@@ -203,6 +203,11 @@ export type {
   UserChoiceSubmission,
 } from './chat/userChoice';
 export { resolveToolStepFromEnvelope } from './chat/resolveToolStepFromEnvelope';
+/** 实时任务清单：订阅 update_plan / 自动对账推送的 plan（头部「计划」按钮与宿主自定义 UI 共用） */
+export { useLivePlan } from './chat/useLivePlan';
+export { subscribePlan, getPlanForConversation, getPlanCursor } from './registry/agentPlanState';
+export { default as PlanItemList } from './ui/PlanItemList';
+export type { PlanItemListProps } from './ui/PlanItemList';
 
 // 语义化路由与 AI 决策跳转（navigationChannel + markdown 渲染）
 export {

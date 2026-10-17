@@ -188,6 +188,13 @@ class AiCapabilityController {
         userId: ctx.state.user?.id || ctx.state.user?.userId,
         traceId: ctx.state.traceId,
         userToken: extractBearerToken(ctx),
+        // 当前请求声明的应用：`?app=`（ai-base 对 SSO 应用会带）或令牌自述
+        requestedApp:
+          ctx.query?.app
+          || ctx.state.user?.application_id
+          || ctx.state.application?.application_id
+          || ctx.state.ssoApplicationId
+          || null,
       };
 
       const result = await invokeTool(tool, toolArgs || {}, logContext);

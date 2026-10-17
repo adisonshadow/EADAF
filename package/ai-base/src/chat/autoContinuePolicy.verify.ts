@@ -773,6 +773,64 @@ console.log('autoContinuePolicy + A2UI 回归场景全部通过');
   assert.equal(next, plan); // 同一引用
 }
 
+// 场景 S14：in_progress 项没声明 requiresVerification —— 本步业务 Tool 成功即完成，
+// 并且**只**推进当前项（pending 不被一起标完成），下一个 pending 升 in_progress
+{
+  const plan: PlanItem[] = [
+    { id: 't1', content: '查订单', status: 'in_progress' },
+    { id: 't2', content: '汇总', status: 'pending' },
+    { id: 't3', content: '出报告', status: 'pending' },
+  ];
+  const outcomes: ToolResponse[] = [
+    { ok: true, verified: true, kind: 'success', meta: { tool: 'http_request' } },
+  ];
+  const next = reconcilePlan(plan, outcomes);
+  assert.equal(next[0].status, 'completed');
+  assert.equal(next[1].status, 'in_progress');
+  assert.equal(next[2].status, 'pending'); // 后续项保持 pending，不批量完成
+}
+
+// 场景 S15：游标之后没有新的成功业务 Tool → 不推进（防同一结果反复推进多步）
+{
+  const plan: PlanItem[] = [
+    { id: 't1', content: '查订单', status: 'in_progress' },
+    { id: 't2', content: '汇总', status: 'pending' },
+  ];
+  const outcomes: ToolResponse[] = [
+    { ok: true, verified: true, kind: 'success', meta: { tool: 'http_request' } },
+  ];
+  const next = reconcilePlan(plan, outcomes, { outcomeStartIndex: 1 });
+  assert.equal(next[0].status, 'in_progress');
+  assert.equal(next[1].status, 'pending');
+}
+
+// 场景 S16：harness Tool（update_plan / task_complete）成功不算「这一步干完了」
+{
+  const plan: PlanItem[] = [{ id: 't1', content: '建实体', status: 'in_progress' }];
+  const outcomes: ToolResponse[] = [
+    { ok: true, verified: true, kind: 'success', meta: { tool: 'update_plan' } },
+  ];
+  const next = reconcilePlan(plan, outcomes);
+  assert.equal(next[0].status, 'in_progress');
+}
+
+// 场景 S17：业务 Tool 失败（business_error / verified=false）不推进
+{
+  const plan: PlanItem[] = [{ id: 't1', content: '建实体', status: 'in_progress' }];
+  const outcomes: ToolResponse[] = [
+    {
+      ok: true,
+      verified: false,
+      kind: 'business_error',
+      meta: { tool: 'bizdata_create_entity' },
+      error: { message: 'duplicated' },
+    },
+  ];
+  const next = reconcilePlan(plan, outcomes);
+  assert.equal(next[0].status, 'in_progress');
+}
+
+
 /* ========================================================================== */
 /* 阶段 E：同性质批量结果聚合                                                    */
 /* ========================================================================== */

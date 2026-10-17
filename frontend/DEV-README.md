@@ -178,5 +178,5 @@ pnpm openapi2ts
 ## 其他说明
 
 - **首次 clone**：在 monorepo 根目录 `pnpm install`，再分别启动 backend 与 frontend。
-- **静态资源**：`public/` 下文件以 URL 引用（如 `/images/logo.svg`）；需 import 的 JSON 等资源放 `src/assets/`。
+- **静态资源**：`public/` 下文件以 URL 引用（如 `/images/EADAF-logo.png`）；需 import 的 JSON 等资源放 `src/assets/`。
 - **CSS Modules**：`.module.scss` 文件以 `import styles from './xxx.module.scss'` 方式使用。

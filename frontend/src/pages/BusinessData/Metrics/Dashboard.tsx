@@ -4,6 +4,7 @@ import { Column, Line, Pie, Tiny } from '@ant-design/plots';
 import { Button, Card, Col, Dropdown, Empty, Modal, Row, Spin } from 'antd';
 import type { MenuProps } from 'antd';
 import { message } from '@/utils/antdAppApis';
+import { copyTextToClipboard } from '@/utils/clipboard';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAIChatPrompts, useAISurface } from '@eadaf/ai-base';
@@ -191,8 +192,9 @@ const MetricsDashboardPage: React.FC = () => {
       return;
     }
     try {
-      await navigator.clipboard.writeText(text);
-      message.success('已复制指标 code');
+      const ok = await copyTextToClipboard(text);
+      if (ok) message.success('已复制指标 code');
+      else message.error('复制失败');
     } catch {
       message.error('复制失败');
     }

@@ -437,6 +437,38 @@ import { formatUserChoiceMessage, ASK_USER_TOOL } from '@eadaf/ai-base';
 
 全局行为约定写在 Framework Skill `aibase-chat-framework`；开启结构化终止时，系统提示还会注入含 `ask_user` 的执行协议。
 
+### `update_plan`：任务清单的自动推进与「计划」入口
+
+`update_plan` 维护的 Plan 是**权威状态**（同时落在会话级 store，跨 turn / 刷新仍在）。为了避免「模型忘了再调一次 `update_plan`，第一步明明跑完了还一直显示进行中」，SDK 会在**每轮工具结束后自动对账**：
+
+| 规则 | 说明 |
+|------|------|
+| 只推进**当前一项** | 仅把唯一的 `in_progress` 项标 `completed`；`pending` 项一律不动，不会「一步成功把后面全标完成」 |
+| 有 `requiresVerification` | 所列 Tool 全部 `verified=true` 才算这一步完成（原有语义） |
+| 没有 `requiresVerification` | 该项进入 `in_progress` **之后**出现过成功的业务 Tool（不含 harness，且非 `business_error` / `verified=false`）→ 视为完成 |
+| 游标防重复 | 每项记录「开始时的 Tool 结果数量」，同一个 Tool 结果不会把后续项也一起推进 |
+| 完成后 | 下一个 `pending` 自动升为 `in_progress`（保持单一进行中） |
+
+对账一旦推进，对话里的「任务清单」卡会**就地更新条目状态并自动收起**（历史清单卡也一并收起），标题副文本变为 `(已完成/总数)`，用户不必点开看旧状态。
+
+**头部「计划」按钮**：第一步真正执行完之后，面板头部（新建会话按钮左侧）会出现计划入口，点击 Popover 出**实时**任务清单（`update_plan` / 自动对账推送，打开着也会跟着更新）。新建会话 / 切到没有 plan 的会话时按钮自动隐藏，气泡同时收起。
+
+宿主若要自己做清单 UI，可直接复用公开 API：
+
+```tsx
+import { useLivePlan, subscribePlan, getPlanForConversation, PlanItemList } from '@eadaf/ai-base';
+
+const plan = useLivePlan(activeConversationKey); // 实时，随 update_plan / 对账更新
+const done = plan.filter((p) => p.status === 'completed').length;
+```
+
+| 导出 | 用途 |
+|------|------|
+| `useLivePlan(conversationKey)` | React hook：订阅该会话的实时 plan |
+| `subscribePlan(fn)` | 非 React 场景订阅（`fn(conversationKey, plan)`），返回取消订阅 |
+| `getPlanForConversation(key)` / `getPlanCursor(itemId)` | 读取持久化 plan / 某项的 Tool 结果游标 |
+| `PlanItemList` | 清单渲染组件（与对话内卡片同一份样式） |
+
 ### `navigate_to_page`：语义化路由跳转
 
 由宿主提供**页面语义清单**与**跳转执行器**；ai-base 不依赖 `react-router`。

@@ -75,9 +75,10 @@ export default function DashboardPage() {
               title="售后待处理"
               value={complaintDashboard?.open_count ?? 0}
               suffix={`/ 共 ${complaintDashboard?.total_complaints ?? 0}`}
-              valueStyle={
-                (complaintDashboard?.open_count ?? 0) > 0 ? { color: '#cf1322' } : undefined
-              }
+              styles={{
+                content:
+                  (complaintDashboard?.open_count ?? 0) > 0 ? { color: '#cf1322' } : undefined,
+              }}
             />
           </Card>
         </Col>

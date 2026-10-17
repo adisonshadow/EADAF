@@ -1,6 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Table, Typography, Empty, Alert } from 'antd';
 import type { ToolDisplay } from '../types/toolResponse';
+import type { PlanningItemView } from '../chat/chatToolSteps';
+import PlanItemList from './PlanItemList';
 import { payloadToPreviewText } from './payloadToPreviewText';
 import './ToolResultSurface.css';
 
@@ -69,41 +71,13 @@ function PlanningView({ payload }: { payload: unknown }) {
     return <Paragraph className="aibase-tool-surface-status">{msg}</Paragraph>;
   }
   return (
-    <ul className="aibase-tool-surface-plan">
-      {items.map((item, index) => {
-        const status = String(item.status || 'pending');
-        return (
-          <li key={item.id || String(index)} className={`aibase-plan-item is-${status}`}>
-            <span className="aibase-plan-item-icon" aria-hidden>
-              {status === 'in_progress' ? (
-                <span className="aibase-plan-dot-pulse" />
-              ) : status === 'completed' ? (
-                <svg className="aibase-plan-check" viewBox="0 0 16 16" width="14" height="14">
-                  <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                  <path
-                    d="M4.8 8.2 L7 10.3 L11.3 5.7"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              ) : (
-                <span className="aibase-plan-dot-empty" />
-              )}
-            </span>
-            <span className="aibase-plan-item-label">
-              {status === 'in_progress' ? (
-                <span className="aibase-text-shine">{item.label || item.id}</span>
-              ) : (
-                item.label || item.id
-              )}
-            </span>
-          </li>
-        );
-      })}
-    </ul>
+    <PlanItemList
+      items={items.map((item, index) => ({
+        id: item.id || String(index),
+        label: item.label || item.id || '',
+        status: (item.status || 'pending') as PlanningItemView['status'],
+      }))}
+    />
   );
 }
 

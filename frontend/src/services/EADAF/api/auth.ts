@@ -85,6 +85,11 @@ export async function postAuthLogin(
 - 系统将使用应用统一密钥（client_secret / app_secret，兼容旧 salt）作为JWT签名密钥
  */
     application_id?: string;
+    /** 登录页所属应用ID（仅用于判定「人类验证」，不影响令牌签发）
+- 授权码流程（/oauth/authorize）的登录页没有 application_id（那会用应用密钥签发令牌），
+  但仍应遵循该应用在 sso_config.login_verify_enabled 上的设置
+ */
+    login_app_id?: string;
     /** 验证码数据，用于普通登录模式的验证码验证步骤
 - 在首次登录返回需要验证码后，需要提供此参数完成验证
  */

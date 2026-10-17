@@ -43,7 +43,7 @@ const applicationResourceId = (ctx) => ctx.params.id;
  *               logo_url:
  *                 type: string
  *                 description: 应用 Logo URL（可选）
- *                 example: "/images/logo.svg"
+ *                 example: "/images/EADAF-logo.png"
  *               status:
  *                 type: string
  *                 enum: [ACTIVE, DISABLED]
@@ -296,7 +296,7 @@ router.get('/:id', auth, ApplicationController.getById);
  *               logo_url:
  *                 type: string
  *                 description: 应用 Logo URL（可选）
- *                 example: "/images/logo.svg"
+ *                 example: "/images/EADAF-logo.png"
  *               status:
  *                 type: string
  *                 enum: [ACTIVE, DISABLED]

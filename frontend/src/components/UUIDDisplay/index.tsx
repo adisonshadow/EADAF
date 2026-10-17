@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckOutlined, CopyOutlined } from '@ant-design/icons';
 import { Tooltip } from 'antd';
+import { copyTextToClipboard } from '@/utils/clipboard';
 
 interface UUIDDisplayProps {
   uuid: string;
@@ -12,7 +13,8 @@ const UUIDDisplay: React.FC<UUIDDisplayProps> = ({ uuid, style }) => {
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(uuid).then(() => {
+    void copyTextToClipboard(uuid).then((ok) => {
+      if (!ok) return;
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     });

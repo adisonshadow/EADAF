@@ -42,7 +42,7 @@ class AuthController {
    * 用户登录 
    */
   static async login(ctx) {
-    const { username, password, captcha_data, application_id, dev } = ctx.request.body;
+    const { username, password, captcha_data, application_id, login_app_id, dev } = ctx.request.body;
     const captcha_id = captcha_data?.captcha_id;
 
     try {
@@ -59,7 +59,13 @@ class AuthController {
 
       // 该应用是否需要「人类验证」（滑块）：应用可在 sso_config.login_verify_enabled 上关闭，
       // 未设置时跟随平台全局开关。只免掉滑块，密码校验与失败次数限制照旧。
-      const loginVerifyRequired = await isLoginVerifyRequired(application_id);
+      //
+      // 授权码流程（/oauth/authorize → /auth/login?redirect=…client_id…）的登录请求不能带
+      // application_id —— 那会用应用密钥签发令牌、建不起平台会话（授权页随后 401 打转）；
+      // 但这一页仍然是该应用的登录页，所以允许用 login_app_id 单独说明「这页属于谁」，
+      // 只参与人类验证判定，不影响令牌签发与 SSO 响应。
+      const verifyAppId = application_id || login_app_id;
+      const loginVerifyRequired = await isLoginVerifyRequired(verifyAppId);
 
       if (!isDevMode) {
         // 检查是否需要验证码

@@ -217,12 +217,15 @@ async function readTableColumns(runtime, schemaName, tableName) {
   }
   if (runtime.dbType === 'mysql') {
     return connectionRunner.withMysqlClient(runtime, async (conn) => {
+      // MySQL 里 schema 就是 database:必须用调用方给的 schemaName(物化库),
+      // 不能退回 runtime.databaseName —— 那条连接可能填的是 `mysql` 这类系统库,
+      // 查出来 0 行会让整包缺 columns / columnCount=0(导入端随后判「文件未提供」)。
       const [rows] = await conn.query(
         `SELECT COLUMN_NAME AS columnName, DATA_TYPE AS dataType, IS_NULLABLE AS isNullable,
                 COLUMN_DEFAULT AS columnDefault, EXTRA AS extra
          FROM information_schema.columns
          WHERE table_schema = ? AND table_name = ? ORDER BY ORDINAL_POSITION`,
-        [runtime.databaseName, tableName],
+        [schemaName || runtime.databaseName, tableName],
       );
       return rows.map((r) => {
         const name = r.columnName || r.COLUMN_NAME;

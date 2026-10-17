@@ -51,9 +51,64 @@ export interface AgentTurnContext {
     description: string;
     parameters: Record<string, unknown>;
   } | undefined;
+  /**
+   * plan 项 → 该项进入 in_progress 时的 `toolOutcomes.length` 游标。
+   * 对账时只统计游标之后的成功结果，避免「一个结果反复推进多个 plan 项」。
+   */
+  planCursors?: Map<string, number>;
 }
 
 let current: AgentTurnContext | null = null;
+
+/** 实时 plan 订阅者（UI 侧的任务清单气泡 / 头部按钮用） */
+type PlanListener = (conversationKey: string, plan: PlanItem[]) => void;
+const planListeners = new Set<PlanListener>();
+
+/**
+ * 订阅 plan 变更（update_plan / 自动对账 / 回合初始化）。
+ * 返回取消订阅函数。
+ */
+export function subscribePlan(listener: PlanListener): () => void {
+  planListeners.add(listener);
+  return () => {
+    planListeners.delete(listener);
+  };
+}
+
+function emitPlan(): void {
+  if (!current) return;
+  const { conversationKey, plan } = current;
+  for (const listener of planListeners) {
+    try {
+      listener(conversationKey, plan);
+    } catch {
+      // 单个订阅者异常不影响其它订阅者与主流程
+    }
+  }
+}
+
+/**
+ * 同步 plan 游标：新进入 in_progress 的项记录当前 toolOutcomes 长度；
+ * 已完成 / 已移除的项清理游标。
+ */
+function syncPlanCursors(): void {
+  if (!current) return;
+  const cursors = current.planCursors || new Map<string, number>();
+  current.planCursors = cursors;
+  const ids = new Set(current.plan.map((item) => item.id));
+  for (const id of Array.from(cursors.keys())) {
+    if (!ids.has(id)) cursors.delete(id);
+  }
+  for (const item of current.plan) {
+    if (item.status === 'completed') {
+      cursors.delete(item.id);
+      continue;
+    }
+    if (item.status === 'in_progress' && !cursors.has(item.id)) {
+      cursors.set(item.id, current.toolOutcomes.length);
+    }
+  }
+}
 
 /** 本回合开始时注入上下文。返回的 handle 用于结束时清理。 */
 export function beginTurn(ctx: AgentTurnContext): () => void {
@@ -62,6 +117,8 @@ export function beginTurn(ctx: AgentTurnContext): () => void {
   if (ctx.conversationKey) {
     setSessionPlan(ctx.conversationKey, ctx.plan);
   }
+  syncPlanCursors();
+  emitPlan();
   return () => {
     // 仅在仍是本回合时清理，避免被后开的 turn 误清
     if (current === ctx) current = null;
@@ -94,6 +151,14 @@ export function getPlanForConversation(conversationKey: string): PlanItem[] {
   return getSessionPlan(conversationKey);
 }
 
+/**
+ * 当前 plan 项进入 in_progress 时的 Tool 结果游标。
+ * 无游标（未开始 / 已结束）时返回 0。
+ */
+export function getPlanCursor(itemId: string): number {
+  return current?.planCursors?.get(itemId) ?? 0;
+}
+
 /** update_plan handler 写入新的 plan（已做单一 in_progress 等校验） */
 export function setPlan(plan: PlanItem[]): void {
   if (!current) return;
@@ -101,6 +166,8 @@ export function setPlan(plan: PlanItem[]): void {
   if (current.conversationKey) {
     setSessionPlan(current.conversationKey, plan);
   }
+  syncPlanCursors();
+  emitPlan();
 }
 
 /** loop 每次执行完 Tool 后同步追加结果，供 task_complete 校验 */

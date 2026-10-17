@@ -91,6 +91,41 @@ interface LoginResponse {
   };
 }
 
+/** 从 `/oauth/authorize?client_id=...` 这类地址里取 client_id（原始 / 再解码一次都试）。 */
+function extractOauthClientId(raw: string | null): string | null {
+  if (!raw) return null;
+  const candidates = [raw];
+  try {
+    const decoded = decodeURIComponent(raw);
+    if (decoded !== raw) candidates.push(decoded);
+  } catch {
+    // 已经是解码过的字符串，跳过
+  }
+  for (const candidate of candidates) {
+    try {
+      const clientId = new URL(candidate, window.location.origin).searchParams.get('client_id');
+      if (clientId) return clientId;
+    } catch {
+      // 不是合法 URL，继续试下一个
+    }
+  }
+  return null;
+}
+
+/**
+ * 登录页该按哪个应用换肤。
+ *
+ * - 旧式 SSO：URL 直接带 `app=<application_id>`；
+ * - 授权码流程（BFF / PKCE）：`/oauth/authorize` 未登录时只把本页地址塞进 `redirect`，
+ *   登录页自身没有 `app`。此时从 `redirect` 的 `client_id`（= application_id）反推，
+ *   否则登录页永远渲染平台默认皮肤（标题、副标题、Logo、侧栏、主题全丢）。
+ *
+ * 注意只用于皮肤：是否走「应用密钥签发 + 旧式 SSO 跳转」仍只看 URL 上的 `app`。
+ */
+function resolveLoginSkinAppId(urlParams: URLSearchParams): string | null {
+  return urlParams.get('app') || extractOauthClientId(urlParams.get('redirect'));
+}
+
 const LoginPage: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -323,26 +358,29 @@ const LoginPage: React.FC = () => {
 
     const fetchApplicationInfo = async () => {
       const urlParams = new URL(window.location.href).searchParams;
-      const appId = urlParams.get('app');
-      if (!appId) {
+      const skinAppId = resolveLoginSkinAppId(urlParams);
+      if (!skinAppId) {
         setIsApplicationInfoLoaded(true);
         return;
       }
       if (isApplicationInfoLoaded) {
         return;
       }
+      // 旧式 SSO（URL 带 app）取不到应用要报错；
+      // 只是按 redirect 的 client_id 换肤时，失败不该挡住登录表单，退回平台默认皮肤即可
+      const isLegacySso = Boolean(urlParams.get('app'));
       try {
-        const response = await getApplicationsSsoId({ id: appId }, { skipErrorHandler: true });
+        const response = await getApplicationsSsoId({ id: skinAppId }, { skipErrorHandler: true });
         if (response.code === 200 && response.data) {
           setApplicationInfo(response.data);
-          setSsoError(null);
-        } else {
+          if (isLegacySso) setSsoError(null);
+        } else if (isLegacySso) {
           setSsoError({
             message: getApiErrorMessage(response, 'SSO 登录失败'),
           });
         }
       } catch (error) {
-        setSsoError(resolveSsoError(error));
+        if (isLegacySso) setSsoError(resolveSsoError(error));
       } finally {
         setIsApplicationInfoLoaded(true);
       }
@@ -533,9 +571,16 @@ const LoginPage: React.FC = () => {
       // 否则 JWT 用平台密钥签发，而业务侧 /auth/check?app= 用应用密钥验签会 401。
       const urlParams = new URL(window.location.href).searchParams;
       const appId = urlParams.get('app');
+      // 授权码流程的登录页没有 app：把「这页属于哪个应用」单独告诉后端，
+      // 只用于判定人类验证（否则会按平台全局开关弹滑块，忽略应用自己的设置）
+      const skinAppId = appId ? null : resolveLoginSkinAppId(urlParams);
       const loginPayload = appId
         ? { ...loginData, application_id: appId, sid: getSsoSid() || undefined }
-        : { ...loginData, sid: getSsoSid() || undefined };
+        : {
+          ...loginData,
+          ...(skinAppId ? { login_app_id: skinAppId } : {}),
+          sid: getSsoSid() || undefined,
+        };
       const msg = await postAuthLogin(loginPayload) as LoginResponse;
 
       // 后端把这次登录并入（或新建）该浏览器的会话；存下来供下次登录/登出复用
@@ -645,15 +690,17 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const appIdFromUrl = new URLSearchParams(window.location.search).get('app');
-  const isSsoLogin = Boolean(appIdFromUrl);
-  const branding = isSsoLogin ? applicationInfo : initialState?.appBranding;
-  const { name: pageTitle, shortName: pageShortName, logo: pageLogo } = isSsoLogin
+  // 皮肤按「URL 的 app，或 redirect 里 /oauth/authorize 的 client_id」取；
+  // SSO 流程本身仍只看 app（见文件顶部 resolveLoginSkinAppId 的说明）
+  const skinAppId = resolveLoginSkinAppId(new URLSearchParams(window.location.search));
+  const isSsoSkin = Boolean(skinAppId);
+  const branding = isSsoSkin ? applicationInfo : initialState?.appBranding;
+  const { name: pageTitle, shortName: pageShortName, logo: pageLogo } = isSsoSkin
     ? resolveSsoBrandingDisplay(applicationInfo)
     : resolveBrandingDisplay(branding);
-  const isLoadingSsoContext = isCheckingAuth || (isSsoLogin && !isApplicationInfoLoaded);
-  const loginPageStyle = isSsoLogin ? applicationInfo?.sso_config?.login_page : undefined;
-  const loginSubtitle = isSsoLogin
+  const isLoadingSsoContext = isCheckingAuth || (isSsoSkin && !isApplicationInfoLoaded);
+  const loginPageStyle = isSsoSkin ? applicationInfo?.sso_config?.login_page : undefined;
+  const loginSubtitle = isSsoSkin
     ? loginPageStyle?.subtitle?.trim() || undefined
     : resolveLoginPageDescription(false);
 
@@ -661,7 +708,7 @@ const LoginPage: React.FC = () => {
     <AuthPageFrame
       shortName={pageShortName}
       loginPage={loginPageStyle}
-      asidePending={isSsoLogin && !isApplicationInfoLoaded}
+      asidePending={isSsoSkin && !isApplicationInfoLoaded}
       helmetTitle={`登录- ${pageTitle}`}
     >
       {children}
@@ -691,7 +738,7 @@ const LoginPage: React.FC = () => {
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
             <Spin size="large" />
             <div className="auth-status-text" style={{ marginTop: 20 }}>
-              {appIdFromUrl ? '正在加载 SSO 应用配置...' : '正在检查登录状态...'}
+              {isSsoSkin ? '正在加载 SSO 应用配置...' : '正在检查登录状态...'}
             </div>
           </div>
         </Card>
