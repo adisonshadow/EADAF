@@ -255,6 +255,20 @@ async function bootstrap() {
 
   // 表清单与系统桶都以模型为准，先注册模型，再跑自检
   require('./models');
+
+  // 库结构自愈：模型有、库里缺的列自动补上（只加不删）。
+  // 这类漂移一旦发生，整张表相关的接口会一起 500（如 AI 请求日志缺 turn_id），
+  // 所以不等使用者去手工执行迁移脚本；失败只告警，不影响启动。
+  const postgres = dependencies.find((dep) => dep.key === 'postgres');
+  if (postgres && postgres.reachable) {
+    try {
+      const { alignSchema } = require('./utils/schemaAlignment');
+      await alignSchema({ modelsMap: require('./models') });
+    } catch (error) {
+      logger.warn('库结构自愈失败（服务继续启动）', { error: error.message });
+    }
+  }
+
   const { runStartupChecks } = require('./utils/startupSelfCheck');
   const checks = await runStartupChecks({ dependencies });
   printStartupReport(dependencies, { extra: checks });

@@ -34,6 +34,9 @@ pnpm init-db                                 # 结构 + 超管 + EADAF 全局/�
 pnpm init-db-with-mock                       # 另含 Mock 用户/部门与销售示例实体
 pnpm init-db-with-aibase-seed                # 另含 Demo 全量 AI 种子（会 TRUNCATE Skill/Tool）
 
+# 升级已有库（不清库）：只补缺表 / 缺列 / 索引，可重复执行
+pnpm db:migrate
+
 # 4. 启动（nodemon 热重载，默认端口 29526）
 npm run dev
 ```
@@ -72,8 +75,11 @@ npm run test:unit           # src 下的纯逻辑单测（node --test）
 
 - 开发环境始终打完整清单；生产环境全通只留一行，有 ❌ 才打表（避免刷启动日志）
 - 「库结构」以 Sequelize 模型为事实来源：新增模型自动纳入检查，不用维护第二份表清单
+- 「库结构自愈」在自检之前跑：模型有、库里缺的列自动 `ADD COLUMN` 补上（只加不删，
+  失败只告警不阻塞），日志里会出现 `库结构自愈：已补上模型有、库里缺的列`
 - 表 / schema 缺失单独报 `数据库结构缺失（xxx 不存在）`，并给两条正路：
-  `pnpm init-db`（重建，会清空数据）或 `pnpm migrate-uac-to-eadaf`（遗留 `uac` schema 改名到 `eadaf`）
+  `pnpm db:migrate`（已有库增量升级，不动数据）或 `pnpm init-db`（重建，会清空数据）；
+  遗留 `uac` schema 的实例先跑 `pnpm migrate-uac-to-eadaf`
 - 只跑自检、不起服务：
 
 ```bash
@@ -161,7 +167,7 @@ curl -s http://localhost:29526/api/v1/health
 2. **`init-db` 会 DROP SCHEMA `uac` 并重建**，会清空该 schema 下全部数据，禁止对生产库执行。
 3. **监听与跨域**：默认 `API_HOST=0.0.0.0`、`CORS_ORIGIN=*`，局域网 IP 与公网域名可直接访问。收紧时把 `CORS_ORIGIN` 改成逗号分隔白名单（不要带 `*`）。
 4. **超管账号**：`superadmin.sql` 在 init 时写入，上线前务必改密或删除。
-5. **增量表结构**：如 `migrate-storage-tus.sql`、`migrate-bizdata-database-connections.sql`、`migrate-department-roles.sql` 等，在已有库上需手动 `psql -f` 执行。
+5. **增量表结构**：已有库升级跑 `pnpm db:migrate`（= `node scripts/apply-incremental-migrations.js`，不需要 psql / bash）——只跑幂等增量迁移，不清库、不动业务数据，可重复执行；清单在 `scripts/incremental-migrations.txt`，`init-db` 与它共用同一份。另外**启动时会自动补齐「模型有、库里缺」的列**（`src/utils/schemaAlignment.js`，只加不删），所以「代码更新了、库还是旧的」不会再表现为某个页面莫名 500。
 6. **物化执行**：目标 PostgreSQL Schema / MongoDB 库不存在时返回 409，前端确认后带 `createTargetIfMissing: true` 自动创建。
 7. **路由 Swagger**：接口注释即文档源，改路由后请同步更新 JSDoc `@swagger` 备注。
 8. **文件存储**：轻量上传 `POST /api/v1/storage/objects/upload` 上限 100MB；超过必须走 tus `POST/HEAD/PATCH /api/v1/storage/tus`（可传小文件，默认上限 5GB）。进度以磁盘 + PostgreSQL 为准，Redis 仅作可选加速。完成后仍用 `objectId` 走 preview/download。

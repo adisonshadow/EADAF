@@ -16,10 +16,6 @@ const DepartmentHistory = sequelize.define('DepartmentHistory', {
     type: DataTypes.STRING(100),
     allowNull: false
   },
-  code: {
-    type: DataTypes.STRING(50),
-    allowNull: false
-  },
   parent_id: {
     type: DataTypes.UUID,
     allowNull: true

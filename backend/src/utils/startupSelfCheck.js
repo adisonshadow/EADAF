@@ -164,8 +164,8 @@ function evaluateStructure({ expected, found = [], legacySchemas = [], schemaNam
   const hint = legacy.length
     ? [`库里还留着旧 schema ${legacy.join('、')}：pnpm --filter ./backend migrate-uac-to-eadaf`]
     : [
-      `表是 init-db / 迁移建的：pnpm --filter ./backend init-db（重建 ${schemaName}，会清空数据）`,
-      '已有数据的库请补跑对应的 backend/scripts/migrate-*.sql',
+      '已有库升级：pnpm --filter ./backend db:migrate（只补缺表/缺列/索引，不动数据）',
+      `全新库：pnpm --filter ./backend init-db（重建 ${schemaName}，会清空数据）`,
     ];
 
   return fail('库结构', `缺 ${missing.length}/${expected.length} 张表（${sample}${more}）`, hint);
