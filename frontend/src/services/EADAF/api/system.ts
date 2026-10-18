@@ -35,7 +35,11 @@ export async function postSystemBackupRun() {
     code: number;
     message: string;
     data: Record<string, unknown>;
-  }>(`${BASE}/backups/run`, { method: 'POST' });
+  }>(`${BASE}/backups/run`, {
+    method: 'POST',
+    // 备份在后端同步执行（等待 pg_dump 完成），库大时远超默认 10s 超时
+    timeout: APP_TRANSFER_TIMEOUT,
+  });
 }
 
 /** 上传 .dump 备份文件并恢复数据库（覆盖现有数据，高危操作，同步等待执行完成） */

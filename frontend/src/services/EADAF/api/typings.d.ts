@@ -1241,6 +1241,12 @@ declare namespace API {
     apiServiceTestAutoRollback?: boolean;
     autoBackupEnabled?: boolean;
     autoBackupCron?: string;
+    /** 当前生效的数据库备份目录（绝对路径） */
+    backupDir?: string;
+    /** 备份目录是否被设置页改过（false = 用 env DB_BACKUP_DIR / 默认目录） */
+    backupDirIsCustom?: boolean;
+    /** 默认备份目录，清空自定义时回退到这里 */
+    defaultBackupDir?: string;
   };
 
   type SystemBackupItem = {

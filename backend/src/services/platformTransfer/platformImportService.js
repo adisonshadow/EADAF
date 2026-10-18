@@ -382,6 +382,9 @@ class ImportContext {
       return this.skipSection(section, '文件无系统功能开关');
     }
     try {
+      // 备份目录是源机器上的本地路径，导入到本机大概率不可写，直接忽略
+      const imported = { ...value };
+      delete imported.backupDir;
       await this.withSectionTransaction(async (transaction) => {
         const existing = await models.BizdataSetting.findOne({
           where: { key: 'system_features' },
@@ -390,13 +393,13 @@ class ImportContext {
         if (existing) {
           if (this.strategy === 'overwrite') {
             const current = existing.value && typeof existing.value === 'object' ? existing.value : {};
-            await existing.update({ value: { ...current, ...value } }, { transaction });
+            await existing.update({ value: { ...current, ...imported } }, { transaction });
             section.counts.updated += 1;
           } else {
             section.counts.skipped += 1;
           }
         } else {
-          await models.BizdataSetting.create({ key: 'system_features', value }, { transaction });
+          await models.BizdataSetting.create({ key: 'system_features', value: imported }, { transaction });
           section.counts.created += 1;
         }
       });

@@ -758,6 +758,9 @@ const schemas = {
       apiServiceTestAutoRollback: bool('API 测试写操作是否自动回滚'),
       autoBackupEnabled: bool('是否启用自动备份'),
       autoBackupCron: str('自动备份 cron', '0 2 * * *'),
+      backupDir: str('当前生效的数据库备份目录（绝对路径）', 'D:\\\\DEV\\\\EADAF\\\\backend\\\\db-backup'),
+      backupDirIsCustom: bool('备份目录是否被设置页改过（false=用 env DB_BACKUP_DIR / 默认目录）'),
+      defaultBackupDir: str('默认备份目录（清空自定义时回退到这里）'),
     },
   },
   SystemBackupFile: {

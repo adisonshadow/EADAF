@@ -57,6 +57,7 @@ const restoreUploadMiddleware = koaBody({
  *               apiServiceTestAutoRollback: { type: boolean, description: 'API 测试中写操作是否自动回滚（仅测试页；false 时测试数据落库）' }
  *               autoBackupEnabled: { type: boolean, description: '是否启用自动备份' }
  *               autoBackupCron: { type: string, description: '自动备份 cron，如 0 2 * * *' }
+ *               backupDir: { type: string, description: '数据库备份目录（绝对路径，保存前会创建并验证可写；传空串恢复默认目录）' }
  *     responses:
  *       200:
  *         description: 更新成功，data 为更新后的功能开关

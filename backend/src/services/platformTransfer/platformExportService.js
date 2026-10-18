@@ -115,8 +115,10 @@ async function buildPlatformExport(rawOptions = {}) {
     raw: true,
   });
   const systemFeatures = featuresRow && featuresRow.value && typeof featuresRow.value === 'object'
-    ? featuresRow.value
+    ? { ...featuresRow.value }
     : {};
+  // 备份目录是「本机绝对路径」，换机器既无意义还可能不可写 → 不随平台迁移导出
+  delete systemFeatures.backupDir;
 
   const eadafPermissions = (await models.Permission.findAll({ raw: true }))
     .map((r) => pickModelFields(models.Permission, r));

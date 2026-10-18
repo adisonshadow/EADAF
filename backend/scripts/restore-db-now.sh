@@ -88,12 +88,6 @@ find_db_container() {
   return 1
 }
 
-cleanup_container_file() {
-  local container="$1"
-  local tmp_file="$2"
-  docker exec "$container" rm -f "$tmp_file" >/dev/null 2>&1 || true
-}
-
 ensure_docker_reachable || {
   echo "错误：Docker daemon 不可用。恢复需要容器内 pg_restore（与服务器版本一致），请启动 Docker Desktop / OrbStack"
   exit 1
@@ -126,30 +120,22 @@ echo "备份文件: $DUMP_FILE"
 echo "开始时间: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "------------------------------------------"
 
-TMP_DUMP="/tmp/eadaf_pg_restore_$$.dump"
-
-# 1) 把 dump 文件复制进容器
-docker cp "$DUMP_FILE" "${CONTAINER}:${TMP_DUMP}"
-trap 'cleanup_container_file "$CONTAINER" "$TMP_DUMP"; rm -f "$LOCK_FILE"' EXIT
-
-# 2) 断开目标库的其他连接，避免 pg_restore --clean 因对象被占用而失败
+# dump 文件通过 stdin 直接交给容器内 pg_restore，不再「docker cp 进容器 /tmp」：
+# Git Bash(MSYS) 会把 /tmp/... 这类容器内路径改写成宿主机路径，docker 参数不可靠。
+# 1) 断开目标库的其他连接，避免 pg_restore --clean 因对象被占用而失败
 echo "断开现有连接..."
-docker exec -i -e PGPASSWORD="$DB_PASSWORD" psql -U "$DB_USER" -d "$DB_NAME" -c \
+docker exec -i -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c \
   "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid();" \
   >/dev/null 2>&1 || true
 
-# 3) 容器内 pg_restore 覆盖恢复（--clean --if-exists 先删后建）
+# 2) 容器内 pg_restore 覆盖恢复（--clean --if-exists 先删后建），dump 从 stdin 读入
 echo "执行恢复（容器内 pg_restore，与服务器版本一致）..."
-if ! docker exec -i -e PGPASSWORD="$DB_PASSWORD" \
+if ! docker exec -i -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER" \
   pg_restore -U "$DB_USER" -d "$DB_NAME" \
-  --clean --if-exists --no-owner --no-acl \
-  "$TMP_DUMP"; then
+  --clean --if-exists --no-owner --no-acl < "$DUMP_FILE"; then
   echo "错误：pg_restore 执行失败（部分对象可能已恢复，请检查数据完整性）"
-  cleanup_container_file "$CONTAINER" "$TMP_DUMP"
   exit 1
 fi
-
-cleanup_container_file "$CONTAINER" "$TMP_DUMP"
 
 echo "恢复成功"
 echo "完成时间: $(date '+%Y-%m-%d %H:%M:%S')"

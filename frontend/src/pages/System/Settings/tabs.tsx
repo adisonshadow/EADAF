@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Modal, Segmented, Space, Switch, Table, Typography, Upload } from 'antd';
+import { Alert, Button, Card, Input, Modal, Segmented, Space, Switch, Table, Typography, Upload } from 'antd';
 import type { UploadFile } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { message, modal } from '@/utils/antdAppApis';
@@ -14,6 +14,7 @@ import {
 } from '@/services/EADAF/api/system';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
+import { formatCronSummary } from '@/utils/cron';
 import { useUiTheme, type UiThemePreference } from '@/theme/uiTheme';
 
 function formatSize(bytes: number) {
@@ -89,6 +90,11 @@ export const BackupSettingsTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
   const [backupDir, setBackupDir] = useState('');
+  const [backupDirIsCustom, setBackupDirIsCustom] = useState(false);
+  const [defaultBackupDir, setDefaultBackupDir] = useState('');
+  const [backupDirModalOpen, setBackupDirModalOpen] = useState(false);
+  const [draftBackupDir, setDraftBackupDir] = useState('');
+  const [savingBackupDir, setSavingBackupDir] = useState(false);
   const [items, setItems] = useState<API.SystemBackupItem[]>([]);
   const [autoBackupModalOpen, setAutoBackupModalOpen] = useState(false);
   const [autoBackupSaving, setAutoBackupSaving] = useState(false);
@@ -114,6 +120,9 @@ export const BackupSettingsTab: React.FC = () => {
         const data = getApiData<API.SystemFeatures>(featRes);
         setAutoBackupEnabled(Boolean(data?.autoBackupEnabled));
         setAutoBackupCron(data?.autoBackupCron || DEFAULT_AUTO_BACKUP_CRON);
+        setBackupDirIsCustom(Boolean(data?.backupDirIsCustom));
+        setDefaultBackupDir(data?.defaultBackupDir || '');
+        if (data?.backupDir) setBackupDir(data.backupDir);
       }
     } finally {
       setLoading(false);
@@ -166,6 +175,33 @@ export const BackupSettingsTab: React.FC = () => {
     }
   };
 
+  const openBackupDirModal = () => {
+    // 自定义过就回填当前目录，否则留空（占位符提示默认目录）
+    setDraftBackupDir(backupDirIsCustom ? backupDir : '');
+    setBackupDirModalOpen(true);
+  };
+
+  const handleSaveBackupDir = async () => {
+    setSavingBackupDir(true);
+    try {
+      const res = await putSystemFeatures({ backupDir: draftBackupDir.trim() });
+      if (isApiSuccess(res)) {
+        const data = getApiData<API.SystemFeatures>(res);
+        setBackupDirIsCustom(Boolean(data?.backupDirIsCustom));
+        if (data?.backupDir) setBackupDir(data.backupDir);
+        setBackupDirModalOpen(false);
+        message.success(draftBackupDir.trim() ? '备份目录已切换' : '已恢复默认备份目录');
+        await load();
+      } else {
+        message.error(res.message || '保存失败');
+      }
+    } catch {
+      // 目录校验失败（如不可写）已由请求拦截器弹出后端返回的提示，这里保持弹窗打开即可
+    } finally {
+      setSavingBackupDir(false);
+    }
+  };
+
   const handleRestore = () => {
     const file = restoreFileList[0]?.originFileObj as File | undefined;
     if (!file) {
@@ -213,10 +249,15 @@ export const BackupSettingsTab: React.FC = () => {
     >
       <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
         备份目录：{backupDir || '-'}
+        {backupDirIsCustom ? '（自定义）' : ''}
+        <Button type="link" size="small" style={{ paddingInline: 4 }} onClick={openBackupDirModal}>
+          修改
+        </Button>
         {autoBackupEnabled && (
           <>
             <br />
-            自动备份已开启，周期：{autoBackupCron}
+            自动备份已开启，周期：
+            {formatCronSummary(autoBackupCron)}
           </>
         )}
       </Typography.Paragraph>
@@ -275,6 +316,60 @@ export const BackupSettingsTab: React.FC = () => {
               allowEmpty="never"
               locale={AUTO_BACKUP_CRON_LOCALE}
             />
+          </div>
+        </Space>
+      </Modal>
+
+      <Modal
+        title="修改备份目录"
+        open={backupDirModalOpen}
+        onCancel={() => setBackupDirModalOpen(false)}
+        onOk={() => void handleSaveBackupDir()}
+        confirmLoading={savingBackupDir}
+        okText="保存"
+        cancelText="取消"
+        destroyOnHidden
+      >
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <div style={{ color: '#888', fontSize: 12 }}>
+            「立即备份」与自动备份都会写入该目录。目录不存在会自动创建，保存时会先写探针文件验证权限。
+            留空表示使用后端默认目录
+            {defaultBackupDir ? `（${defaultBackupDir}）` : ''}。
+          </div>
+          <Input
+            value={draftBackupDir}
+            onChange={(e) => setDraftBackupDir(e.target.value)}
+            placeholder={defaultBackupDir || '如 D:\\EADAF_backups 或 /data/backups'}
+            allowClear
+          />
+          <div style={{ color: '#888', fontSize: 12, lineHeight: 1.8 }}>
+            <div>
+              Linux 部署提示：该目录必须对服务运行用户可写，否则自动备份会在凌晨静默失败。
+              建议先用 root 建好目录并授权：
+            </div>
+            <Typography.Text code style={{ fontSize: 12 }}>
+              {'mkdir -p /data/eadaf-backups && chown <运行用户>:<运行组> /data/eadaf-backups'}
+            </Typography.Text>
+            <div>
+              容器部署时还需把该目录挂载进容器（如 <Typography.Text code style={{ fontSize: 12 }}>-v /data/eadaf-backups:/data/db-backup</Typography.Text>），
+              并在容器 env 里把 DB_BACKUP_DIR 指向挂载路径。
+            </div>
+          </div>
+          <div style={{ color: '#888', fontSize: 12, lineHeight: 1.8 }}>
+            <div>
+              双机备份（可选）：这里只保证备份落在本机目录。若要在另一台机器/异地再留一份，
+              可用 rsync 定时把整个目录同步过去（先配好 SSH 免密，再用 cron 或 systemd timer 触发）：
+            </div>
+            <Typography.Text code style={{ fontSize: 12 }}>
+              {'rsync -avz --delete /data/eadaf-backups/ backup@10.0.0.2:/data/eadaf-backups/'}
+            </Typography.Text>
+            <div>
+              注意 <Typography.Text code style={{ fontSize: 12 }}>--delete</Typography.Text> 会删除对端多余文件，
+              请确认目标目录专用于本系统备份；不想删可去掉该参数（对端会累积旧文件）。
+            </div>
+          </div>
+          <div style={{ color: '#888', fontSize: 12 }}>
+            切换目录后，原目录里的历史备份不再列出（文件仍在，可手工拷回）。
           </div>
         </Space>
       </Modal>
