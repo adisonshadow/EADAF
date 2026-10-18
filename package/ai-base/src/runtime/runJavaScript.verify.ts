@@ -2,7 +2,7 @@
  * node --import tsx src/runtime/runJavaScript.verify.ts
  */
 import assert from 'node:assert/strict';
-import { runJavaScriptCode } from './runJavaScript';
+import { runJavaScriptCode, RunCodeToolNotAuthorizedError } from './runJavaScript';
 
 {
   const { value } = await runJavaScriptCode(
@@ -96,6 +96,22 @@ import { runJavaScriptCode } from './runJavaScript';
   );
   const row = value as { viaBridge: boolean };
   assert.equal(row.viaBridge, true);
+}
+
+{
+  // 未授权名必须带类型化错误（上层据此告诉模型「该加载哪个 Skill」）
+  await assert.rejects(
+    () =>
+      runJavaScriptCode('return tools.schema("aibase_list_skills");', async () => null, {
+        toolNames: ['echo'],
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof RunCodeToolNotAuthorizedError);
+      assert.equal(error.toolName, 'aibase_list_skills');
+      assert.deepEqual(error.availableTools, ['echo']);
+      return true;
+    },
+  );
 }
 
 console.log('runJavaScript.verify.ts: all assertions passed');

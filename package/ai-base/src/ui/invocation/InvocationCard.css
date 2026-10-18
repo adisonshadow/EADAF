@@ -162,7 +162,7 @@
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 160px;
+  /* max-height: 160px; */
   overflow: auto;
 }
 

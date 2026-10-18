@@ -8,6 +8,10 @@ import {
   type ToolContract,
 } from '../registry/toolContractRegistry';
 import { getCurrent } from '../registry/agentPlanState';
+import {
+  findSkillsGrantingTool,
+  formatSkillGrantList,
+} from '../registry/skillGrantRegistry';
 
 /**
  * run_code 永不编排：裸 HTTP 与 harness 套娃。
@@ -128,8 +132,12 @@ export function assertRunnableClientTool(
     includeAuthorizedServerTools: false,
   });
   if (!toolNames.includes(trimmed)) {
+    const grants = findSkillsGrantingTool(trimmed);
+    const skillHint = grants.length
+      ? `该 Tool 由 Skill ${formatSkillGrantList(grants)} 授予：先 skill({ slug: "${grants[0].slug}" }) 加载，再直接 native 调用。`
+      : '';
     throw new Error(
-      `未授权或不在可编排 client Tool 内: ${trimmed}。请直接 native 调用业务 Tool，禁止用 subagent 绕过 Skill 授权。`,
+      `未授权或不在可编排 client Tool 内: ${trimmed}。请直接 native 调用业务 Tool，禁止用 subagent 绕过 Skill 授权。${skillHint}`,
     );
   }
   if (!getFunctionCallDef(trimmed)) {

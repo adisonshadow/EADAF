@@ -192,7 +192,7 @@ const EnumManager: React.FC<EnumManagerProps> = ({ enums, open, onClose, onRefre
         centered
         footer={null}
         width="min(1200px, calc(100vw - 40px))"
-        styles={{ body: { maxHeight: 'calc(100vh - 120px)', overflow: 'auto' } }}
+        styles={{ body: { maxHeight: 'calc(100vh - 120px)' } }}
         destroyOnHidden
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>

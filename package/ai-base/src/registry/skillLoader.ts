@@ -10,6 +10,14 @@ import {
   getCachedSkillContext,
   setCachedSkillContext,
 } from './skillCache';
+import { setSkillGrantedTools } from './skillGrantRegistry';
+
+/** 一个 Skill 实际授予的 Tool functionName（已加载正文的对象才有 tools） */
+function grantedToolsOfSkill(skill: AIBaseSkill): string[] {
+  return (skill.tools || [])
+    .map((tool) => String(tool?.functionName || '').trim())
+    .filter(Boolean);
+}
 
 /**
  * 结构化终止协议：开启 enableStructuredTermination 时注入系统提示词最前面。
@@ -28,7 +36,8 @@ function buildStructuredTerminationProtocol(decisionPreference: DecisionPreferen
     '\n' +
     '### skill —— 按需加载 Skill 正文\n' +
     '- 下方「Skill 目录」仅含摘要；需要某 Skill 的完整 SOP 时，先调用 skill({ slug }) 再执行任务动作\n' +
-    '- 当前页已预取的 Skill 正文见「已加载 Skill」；勿重复加载\n\n' +
+    '- 当前页已预取的 Skill 正文见「已加载 Skill」；勿重复加载\n' +
+    '- **需要的 Tool 不在你的可用列表里时，不要猜、也不要用 run_code 试探**：在「Skill 目录」里按「授予 Tool」找到归属 Skill，先 skill({ slug }) 加载（同回合立即 native 可用），再直接调用\n\n' +
     '### task_complete —— 显式终止\n' +
     '- 当且仅当 plan 全部 completed、关键 Tool 全部 verified=true、成功标准全部满足时，调用 task_complete 终止\n' +
     '- **禁止**用自由文本声称「完成」「已处理」「搞定」等——必须调用 task_complete，否则循环不会停止\n' +
@@ -83,6 +92,12 @@ export interface SkillCatalogEntry {
   isGlobal?: boolean;
   /** 正文是否已预取进 system prompt */
   bodyPrefetched?: boolean;
+  /**
+   * 该 Skill 授予的 Tool functionName。
+   * 用途：让模型知道「某个 Tool 由哪个 Skill 给出」，从而 skill({slug}) 加载后再 native 调用；
+   * 也是 run_code 未授权报错里「先加载哪个 Skill」的依据。
+   */
+  grantedTools?: string[];
 }
 
 async function loadSkill(client: AIBaseClient, slug: string): Promise<AIBaseSkill | null> {
@@ -128,15 +143,25 @@ function mergeSkillsBySlug(...groups: AIBaseSkill[][]): AIBaseSkill[] {
 }
 
 function toCatalogEntry(
-  item: { slug: string; name?: string; description?: string; isGlobal?: boolean },
+  item: {
+    slug: string;
+    name?: string;
+    description?: string;
+    isGlobal?: boolean;
+    grantedTools?: string[];
+  },
   bodyPrefetched: boolean,
 ): SkillCatalogEntry {
+  const grantedTools = Array.from(
+    new Set((item.grantedTools || []).map((name) => String(name || '').trim()).filter(Boolean)),
+  );
   return {
     slug: item.slug,
     name: item.name || item.slug,
     description: item.description,
     isGlobal: item.isGlobal,
     bodyPrefetched,
+    ...(grantedTools.length ? { grantedTools } : {}),
   };
 }
 
@@ -165,7 +190,11 @@ export async function loadChatSkillContext(
     fallbackSlugs: config.fallbackSkillSlugs,
   });
   const cached = getCachedSkillContext(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    // 命中缓存也要刷新「Tool → Skill」反查表（可能已被其它页面覆盖 / 清空）
+    setSkillGrantedTools(cached.catalog);
+    return cached;
+  }
 
   const localTopLevel = config.topLevelSkillMarkdown.trim();
   const fallbackSlugs = config.fallbackSkillSlugs ?? [];
@@ -177,7 +206,13 @@ export async function loadChatSkillContext(
   if (!config.applicationId) {
     const catalog = localSkills.map((s) =>
       toCatalogEntry(
-        { slug: s.slug, name: s.name, description: s.description, isGlobal: true },
+        {
+          slug: s.slug,
+          name: s.name,
+          description: s.description,
+          isGlobal: true,
+          grantedTools: grantedToolsOfSkill(s),
+        },
         true,
       ),
     );
@@ -187,6 +222,7 @@ export async function loadChatSkillContext(
       topLevelSkillMarkdown: localTopLevel,
     };
     setCachedSkillContext(cacheKey, ctx);
+    setSkillGrantedTools(catalog);
     return ctx;
   }
 
@@ -204,6 +240,8 @@ export async function loadChatSkillContext(
         name?: string;
         description?: string;
         isGlobal?: boolean;
+        /** 后端 capabilities 下发的「该 Skill 授予的 Tool」 */
+        grantedTools?: string[];
       }>) || [];
 
     const fallbackSet = new Set(fallbackSlugs);
@@ -219,14 +257,32 @@ export async function loadChatSkillContext(
 
     const skills = mergeSkillsBySlug(remoteSkills, localSkills);
     const prefetched = new Set(skills.map((s) => s.slug));
+    // 已加载正文的 Skill：用实际 tools 兜底（后端旧版本 capabilities 不下发 grantedTools）
+    const grantedBySlug = new Map<string, string[]>();
+    for (const skill of skills) {
+      grantedBySlug.set(skill.slug, grantedToolsOfSkill(skill));
+    }
 
     const catalog: SkillCatalogEntry[] = skillMetas.length
-      ? skillMetas.map((item) =>
-          toCatalogEntry(item, prefetched.has(item.slug) || prefetchSet.has(item.slug)),
-        )
+      ? skillMetas.map((item) => {
+          const fromCaps = (item.grantedTools || []).filter(Boolean);
+          const fromSkill = grantedBySlug.get(item.slug) || [];
+          return toCatalogEntry(
+            {
+              ...item,
+              grantedTools: fromCaps.length ? fromCaps : fromSkill,
+            },
+            prefetched.has(item.slug) || prefetchSet.has(item.slug),
+          );
+        })
       : skills.map((s) =>
           toCatalogEntry(
-            { slug: s.slug, name: s.name, description: s.description },
+            {
+              slug: s.slug,
+              name: s.name,
+              description: s.description,
+              grantedTools: grantedToolsOfSkill(s),
+            },
             true,
           ),
         );
@@ -237,11 +293,21 @@ export async function loadChatSkillContext(
       topLevelSkillMarkdown,
     };
     setCachedSkillContext(cacheKey, ctx);
+    setSkillGrantedTools(catalog);
     return ctx;
   } catch {
     const catalog = localSkills.map((s) =>
-      toCatalogEntry({ slug: s.slug, name: s.name, description: s.description }, true),
+      toCatalogEntry(
+        {
+          slug: s.slug,
+          name: s.name,
+          description: s.description,
+          grantedTools: grantedToolsOfSkill(s),
+        },
+        true,
+      ),
     );
+    setSkillGrantedTools(catalog);
     return {
       skills: localSkills,
       catalog,
@@ -260,17 +326,33 @@ export async function loadAllSkills(
   return ctx.skills;
 }
 
+/** 目录里最多列出多少个 Tool 名（其余只给数量，避免提示词膨胀） */
+const CATALOG_GRANTED_TOOLS_PREVIEW = 10;
+
+function renderGrantedTools(grantedTools?: string[]): string {
+  if (!grantedTools?.length) return '';
+  const shown = grantedTools.slice(0, CATALOG_GRANTED_TOOLS_PREVIEW).join(', ');
+  const more =
+    grantedTools.length > CATALOG_GRANTED_TOOLS_PREVIEW
+      ? ` …（共 ${grantedTools.length} 个）`
+      : '';
+  return ` ｜授予 Tool: ${shown}${more}`;
+}
+
 function renderCatalogMarkdown(catalog: SkillCatalogEntry[]): string {
   if (!catalog.length) return '';
   const lines = catalog.map((item) => {
     const flag = item.bodyPrefetched ? '（已加载正文）' : '';
     const desc = (item.description || '无描述').replace(/\s+/g, ' ').trim();
     const short = desc.length > 120 ? `${desc.slice(0, 119)}…` : desc;
-    return `- \`${item.slug}\`: ${item.name} — ${short}${flag}`;
+    // 已加载正文的 Skill 的 Tool 已在你的可用列表里，不必再列一遍
+    const tools = item.bodyPrefetched ? '' : renderGrantedTools(item.grantedTools);
+    return `- \`${item.slug}\`: ${item.name} — ${short}${flag}${tools}`;
   });
   return [
     '## Skill 目录（摘要）',
-    '完整 SOP 未预取的 Skill，请先调用 `skill` 工具并传入精确 slug，再执行任务动作。',
+    '完整 SOP 未预取的 Skill，请先调用 `skill` 工具并传入精确 slug，再执行任务动作；加载后它授予的 Tool 同回合即可 native 调用。',
+    '**找不到要用的 Tool 时**：在上面的「授予 Tool」里找到归属 Skill → `skill({ slug })` 加载 → 直接 native 调用。禁止用 `run_code` 猜 Tool 名探路。',
     ...lines,
   ].join('\n');
 }

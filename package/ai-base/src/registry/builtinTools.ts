@@ -8,9 +8,13 @@ import { getCurrent, getPlan, setPlan } from './agentPlanState';
 import { getToolContract } from './toolContractRegistry';
 import { navigateToPage } from '../navigation/navigationChannel';
 import { loadSkillBodyBySlug } from './skillBodyChannel';
-import { runJavaScriptCode } from '../runtime/runJavaScript';
+import { runJavaScriptCode, RunCodeToolNotAuthorizedError } from '../runtime/runJavaScript';
 import { runSubagentFanout, runSubagentSequence } from '../runtime/runSubagent';
 import { resolveRunnableClientToolNames } from '../runtime/resolveRunnableClientTools';
+import {
+  findSkillsGrantingTool,
+  formatSkillGrantList,
+} from './skillGrantRegistry';
 import {
   getActiveConversationKey,
   getActiveTurnId,
@@ -500,6 +504,37 @@ async function handleSkillLoad(args: {
   }
 }
 
+/**
+ * run_code 里拿了「本回合没授权」的 Tool 时的回执。
+ *
+ * 关键：不只说「未知 Tool」，而是把**下一步该做什么**说清楚 ——
+ * 若这个 Tool 有归属 Skill（capabilities 的 grantedTools 反查表），直接点名要加载哪个 Skill。
+ */
+function buildRunCodeUnauthorizedResponse(err: RunCodeToolNotAuthorizedError): ToolResponse {
+  const grants = findSkillsGrantingTool(err.toolName);
+  const skillList = formatSkillGrantList(grants);
+  const available = err.availableTools.slice(0, 12).join(', ');
+  const hint = grants.length
+    ? `Tool \`${err.toolName}\` 由 Skill ${skillList} 授予：先调用 skill({ slug: "${grants[0].slug}" }) 加载，再直接 native 调用它。`
+    : err.registered
+      ? `Tool \`${err.toolName}\` 已注册但本回合未授权（当前页 Skill 没关联它）：在「Skill 目录」里按「授予 Tool」找到归属 Skill 并 skill({ slug }) 加载，或改用本回合可用的 Tool。`
+      : `Tool \`${err.toolName}\` 不在当前应用可见范围内：核对名称，或在「Skill 目录」里按「授予 Tool」定位归属 Skill。`;
+  return {
+    ok: false,
+    kind: 'business_error',
+    error: {
+      code: err.registered ? 'TOOL_NOT_AUTHORIZED' : 'TOOL_NOT_FOUND',
+      message: err.message,
+      category: err.registered ? 'forbidden' : 'not_found',
+      // 换名字重试同一件事只会继续报错：标记为不可重试
+      retryable: false,
+      hint,
+    },
+    agentHint: `${hint} 禁止再用 run_code 猜 Tool 名；本回合可直接编排：${available || '（无）'}。`,
+    meta: { tool: RUN_CODE_TOOL },
+  };
+}
+
 async function handleRunCode(args: {
   language?: string;
   source?: string;
@@ -551,7 +586,9 @@ async function handleRunCode(args: {
       source,
       async (name, toolArgs) => {
         if (!toolNames.includes(name)) {
-          throw new Error(
+          throw new RunCodeToolNotAuthorizedError(
+            name,
+            toolNames,
             `未授权或不在本回合可编排名: ${name}。请直接 native 调用业务 Tool，或 tools.list() 查看可编排名。`,
           );
         }
@@ -603,6 +640,10 @@ async function handleRunCode(args: {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'run_code 执行失败';
     const isInvalidArgs = message.includes('参数校验失败');
+    // 「拿了一个本回合没授权的 Tool」：直接把「该加载哪个 Skill」告诉模型，别让它换名字重试
+    if (err instanceof RunCodeToolNotAuthorizedError) {
+      return buildRunCodeUnauthorizedResponse(err);
+    }
     return {
       ok: false,
       kind: 'business_error',
@@ -610,7 +651,7 @@ async function handleRunCode(args: {
         code: isInvalidArgs ? 'INVALID_ARGS' : 'RUN_CODE_FAILED',
         message,
         category: isInvalidArgs ? 'invalid_args' : 'unknown',
-        retryable: true,
+        retryable: isInvalidArgs || /超时|timeout/i.test(message),
         hint: isInvalidArgs
           ? '请 tools.schema(toolName) 查看必填参数后重试'
           : '有专用业务 Tool 请直接 native 调用；run_code 仅编排本回合已授权业务 Tool（含 server_builtin，不含 http_request/harness）',
@@ -629,7 +670,8 @@ export const SKILL_OPENAI_TOOL = {
     name: SKILL_TOOL,
     description:
       '按需加载某个 Skill 的完整正文（SOP）。目录中仅有摘要；当任务匹配某 Skill 描述或用户点名时，先调用本工具再执行业务动作。' +
-      '成功后返回 grantedTools，且同回合后续轮次已扩展可见 Tool schema——请直接 native 调用业务 Tool，禁止再用 run_code 探测。' +
+      '成功的返回里带 grantedTools（本 Skill 授予的 Tool 名），同回合后续轮次已扩展可见 Tool schema —— 请直接 native 调用这些业务 Tool。' +
+      '**某个 Tool 不在你的可用列表里时**（业务页想用别的模块的 Tool）：在「Skill 目录」里按「授予 Tool」找到归属 Skill，用本工具加载后再 native 调用；禁止用 run_code 猜 Tool 名。' +
       'slug 必须与目录中的精确名称一致。',
     parameters: {
       type: 'object',
@@ -648,6 +690,7 @@ export const RUN_CODE_OPENAI_TOOL = {
     description:
       '可选：用短脚本编排本回合已授权业务 Tool（含 server_builtin）或做数据计算（默认 javascript）。' +
       '有专用业务 Tool 时优先直接 native 调用；禁止用本工具探路或 tools.list()「发现」能力。' +
+      '要用的 Tool 不在可用列表时：先用 skill({ slug }) 加载授予它的 Skill（见「Skill 目录」的「授予 Tool」），而不是在这里猜名字。' +
       '禁止编排 http_request 与 harness（skill/ask_user/task_complete/run_code 等）。' +
       '脚本内：await tools.tool_name(args)、tools.list()、tools.schema(name?)。调用前 tools.schema 读必填字段。' +
       'tools 不是数组：禁止 tools.filter/map/find。正确：const names = tools.list(); names.filter(...); await tools[name](args)。' +

@@ -16,6 +16,28 @@ export interface RunCodeToolContractBrief {
 }
 
 /**
+ * 脚本里调了「不在本回合授权池」的 Tool。
+ *
+ * 单独成型（而不是抛普通 Error）是为了让上层（builtinTools）能据此给出**可执行**的纠正：
+ * 「这个 Tool 由 Skill X 授予 → 先 skill({slug:'X'}) 加载 → 再 native 调用」，
+ * 而不是只回一句「未知 Tool」让模型继续换名字重试。
+ */
+export class RunCodeToolNotAuthorizedError extends Error {
+  readonly toolName: string;
+  readonly availableTools: string[];
+  /** 该名字在本地 functionRegistry 里已注册（只是本回合未授权） */
+  readonly registered: boolean;
+
+  constructor(toolName: string, availableTools: string[], message: string) {
+    super(message);
+    this.name = 'RunCodeToolNotAuthorizedError';
+    this.toolName = toolName;
+    this.availableTools = availableTools;
+    this.registered = getAllFunctionCalls().some((def) => def.name === toolName);
+  }
+}
+
+/**
  * 避免脚本内 `const tools = …` 与注入参数同名冲突（实测2）。
  * 将顶层/常见声明改名为 __user_tools。
  */
@@ -92,7 +114,9 @@ export async function runJavaScriptCode(
     if (toolNames.includes(name)) {
       return { name, description: name, parameters: { type: 'object', properties: {} } };
     }
-    throw new Error(
+    throw new RunCodeToolNotAuthorizedError(
+      name,
+      toolNames,
       `未知 Tool: ${name}。请先 tools.list() 或 tools.schema()。${formatAvailableToolsHint(toolNames)}`,
     );
   };
@@ -112,7 +136,9 @@ export async function runJavaScriptCode(
       // 白名单：未注册名（含 filter/map/find）不得伪装成可调用 Tool（实测3）
       const hint = formatAvailableToolsHint(toolNames);
       return () => {
-        throw new Error(
+        throw new RunCodeToolNotAuthorizedError(
+          prop,
+          toolNames,
           `未授权或不在本回合可编排名: ${prop}（run_code 仅能编排已授权业务 Tool；tools 不是数组，勿用 .filter/.map）。${hint}`,
         );
       };

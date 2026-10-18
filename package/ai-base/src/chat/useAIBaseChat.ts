@@ -11,6 +11,7 @@ import {
   reconcilePlan,
 } from './autoContinuePolicy';
 import { buildCombinedSystemPrompt, loadChatSkillContext } from '../registry/skillLoader';
+import { mergeSkillGrantedTools } from '../registry/skillGrantRegistry';
 import {
   createClientSkillBodyLoader,
   registerSkillBodyLoader,
@@ -36,7 +37,7 @@ import {
 } from '../registry/builtinTools';
 import { isUserChoiceRequestData } from './userChoice';
 import { applyTaskCompleteDelivery } from './emitTaskCompleteDelivery';
-import { syncPlanSegments } from './planSegments';
+import { appendPlanSnapshot, finalizePlanSnapshots } from './planSegments';
 import {
   beginTurn,
   getPlan,
@@ -368,6 +369,11 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
     registerSkillBodyLoader(createClientSkillBodyLoader(client));
     registerSkillActivatedListener((skill) => {
       expandTurnToolPool(skill);
+      // 记下「该 Skill 授予哪些 Tool」，供 run_code 未授权报错直接点名该加载哪个 Skill
+      const grantedTools = (skill.tools || [])
+        .map((tool) => String(tool.functionName || '').trim())
+        .filter(Boolean);
+      mergeSkillGrantedTools(skill.slug, skill.name, grantedTools);
       setSkills((prev) => {
         if (prev.some((item) => item.slug === skill.slug)) {
           return prev.map((item) => (item.slug === skill.slug ? skill : item));
@@ -378,7 +384,13 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
         const hit = prev.some((item) => item.slug === skill.slug);
         if (hit) {
           return prev.map((item) =>
-            item.slug === skill.slug ? { ...item, bodyPrefetched: true } : item,
+            item.slug === skill.slug
+              ? {
+                  ...item,
+                  bodyPrefetched: true,
+                  grantedTools: item.grantedTools?.length ? item.grantedTools : grantedTools,
+                }
+              : item,
           );
         }
         return [
@@ -388,6 +400,7 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
             name: skill.name,
             description: skill.description,
             bodyPrefetched: true,
+            ...(grantedTools.length ? { grantedTools } : {}),
           },
         ];
       });
@@ -602,6 +615,11 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
         /* filled after PLANNING_SEGMENT_ID */
       };
 
+      // 回合收尾：把任务清单卡定稿（不留进行中样式）。同样先占位，structured 块内再填实现。
+      let settlePlanSafe = () => {
+        /* filled after plan snapshot helpers */
+      };
+
       const resolveDisplayContent = (fallback?: string): string => {
         const fromRef = assistantDisplayContent.trim();
         if (fromRef) return fromRef;
@@ -707,60 +725,19 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
           config.fallbackSkillSlugs,
         );
 
-        // Planning next moves：短暂过程态（update_plan / 对账后出现；业务 Tool 开始或交付时清除）
+        // 历史遗留：早期版本用「Planning next moves」过程段展示清单，
+        // 现在清单本身就以卡片形式常驻在对话里，这里只负责清掉旧消息残留。
         const PLANNING_SEGMENT_ID = 'planning-next-moves-latest';
         const clearPlanningSegment = () => {
           assistantSegments = removeSegment(assistantSegments, PLANNING_SEGMENT_ID);
         };
         clearPlanningSegmentSafe = clearPlanningSegment;
-        const upsertPlanningSegment = (plan: ReturnType<typeof getPlan>): void => {
-          if (!structuredTermination) return;
-
-          const isQueryTask = Boolean(activeCompletionStrategy?.allowDirectAnswerTermination);
-          const maxItems = isQueryTask ? 1 : 3;
-
-          const inProgress = plan.find((p) => p.status === 'in_progress');
-          const pending = plan.filter((p) => p.status === 'pending');
-          const completed = plan.filter((p) => p.status === 'completed');
-
-          const picked: typeof plan = [];
-          if (inProgress && picked.length < maxItems) picked.push(inProgress);
-          for (const p of pending) {
-            if (picked.length >= maxItems) break;
-            picked.push(p);
-          }
-          if (picked.length === 0 && completed[0]) {
-            picked.push(completed[0]);
-          }
-
-          const items = picked.map((p) => ({
-            id: p.id,
-            label: p.content,
-            status: p.status,
-          }));
-
-          const lead = picked[0];
-          const lastNonHarnessToolOutcome = [...toolOutcomes].reverse().find(
-            (o) => !HARNESS_TOOL_NAMES.has(o.meta.tool),
-          );
-          const shouldShowRetryHint =
-            lastNonHarnessToolOutcome &&
-            (lastNonHarnessToolOutcome.kind !== 'success' ||
-              lastNonHarnessToolOutcome.ok === false ||
-              lastNonHarnessToolOutcome.verified === false);
-
-          assistantSegments = upsertSegment(assistantSegments, {
-            kind: 'planning',
-            id: PLANNING_SEGMENT_ID,
-            title: 'Planning next moves',
-            items,
-            hint: shouldShowRetryHint && lead ? `接下来准备重试：${lead.content}` : undefined,
-          });
-        };
 
         /**
-         * 每轮对账：只推进当前 in_progress 项（游标之后出现成功业务 Tool 即视为该步完成），
-         * 状态有变化时就地刷新「任务清单」卡并自动收起（见 chat/planSegments）。
+         * 每轮对账：只推进当前 in_progress 项（游标之后出现成功业务 Tool 即视为该步完成）。
+         * 状态有变化就落一张新的「任务清单」快照卡（见 chat/planSegments）：
+         * - 有新的一步开始 → 新增一张卡（旧卡冻结，只留最后一张有进行中样式）
+         * - 只是最后一项收尾 → 就地刷新最后一张
          */
         const reconcilePlanProgress = (): boolean => {
           const beforePlan = getPlan();
@@ -771,8 +748,15 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
           });
           if (reconciled === beforePlan) return false;
           setPlan(reconciled);
-          assistantSegments = syncPlanSegments(assistantSegments, reconciled);
+          assistantSegments = appendPlanSnapshot(assistantSegments, reconciled, {
+            source: 'reconcile',
+          });
           return true;
+        };
+
+        // 回合结束定稿：清单卡不再出现进行中样式（权威 plan 仍在会话级 store）
+        settlePlanSafe = () => {
+          assistantSegments = finalizePlanSnapshots(assistantSegments, getPlan());
         };
 
         // 本回合 Tool 池：skill 懒加载后同回合立即扩展（见 expandTurnToolPool）
@@ -867,6 +851,9 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
           }
           return null;
         };
+
+        // 本回合 Tool 步骤序号：保证同回合内每次调用的步骤 id 唯一
+        let toolStepSeq = 0;
 
         for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
           currentRoundContent = '';
@@ -976,6 +963,7 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
                     : undefined;
                 assistantDisplayContent = finalContent;
                 if (roundText) upsertRoundTextSegment(round, roundText);
+                settlePlanSafe();
                 patchAssistantMessage(
                   {
                     content: finalContent,
@@ -993,6 +981,7 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
                 const annotated = `${finalContent}\n\n⚠️ ${decision.reason}`;
                 assistantDisplayContent = annotated;
                 if (roundText) upsertRoundTextSegment(round, roundText);
+                settlePlanSafe();
                 patchAssistantMessage(
                   { content: annotated, segments: assistantSegments },
                   { status: 'success' },
@@ -1002,10 +991,8 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
 
               // continue：注入基于剩余 plan 的 nudge，并先做一次 plan 对账
               autoContinueNudges += 1;
+              // 对账本身会把清单落成新的快照卡，这里不需要再单独维护过程态
               reconcilePlanProgress();
-
-              // 每轮对账后更新 Planning next moves
-              upsertPlanningSegment(getPlan());
 
               if (finalContent) {
                 accumulatedContent = finalContent;
@@ -1131,7 +1118,14 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
             call: { id?: string; function?: { name?: string; arguments?: string } },
           ): Promise<EADAFChatMessage> => {
             const functionName = call.function?.name || 'unknown_tool';
-            const stepId = call.id || `${functionName}-${Date.now()}`;
+            // stepId 必须全局唯一：部分 OpenAI 兼容服务端每轮都从 call_0 重新编号，
+            // 只按 call.id upsert 会让后一轮的调用覆盖前一轮的卡片（历史步骤凭空消失）。
+            toolStepSeq += 1;
+            const stepId = `${call.id || functionName}-r${round}-${toolStepSeq}`;
+
+            // update_plan 是「首次生成」还是「进度更新」，以调用前的权威 plan 为准
+            let planModeBeforeCall: 'create' | 'update' =
+              getPlan().length > 0 ? 'update' : 'create';
 
             const composeChrome = (
               callView: ReturnType<typeof presentToolCall>,
@@ -1164,23 +1158,31 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
             }
 
             const appendToolStep = (step: ChatToolStep) => {
-              if (step.status === 'loading') {
-                assistantSegments = collapseTransientToolSurfaces(assistantSegments);
-                // 业务 Tool 开始执行 → 清除短暂 Planning 过程态
-                if (!HARNESS_TOOL_NAMES.has(functionName)) {
-                  clearPlanningSegment();
-                }
+              const isPlanTool = functionName === UPDATE_PLAN_TOOL;
+              if (isPlanTool && step.status === 'loading') {
+                // 任务清单不显示「调用中」的一行：清单本身以卡片呈现，直接等结果
+                return;
               }
+              if (isPlanTool && step.status === 'success') {
+                // 成功 → 落一张「任务清单」快照卡（标题 生成 / 更新 + (x/y) + 条目）
+                assistantSegments = appendPlanSnapshot(assistantSegments, getPlan(), {
+                  mode: planModeBeforeCall,
+                  source: 'tool',
+                });
+              } else {
+                if (step.status === 'loading') {
+                  assistantSegments = collapseTransientToolSurfaces(assistantSegments);
+                  // 业务 Tool 开始执行 → 清除历史遗留的 Planning 过程态
+                  if (!HARNESS_TOOL_NAMES.has(functionName)) {
+                    clearPlanningSegment();
+                  }
+                }
 
-              assistantSegments = upsertSegment(assistantSegments, {
-                kind: 'tool',
-                id: step.id,
-                step,
-              });
-
-              // update_plan 成功后短暂展示 Planning next moves
-              if (structuredTermination && functionName === UPDATE_PLAN_TOOL && step.status === 'success') {
-                upsertPlanningSegment(getPlan());
+                assistantSegments = upsertSegment(assistantSegments, {
+                  kind: 'tool',
+                  id: step.id,
+                  step,
+                });
               }
 
               setMessages((ori) =>
@@ -1329,6 +1331,8 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
             invokedToolNames.add(functionName);
             recordInvokedTool(functionName);
             toolsExecutedThisTurn += 1;
+            // handler 会按「执行前是否已有 plan」判定 create / update，这里同步取一次快照
+            planModeBeforeCall = getPlan().length > 0 ? 'update' : 'create';
 
             // 收敛检测：记录本次调用的签名（toolName + 参数指纹）
             const argsFingerprint = stableStringifyArgs(args).slice(0, 120);
@@ -1503,6 +1507,8 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
             });
             const pausedContent = accumulatedContent || assistantDisplayContent || '';
             assistantDisplayContent = pausedContent;
+            // 挂起等用户选择也是「本轮结束」：清单卡不留进行中样式
+            settlePlanSafe();
             patchAssistantMessage(
               {
                 content: pausedContent,
@@ -1522,6 +1528,8 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
         const finalContent =
           (accumulatedContent || assistantDisplayContent || '（无文本回复）') + roundLimitNote;
         assistantDisplayContent = finalContent;
+        // 回合正常结束：清单卡定稿（最后一张刷成最终状态，且不允许残留进行中样式）
+        settlePlanSafe();
         patchAssistantMessage(
           { content: finalContent, segments: assistantSegments },
           { status: 'success' },
@@ -1546,6 +1554,8 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
             id: 'cancelled-notice',
             content: `> ${cancelNotice}`,
           });
+          // 用户取消也是本轮结束：清单卡不留进行中样式
+          settlePlanSafe();
           patchAssistantMessage(
             { content: nextContent, segments: assistantSegments },
             { status: 'abort' },
@@ -1553,6 +1563,7 @@ export function useAIBaseChat(conversationKey: string, options: UseAIBaseChatOpt
           return '';
         }
 
+        settlePlanSafe();
         patchAssistantMessage(
           { content: message, segments: assistantSegments },
           { status: 'error' },

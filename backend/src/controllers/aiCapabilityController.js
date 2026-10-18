@@ -32,6 +32,15 @@ class AiCapabilityController {
               through: { attributes: [] },
               required: false,
             },
+            // Skill 授予的 Tool：前端据此告诉模型「哪个 Skill 能给出某个 Tool」，
+            // 避免模型用 run_code 猜 Tool 名（猜不到就报错刷屏）。
+            {
+              model: Tool,
+              as: 'tools',
+              attributes: ['id', 'function_name'],
+              through: { attributes: [] },
+              required: false,
+            },
           ],
           order: [['name', 'ASC']],
         }),
@@ -81,6 +90,10 @@ class AiCapabilityController {
             isDedicated: item.is_dedicated === true,
             completionStrategy: item.completion_strategy || undefined,
             applicationIds: (item.applications || []).map((app) => app.application_id),
+            /** 该 Skill 授予的 Tool functionName（加载本 Skill 后即可 native 调用） */
+            grantedTools: (item.tools || [])
+              .map((tool) => tool.function_name)
+              .filter(Boolean),
           })),
           tools: tools.map((item) => ({
             id: item.id,

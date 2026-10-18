@@ -61,12 +61,14 @@ const skills: AIBaseSkill[] = [
         name: '建模',
         description: '设计实体',
         bodyPrefetched: true,
+        grantedTools: ['bizdata_create_entity'],
       },
       {
         slug: 'bizdata-api-service-create',
         name: '创建 API',
         description: '批量创建服务',
         bodyPrefetched: false,
+        grantedTools: ['apiservice_create', 'apiservice_list'],
       },
     ],
   });
@@ -74,6 +76,22 @@ const skills: AIBaseSkill[] = [
   assert.ok(catalogPrompt.includes('`bizdata-api-service-create`'));
   assert.ok(catalogPrompt.includes('（已加载正文）'));
   assert.ok(catalogPrompt.includes('### skill —— 按需加载 Skill 正文'));
+  // 目录要告诉模型「哪个 Skill 授予哪些 Tool」（未加载正文的才需要列，已加载的已在可用 Tool 列表里）
+  assert.ok(catalogPrompt.includes('授予 Tool: apiservice_create, apiservice_list'));
+  assert.equal(
+    catalogPrompt.includes('授予 Tool: bizdata_create_entity'),
+    false,
+    '已加载正文的 Skill 不重复列出 Tool',
+  );
+  assert.ok(catalogPrompt.includes('找不到要用的 Tool 时'), '目录要给出「先加载归属 Skill」的指引');
+  assert.ok(
+    catalogPrompt.includes('禁止用 `run_code` 猜 Tool 名'),
+    '禁止用 run_code 猜 Tool 名',
+  );
+  assert.ok(
+    catalogPrompt.includes('需要的 Tool 不在你的可用列表里时'),
+    '执行协议同样要给出该指引（结构化终止开启时）',
+  );
 }
 
 {

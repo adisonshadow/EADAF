@@ -122,7 +122,7 @@ const SsoLoginAsideUpload: React.FC<SsoLoginAsideUploadProps> = ({
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
         ) : (
-          <Text type="secondary" style={{ padding: 16, textAlign: 'center' }}>
+          <Text type="secondary" style={{ padding: 16, textAlign: 'center', color: '#666' }}>
             未上传，登录页将使用默认动画
           </Text>
         )}
