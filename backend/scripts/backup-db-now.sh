@@ -101,7 +101,6 @@ exec_docker_pg_dump() {
   local output_file="$2"
   local mode="${target%%:*}"
   local name="${target#*:}"
-  local tmp_dump="/tmp/eadaf_pg_backup_$$.dump"
 
   run_in_container() {
     if [ "$mode" = "compose" ]; then
@@ -112,14 +111,13 @@ exec_docker_pg_dump() {
     fi
   }
 
-  run_in_container pg_dump -U "$DB_USER" -d "$DB_NAME" -F c --no-owner --no-acl -f "$tmp_dump"
-  if [ "$mode" = "compose" ]; then
-    cd "$PROJECT_ROOT"
-    docker compose cp "${name}:${tmp_dump}" "$output_file"
-    docker compose exec -T "$name" rm -f "$tmp_dump"
-  else
-    docker cp "${name}:${tmp_dump}" "$output_file"
-    docker exec "$name" rm -f "$tmp_dump"
+  # pg_dump 直接写标准输出、由宿主机重定向落盘，不再「容器内 /tmp 中转 + docker cp」：
+  # Git Bash(MSYS) 启动原生程序时会把参数里的 /tmp/... 改写成宿主机临时目录，
+  # 于是容器内 pg_dump 找不到输出目录（could not open output file "C:/Users/..."）。
+  if ! run_in_container pg_dump -U "$DB_USER" -d "$DB_NAME" -F c --no-owner --no-acl > "$output_file"; then
+    rm -f "$output_file"
+    echo "错误：容器内 pg_dump 备份失败（$mode:$name）" >&2
+    exit 1
   fi
 }
 
