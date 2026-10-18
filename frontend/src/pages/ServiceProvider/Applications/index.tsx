@@ -98,6 +98,22 @@ function buildOutboundWebhookScopePayload(
   };
 }
 
+/**
+ * 「API 配置」弹窗打开时的初始值快照。
+ * 弹窗内的勾选都是本地 state，未点「保存」就不会落到后端；打开 API 文档前要靠它判断是否有未保存修改。
+ */
+interface ApiConfigSnapshot {
+  apiEnabled: boolean;
+  apiScope: string[];
+  builtinApiScope: string[];
+  outboundWebhookScope: string[];
+}
+
+/** 作用域勾选值归一化：去重 + 排序，忽略勾选先后顺序带来的差异 */
+function normalizeScopeKeys(keys: readonly string[] | undefined): string {
+  return [...new Set((keys ?? []).map(String))].sort().join('\u0001');
+}
+
 /** 预览「跟随本系统域名/IP」时拼出的完整重定向 URI */
 function previewSystemHostRedirectUri(suffix: string): string {
   const uri = String(suffix || '').trim();
@@ -301,6 +317,8 @@ const Page: React.FC = () => {
   const [scopeModalVisible, setScopeModalVisible] = useState(false);
   const [scopeSaving, setScopeSaving] = useState(false);
   const [currentApplication, setCurrentApplication] = useState<ApplicationRecord | null>(null);
+  /** API 配置弹窗的初始值快照，用于判断是否有未保存修改 */
+  const [apiConfigSnapshot, setApiConfigSnapshot] = useState<ApiConfigSnapshot | null>(null);
   const [apiConfigForm] = Form.useForm();
   const apiEnabledInConfig = Form.useWatch('api_enabled', apiConfigForm);
   const [ssoConfigForm] = Form.useForm();
@@ -449,9 +467,16 @@ const Page: React.FC = () => {
             disabled={record.code === SYSTEM_APPLICATION_CODE}
             onClick={() => {
               setCurrentApplication(record);
-              setApiScopeSelection(parseApiDataScopeValue(record.api_data_scope));
-              setBuiltinApiSelection(record.builtin_api_scope?.permissionCodes ?? []);
-              setOutboundWebhookSelection(parseOutboundWebhookScopeValue(record.outbound_webhook_scope));
+              const snapshot: ApiConfigSnapshot = {
+                apiEnabled: !!record.api_enabled,
+                apiScope: parseApiDataScopeValue(record.api_data_scope),
+                builtinApiScope: record.builtin_api_scope?.permissionCodes ?? [],
+                outboundWebhookScope: parseOutboundWebhookScopeValue(record.outbound_webhook_scope),
+              };
+              setApiConfigSnapshot(snapshot);
+              setApiScopeSelection(snapshot.apiScope);
+              setBuiltinApiSelection(snapshot.builtinApiScope);
+              setOutboundWebhookSelection(snapshot.outboundWebhookScope);
               setActiveApiTab('business');
               apiConfigForm.setFieldsValue({
                 api_enabled: record.api_enabled,
@@ -516,7 +541,15 @@ const Page: React.FC = () => {
 
   const { tableColumns: columns } = state;
 
-  const saveApiConfig = async (values: { api_enabled?: boolean }) => {
+  /**
+   * 保存「API 配置」。返回是否保存成功，供「保存后再打开 API 文档」的流程复用。
+   * closeModal=false 时保留弹窗（如用户只是想先保存再看文档），并把快照刷新为已保存的值。
+   */
+  const saveApiConfig = async (
+    values: { api_enabled?: boolean },
+    options: { closeModal?: boolean } = {},
+  ): Promise<boolean> => {
+    const { closeModal = true } = options;
     try {
       const response = await putApplicationsId(
         { id: currentApplication?.application_id || '' },
@@ -536,29 +569,97 @@ const Page: React.FC = () => {
 
       if (isApiSuccess(response)) {
         message.success('保存成功');
-        setApiConfigModalVisible(false);
+        if (closeModal) {
+          setApiConfigModalVisible(false);
+        } else {
+          // 已保存：同步更新快照，避免重复提示「有未保存修改」
+          setApiConfigSnapshot({
+            apiEnabled: !!values.api_enabled,
+            apiScope: apiScopeSelection,
+            builtinApiScope: builtinApiSelection,
+            outboundWebhookScope: outboundWebhookSelection,
+          });
+        }
         if (actionRef.current) {
           actionRef.current.reload();
         }
-      } else {
-        message.error(response.message || '保存失败');
+        return true;
       }
+      message.error(response.message || '保存失败');
+      return false;
     } catch (error) {
       message.error('保存失败');
+      return false;
     }
   };
 
-  const handleSaveApiConfig = async () => {
+  const handleSaveApiConfig = async (
+    options: { closeModal?: boolean } = {},
+  ): Promise<boolean> => {
+    if (!currentApplication) return false;
+
+    let values: { api_enabled?: boolean };
     try {
-      if (!currentApplication) return;
-      
-      const values = await apiConfigForm.validateFields();
-      
-      // 正常保存
-      await saveApiConfig(values);
+      values = await apiConfigForm.validateFields();
     } catch (error) {
       message.error('保存失败');
+      return false;
     }
+
+    return saveApiConfig(values, options);
+  };
+
+  /** 弹窗内是否有未保存的修改（勾选是本地 state，需与打开时的快照比对） */
+  const hasUnsavedApiConfigChanges = (): boolean => {
+    if (!apiConfigSnapshot) return false;
+    return (
+      !!apiConfigForm.getFieldValue('api_enabled') !== apiConfigSnapshot.apiEnabled ||
+      normalizeScopeKeys(apiScopeSelection) !== normalizeScopeKeys(apiConfigSnapshot.apiScope) ||
+      normalizeScopeKeys(builtinApiSelection) !== normalizeScopeKeys(apiConfigSnapshot.builtinApiScope) ||
+      normalizeScopeKeys(outboundWebhookSelection) !==
+        normalizeScopeKeys(apiConfigSnapshot.outboundWebhookScope)
+    );
+  };
+
+  /**
+   * 打开 API 文档。
+   * 文档页读取的是**后端已保存**的配置，所以有未保存修改时先确认是否保存后再打开，
+   * 否则用户会看到与当前勾选不一致的内容。
+   */
+  const handleOpenApiDocsClick = (event: React.MouseEvent<HTMLElement>) => {
+    const docsUrl = apiDocsPreviewUrl;
+    if (!docsUrl) return;
+    // 用户按修饰键自行开新标签时不做拦截
+    if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (!hasUnsavedApiConfigChanges()) return; // 无修改：走链接默认行为（新标签打开）
+
+    event.preventDefault();
+    modal.confirm({
+      title: 'API 配置尚未保存',
+      content: '当前 API 配置有未保存的修改，API 文档只会展示已保存的配置。是否保存后再打开 API 文档？',
+      okText: '保存并打开',
+      cancelText: '直接打开',
+      centered: true,
+      // 只允许通过两个按钮明确选择，避免 Esc 误触发「直接打开」
+      keyboard: false,
+      onOk: async () => {
+        // 在点击事件的同步阶段先开占位窗口，规避保存耗时后被浏览器弹窗拦截
+        const pendingWindow = window.open('', '_blank');
+        const saved = await handleSaveApiConfig({ closeModal: false });
+        if (!saved) {
+          pendingWindow?.close();
+          return;
+        }
+        if (pendingWindow && !pendingWindow.closed) {
+          pendingWindow.location.replace(docsUrl);
+        } else if (!window.open(docsUrl, '_blank', 'noopener,noreferrer')) {
+          message.warning('新窗口被浏览器拦截，请重新点击「打开 API 文档」');
+        }
+      },
+      onCancel: () => {
+        window.open(docsUrl, '_blank', 'noopener,noreferrer');
+      },
+    });
   };
 
   const handleGenerateAppSecret = async () => {
@@ -712,9 +813,14 @@ const Page: React.FC = () => {
       <Modal
         title="API 配置"
         open={apiConfigModalVisible}
-        onCancel={() => setApiConfigModalVisible(false)}
+        onCancel={() => {
+          setApiConfigModalVisible(false);
+          setApiConfigSnapshot(null);
+        }}
         width={640}
-        onOk={handleSaveApiConfig}
+        onOk={() => {
+          void handleSaveApiConfig();
+        }}
         okText="保存"
         cancelText="取消"
         centered
@@ -791,7 +897,12 @@ const Page: React.FC = () => {
           <div style={{ marginTop: 8 }}>
             <div style={{ marginBottom: 8, fontWeight: 500 }}>
               <span style={{ marginRight: 8 }}>API 地址</span>
-              <Typography.Link href={apiDocsPreviewUrl} target="_blank" rel="noopener noreferrer">
+              <Typography.Link
+                href={apiDocsPreviewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleOpenApiDocsClick}
+              >
                 <EyeOutlined /> 打开 API 文档
               </Typography.Link>
             </div>
