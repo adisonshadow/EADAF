@@ -69,35 +69,19 @@ echo "Outbound Webhook 数据库结构创建完成"
 
 # ---------------------------------------------------------------------------
 # 结构对齐增量迁移（幂等，IF NOT EXISTS）
+# 清单在 scripts/incremental-migrations.txt：init-db 与 db:migrate 共用同一份，
+# 保证「全新库」和「升级已有库」跑的是同一组迁移，不会各漂各的。
 # 这些列/表已前向合并进上面的 base schema，此处同时运行以兼容已存在旧表的库，
 # 确保「以现网为准」的结构在 init 后完整。顺序无关、可重复执行。
 # ---------------------------------------------------------------------------
 echo "开始执行结构对齐增量迁移..."
-
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-builtin-api-system.sql" || { echo "内置 API 系统迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-operation-log-audit.sql" || { echo "操作日志审计迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-department-roles.sql" || { echo "部门角色关联表迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-permission-access-restriction.sql" || { echo "权限 access_restriction 迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-bizdata-api-services-optional-entity.sql" || { echo "API 服务可选实体迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-bizdata-api-services-form-v2.sql" || { echo "API 服务表单 v2 迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-bizdata-metrics.sql" || { echo "业务指标表迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-bizdata-metrics-cron.sql" || { echo "业务指标 cron 迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-bizdata-metric-cards.sql" || { echo "指标看板卡片迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-bizdata-scope-docs.sql" || { echo "Scope 业务说明表迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-bizdata-data-standards.sql" || { echo "数据标准表迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-bizdata-metadata-catalog.sql" || { echo "逻辑元数据目录迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-apiservice-transport-protocols.sql" || { echo "API 服务传输协议迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-outbound-webhooks-contract.sql" || { echo "Outbound Webhook 契约迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-skill-completion-strategy.sql" || { echo "Skill 完成策略迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-api-request-log-tool-audit.sql" || { echo "AI 请求日志 turn/tool 审计迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-hook-center.sql" || { echo "钩子管理迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-application-outbound-webhook-scope.sql" || { echo "应用 outbound_webhook_scope 迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-system-storage-bucket.sql" || { echo "系统存储桶种子失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-eadaf-ai-skills.sql" || { echo "EADAF 全局/专用 Skill/Tool upsert 失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/20260710_add_model_rate_limit.sql" || { echo "模型 rate_limit 迁移失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-app-transfer-permissions.sql" || { echo "应用导出导入权限种子失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-platform-transfer-permissions.sql" || { echo "EADAF 平台导出导入权限种子失败"; exit 1; }
-PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/migrate-app-deployment-permissions.sql" || { echo "应用部署打包权限种子失败"; exit 1; }
+while IFS= read -r migration; do
+  case "$migration" in
+    ''|'#'*) continue ;;
+  esac
+  echo "  → $migration"
+  PGPASSWORD="$DB_PASS" $PSQL_CMD -f "$SCRIPT_DIR/$migration" || { echo "迁移失败：$migration"; exit 1; }
+done < "$SCRIPT_DIR/incremental-migrations.txt"
 
 echo "结构对齐增量迁移完成"
 

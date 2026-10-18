@@ -20,6 +20,7 @@
     "init-db": "bash scripts/initdb.sh",
     "init-db-with-mock": "bash scripts/initdb.sh --with-mock",
     "init-db-with-aibase-seed": "bash scripts/initdb.sh --with-aibase-seed",
+    "db:migrate": "node scripts/apply-incremental-migrations.js",
     "export-eadaf-ai-skills": "node scripts/export-eadaf-ai-skills.js",
     "gen:app-api-skill": "node scripts/gen-app-business-api-skill.js",
     "migrate-eadaf-ai-skills": "bash scripts/apply-eadaf-ai-skills.sh",

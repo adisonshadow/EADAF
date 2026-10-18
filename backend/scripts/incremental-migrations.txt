@@ -1,0 +1,32 @@
+# 结构对齐增量迁移清单（幂等，只 CREATE TABLE/INDEX IF NOT EXISTS、ADD COLUMN IF NOT EXISTS）
+#
+# 「全新库」与「升级已有库」必须走同一组迁移，否则两条路径会各自漂移：
+#   - initdb.sh             : 重建 schema 后执行（全新库）
+#   - apply-incremental-migrations.sh / pnpm db:migrate : 不重建、直接执行（已有库升级）
+# 两份脚本都读这个文件，新增迁移只改这里一处。
+# 每行一个文件名（相对 backend/scripts）；空行与 # 开头的行忽略。
+migrate-builtin-api-system.sql
+migrate-operation-log-audit.sql
+migrate-department-roles.sql
+migrate-permission-access-restriction.sql
+migrate-bizdata-api-services-optional-entity.sql
+migrate-bizdata-api-services-form-v2.sql
+migrate-bizdata-metrics.sql
+migrate-bizdata-metrics-cron.sql
+migrate-bizdata-metric-cards.sql
+migrate-bizdata-scope-docs.sql
+migrate-bizdata-data-standards.sql
+migrate-bizdata-metadata-catalog.sql
+migrate-apiservice-transport-protocols.sql
+migrate-outbound-webhooks-contract.sql
+migrate-skill-completion-strategy.sql
+# AI 请求日志 turn/tool 审计字段：缺列会让「AI 请求日志」整页 500、写入静默失败
+migrate-api-request-log-tool-audit.sql
+migrate-hook-center.sql
+migrate-application-outbound-webhook-scope.sql
+migrate-system-storage-bucket.sql
+migrate-eadaf-ai-skills.sql
+20260710_add_model_rate_limit.sql
+migrate-app-transfer-permissions.sql
+migrate-platform-transfer-permissions.sql
+migrate-app-deployment-permissions.sql
