@@ -26,6 +26,7 @@ import {
   Upload,
 } from 'antd';
 import React, { useState } from 'react';
+import HeaderNotice from '../components/HeaderNotice';
 
 const EXPORT_CONTENT_ITEMS = [
   'EADAF 全局 Skill 与绑在 EADAF 上的专用 Skill / Tool / Scope',
@@ -292,14 +293,16 @@ const PlatformTransferPanel: React.FC = () => {
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} lg={12}>
-        <Card title="导出 EADAF 平台" extra={<DownloadOutlined />}>
-          <Alert
-            type="warning"
-            showIcon
-            message="导出文件包含明文密钥"
-            description="Provider API Key 将以明文写入导出文件。本包不含业务应用、实体、API 或行数据。"
-            style={{ marginBottom: 16 }}
-          />
+        <Card
+          title="导出 EADAF 平台"
+          extra={
+            <HeaderNotice
+              message="导出文件包含明文密钥"
+              description="Provider API Key 将以明文写入导出文件。本包不含业务应用、实体、API 或行数据。"
+              ariaLabel="导出警告"
+            />
+          }
+        >
           <Space style={{ marginBottom: 16 }} align="start">
             <Switch
               size="small"
@@ -341,18 +344,18 @@ const PlatformTransferPanel: React.FC = () => {
         <Card
           title="导入 EADAF 平台"
           extra={
-            <Button size="small" onClick={resetImport}>
-              重置
-            </Button>
+            <Space size={4}>
+              <HeaderNotice
+                message="导入会写入目标实例的平台数据,不可自动撤销"
+                description="误传业务应用导出文件会被拒绝。各节失败互不影响。"
+                ariaLabel="导入警告"
+              />
+              <Button size="small" onClick={resetImport}>
+                重置
+              </Button>
+            </Space>
           }
         >
-          <Alert
-            type="warning"
-            showIcon
-            message="导入会写入目标实例的平台数据,不可自动撤销"
-            description="误传业务应用导出文件会被拒绝。各节失败互不影响。"
-            style={{ marginBottom: 16 }}
-          />
           <Upload.Dragger
             accept=".zip,.json"
             maxCount={1}

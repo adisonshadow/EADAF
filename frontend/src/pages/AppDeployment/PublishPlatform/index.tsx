@@ -7,7 +7,7 @@ import {
 } from '@/services/EADAF/api/appDeployment';
 import { message } from '@/utils/antdAppApis';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
-import { CopyOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import {
   Alert,
@@ -24,7 +24,8 @@ import {
   Typography,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import PackConsole, { copyText } from '../components/PackConsole';
+import HeaderNotice from '../components/HeaderNotice';
+import PackConsole from '../components/PackConsole';
 import PackHistory from '../components/PackHistory';
 import {
   ARCH_OPTIONS,
@@ -185,7 +186,33 @@ const PublishPlatformPage: React.FC = () => {
         <Col xs={24} xl={10}>
           <Card
             title="打包参数"
-            extra={<Text type="secondary">pnpm pack:eadaf</Text>}
+            extra={
+              <Space size={8}>
+                <Text type="secondary">pnpm pack:eadaf</Text>
+                {devMode && bashReady && (
+                  <HeaderNotice
+                    type="info"
+                    message="DEV 模式"
+                    ariaLabel="DEV 模式说明"
+                    description={
+                      <Space direction="vertical" size={2}>
+                        <span>
+                          项目目录：<Text code>/srv/EADAF</Text>
+                        </span>
+                        <span>
+                          平台版本：{status?.platform?.version || '未取到'}
+                          （取自仓库根 package.json）
+                        </span>
+                        <span>
+                          bash：<Text code>/bin/bash</Text>
+                          ；pnpm：<Text code>/usr/local/bin/pnpm</Text>
+                        </span>
+                      </Space>
+                    }
+                  />
+                )}
+              </Space>
+            }
           >
             {loading ? (
               <Spin />
@@ -209,40 +236,6 @@ const PublishPlatformPage: React.FC = () => {
                     description={
                       status?.bash?.hint ||
                       '请安装 Git for Windows（含 Git Bash）后重启后端。'
-                    }
-                  />
-                )}
-                {devMode && bashReady && (
-                  <Alert
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                    message="DEV 模式"
-                    description={
-                      <Space direction="vertical" size={2}>
-                        <Space size={4}>
-                          <span>项目目录：</span>
-                          <Text code>{repoRoot}</Text>
-                          <Button
-                            type="link"
-                            size="small"
-                            icon={<CopyOutlined />}
-                            onClick={() => copyText(repoRoot, '项目目录已复制')}
-                          />
-                        </Space>
-                        <span>
-                          平台版本取自仓库根 package.json：
-                          {status?.platform?.version || '未取到'}（
-                          {status?.platform?.versionSource}）
-                        </span>
-                        <span>
-                          bash：{status?.bash?.kind} · {status?.bash?.path}
-                          ；pnpm：
-                          {status?.pnpm?.available
-                            ? status?.pnpm?.path
-                            : '未检测到'}
-                        </span>
-                      </Space>
                     }
                   />
                 )}

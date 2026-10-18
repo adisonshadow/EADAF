@@ -10,11 +10,7 @@ import {
   isApiSuccess,
   parseApiListResponse,
 } from '@/utils/apiResponse';
-import {
-  DownloadOutlined,
-  ExportOutlined,
-  InboxOutlined,
-} from '@ant-design/icons';
+import { DownloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import type { UploadFile } from 'antd';
 import {
@@ -35,26 +31,15 @@ import {
   Typography,
   Upload,
 } from 'antd';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import HeaderNotice from '../components/HeaderNotice';
+import {
+  describeSafeMode,
+  resolveExportContent,
+  type ExportDataMode,
+} from './exportContent';
 
 const SYSTEM_APPLICATION_CODE = 'EADAF';
-
-/** 导出文件携带的内容清单(与后端实际节一一对应,勿写死条数) */
-const EXPORT_CONTENT_ITEMS = [
-  '应用配置(SSO / API 接入、数据域 Scope、顶层 Skill 说明)',
-  '数据实体结构(实体 / 字段 / 枚举 / 关系 / Scope 文档)',
-  '数据库连接元数据(name / dbType / targetSchema / host 等,不含密码;导入优先匹配,失败则用目标同类型凭证创建本地连接)',
-  '物化库表摘要(表名 / schema / 列数 / 行数)',
-  '实体绑定的逻辑元数据(数据标准目录不随应用包,仅带 code+version 供重映射)',
-  '实体行数据(仅 PostgreSQL / MySQL 物化表,保留原主键)',
-  'API 服务(定义 / 操作 / 授权)',
-  '采集管道(含本应用的白名单绑定)',
-  'Outbound Webhook(鉴权密钥以明文段携带)',
-  '指标与指标卡片',
-  '钩子(event_filter 命中本应用实体 / API)',
-  '该应用专用 Skill 及其 Tools / AI Scope(不含全局 / EADAF 平台 Skill)',
-  'EADAF:勾选「携带 EADAF」时含用户 / 部门 / 授权,否则仅含被引用的角色与权限',
-];
 
 const SECTION_LABELS: Record<string, string> = {
   application: '应用配置',
@@ -238,13 +223,18 @@ const AppTransferPanel: React.FC = () => {
   const [appOptions, setAppOptions] = useState<
     { label: string; value: string }[]
   >([]);
-  const [dataMode, setDataMode] = useState<'structure_and_data' | 'data_only'>(
-    'structure_and_data',
-  );
+  const [dataMode, setDataMode] =
+    useState<ExportDataMode>('structure_and_data');
   const [includeEadaf, setIncludeEadaf] = useState(false);
   const [includeFiles, setIncludeFiles] = useState(false);
   const [safeMode, setSafeMode] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  /** 清单随选项联动:不包含的项保留展示,用删除线标注,不做显示/隐藏 */
+  const exportContent = useMemo(
+    () => resolveExportContent({ dataMode, includeEadaf, includeFiles }),
+    [dataMode, includeEadaf, includeFiles],
+  );
 
   const loadApplications = useCallback(async () => {
     try {
@@ -433,14 +423,16 @@ const AppTransferPanel: React.FC = () => {
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} lg={12}>
-        <Card title="导出应用" extra={<ExportOutlined />}>
-          <Alert
-            type="warning"
-            showIcon
-            message="导出文件包含明文密钥"
-            description="应用接入密钥、Webhook / Provider 鉴权密钥等将以明文写入导出文件,请妥善保管,避免外泄。"
-            style={{ marginBottom: 16 }}
-          />
+        <Card
+          title="导出应用"
+          extra={
+            <HeaderNotice
+              message="导出文件包含明文密钥"
+              description="应用接入密钥、Webhook / Provider 鉴权密钥等将以明文写入导出文件,请妥善保管,避免外泄。"
+              ariaLabel="导出警告"
+            />
+          }
+        >
           <Form form={exportForm} layout="vertical">
             <Form.Item
               name="applicationId"
@@ -509,21 +501,77 @@ const AppTransferPanel: React.FC = () => {
                 </Space>
               </Space>
             </Form.Item>
-            <Form.Item label="导出内容清单">
-              <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.9 }}>
-                {EXPORT_CONTENT_ITEMS.map((item) => (
-                  <li key={item}>
-                    <Typography.Text type="secondary">{item}</Typography.Text>
-                  </li>
-                ))}
-                <li>
-                  <Typography.Text type="secondary">
-                    {includeFiles
-                      ? '存储桶元数据及对象文件(该应用桶内对象 + 归属本应用的对象)'
-                      : '存储桶元数据(不勾选「携带存储文件」时不含对象文件内容)'}
+            <Form.Item
+              label="导出内容清单"
+              // extra="不包含的项目不会隐藏,改用删除线标注,便于和上方选项逐项对照"
+              style={{ marginBottom: 8 }}
+            >
+              <Typography.Text
+                type="secondary"
+                style={{ display: 'block', marginBottom: 6 }}
+              >
+                {exportContent.excludedCount > 0
+                  ? `共 ${exportContent.total} 项,本次不包含 ${exportContent.excludedCount} 项(已用删除线标注)`
+                  : `共 ${exportContent.total} 项,本次全部包含`}
+              </Typography.Text>
+              {exportContent.groups.map((group) => (
+                <div key={group.key} style={{ marginBottom: 8 }}>
+                  <Typography.Text strong style={{ fontSize: 12 }}>
+                    {group.title}
                   </Typography.Text>
-                </li>
-              </ul>
+                  <ul
+                    style={{
+                      margin: '2px 0 0',
+                      paddingLeft: 18,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {group.items.map((item) => (
+                      <li
+                        key={item.key}
+                        style={{ opacity: item.included ? 1 : 0.65 }}
+                      >
+                        <Typography.Text
+                          delete={!item.included}
+                          strong={item.included}
+                          type={item.included ? undefined : 'secondary'}
+                        >
+                          {item.label}
+                        </Typography.Text>
+                        {item.excludedHint && (
+                          <Typography.Text
+                            type="secondary"
+                            style={{ marginLeft: 6, fontSize: 12 }}
+                          >
+                            {item.excludedHint}
+                          </Typography.Text>
+                        )}
+                        {item.note && (
+                          <Typography.Text
+                            type="secondary"
+                            style={{ display: 'block', fontSize: 12 }}
+                          >
+                            {item.note}
+                          </Typography.Text>
+                        )}
+                        <Typography.Text
+                          type="secondary"
+                          delete={!item.included}
+                          style={{ display: 'block', fontSize: 12 }}
+                        >
+                          {item.desc}
+                        </Typography.Text>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <Typography.Text
+                type="secondary"
+                style={{ display: 'block', fontSize: 12 }}
+              >
+                {describeSafeMode(safeMode)}
+              </Typography.Text>
             </Form.Item>
           </Form>
           <Button
@@ -541,18 +589,18 @@ const AppTransferPanel: React.FC = () => {
         <Card
           title="导入应用"
           extra={
-            <Button size="small" onClick={resetImport}>
-              重置
-            </Button>
+            <Space size={4}>
+              <HeaderNotice
+                message="导入会写入目标实例数据,不可自动撤销"
+                description="建议先预览确认冲突、连接匹配与库表清单,再选择冲突策略执行。连接未匹配时会用目标同类型凭证创建本地连接(不连源库)。物化行数据写在外部数据库,不会随主库回滚。"
+                ariaLabel="导入警告"
+              />
+              <Button size="small" onClick={resetImport}>
+                重置
+              </Button>
+            </Space>
           }
         >
-          <Alert
-            type="warning"
-            showIcon
-            message="导入会写入目标实例数据,不可自动撤销"
-            description="建议先预览确认冲突、连接匹配与库表清单,再选择冲突策略执行。连接未匹配时会用目标同类型凭证创建本地连接(不连源库)。物化行数据写在外部数据库,不会随主库回滚。"
-            style={{ marginBottom: 16 }}
-          />
           <Upload.Dragger
             accept=".zip,.json"
             maxCount={1}
