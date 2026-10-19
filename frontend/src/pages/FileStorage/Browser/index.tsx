@@ -1,5 +1,6 @@
 import { DeleteOutlined, DownloadOutlined, EyeOutlined, PauseCircleOutlined, PlayCircleOutlined, ScissorOutlined, UploadOutlined } from '@ant-design/icons';
-import { ActionType, PageContainer, ProColumns, ProTable } from '@ant-design/pro-components';
+import { ActionType, PageContainer, ProColumns } from '@ant-design/pro-components';
+import { UnifiedProTable } from '@/components/UnifiedProTable';
 import { UrlSyncedProTable } from '@/components/UrlSyncedProTable';
 import { Button, Image, Input, Modal, Progress, Select, Space, Table, Upload, Tooltip, Typography } from 'antd';
 import { message, modal } from '@/utils/antdAppApis';
@@ -352,7 +353,7 @@ const BrowserPage: React.FC = () => {
               </Space>
             </div>
           ) : null}
-          <ProTable
+          <UnifiedProTable
             search={false}
             options={false}
             pagination={false}

@@ -16,6 +16,11 @@ import { useInitialState } from '@/providers/InitialStateProvider';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { formatCronSummary } from '@/utils/cron';
 import { useUiTheme, type UiThemePreference } from '@/theme/uiTheme';
+import {
+  PRO_TABLE_DENSITY_OPTIONS,
+  useProTableDensity,
+  type ProTableDensity,
+} from '@/theme/proTableDensity';
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -33,6 +38,7 @@ const UI_THEME_OPTIONS: { label: string; value: UiThemePreference }[] = [
 
 export const GeneralSettingsTab: React.FC = () => {
   const { preference, setPreference } = useUiTheme();
+  const { density, setDensity } = useProTableDensity();
 
   return (
     <Card>
@@ -48,6 +54,19 @@ export const GeneralSettingsTab: React.FC = () => {
             options={UI_THEME_OPTIONS}
             value={preference}
             onChange={(value) => setPreference(value as UiThemePreference)}
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <Typography.Text strong>表格密度</Typography.Text>
+            <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+              统一应用到站内所有数据表格（工具栏已不再提供密度按钮）；仅保存在本浏览器
+            </div>
+          </div>
+          <Segmented
+            options={PRO_TABLE_DENSITY_OPTIONS}
+            value={density}
+            onChange={(value) => setDensity(value as ProTableDensity)}
           />
         </div>
       </Space>

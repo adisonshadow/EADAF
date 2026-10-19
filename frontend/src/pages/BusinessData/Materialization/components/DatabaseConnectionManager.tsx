@@ -5,8 +5,8 @@ import {
   ThunderboltOutlined,
   RobotOutlined,
 } from '@ant-design/icons';
-import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns } from '@ant-design/pro-components';
+import { UnifiedProTable } from '@/components/UnifiedProTable';
 import {
   Button,
   Col,
@@ -350,8 +350,7 @@ const DatabaseConnectionManager: React.FC<DatabaseConnectionManagerProps> = ({
           新建连接
         </Button>
       </Space>
-      <ProTable<API.DatabaseConnection>
-        size="small"
+      <UnifiedProTable<API.DatabaseConnection>
         rowKey="id"
         loading={loading}
         scroll={{ x: 'max-content' }}
