@@ -16,6 +16,7 @@ import { setupAiToolDevLogger } from '@/utils/aiToolDevLogger';
 import { setupAiToolInvokeFileLogger } from '@/utils/toolInvokeFileLogger';
 import { SyncUiThemeWithAiBase } from '@/theme/SyncUiThemeWithAiBase';
 import { UiThemeProvider, useUiTheme } from '@/theme/uiTheme';
+import { ProTableDensityProvider } from '@/theme/proTableDensity';
 
 setupAiToolDevLogger();
 setupAiToolInvokeFileLogger();
@@ -91,7 +92,9 @@ function ThemedApp() {
 export default function App() {
   return (
     <UiThemeProvider>
-      <ThemedApp />
+      <ProTableDensityProvider>
+        <ThemedApp />
+      </ProTableDensityProvider>
     </UiThemeProvider>
   );
 }

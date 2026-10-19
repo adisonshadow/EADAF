@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PageContainer, ProTable, type ProColumns, type ActionType as ProActionType } from '@ant-design/pro-components';
+import { PageContainer, type ProColumns, type ActionType as ProActionType } from '@ant-design/pro-components';
 import { Button, Drawer, Form, Radio, Space, Tag, Tooltip, Typography } from 'antd';
 import { message } from '@/utils/antdAppApis';
 import { ControlOutlined, ThunderboltOutlined, BlockOutlined } from '@ant-design/icons';
@@ -16,6 +16,7 @@ import DepartmentLookup from '@/pages/ApiServices/components/DepartmentLookup';
 import { isApiSuccess, getApiData } from '@/utils/apiResponse';
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';
 import { TableActionButton, TableActions, TABLE_ACTION_COLUMN_BASE } from '@/components/TableActions';
+import { UnifiedProTable } from '@/components/UnifiedProTable';
 import { ProFormSelect } from '@ant-design/pro-components';
 
 /** 超级管理员角色 code —— 默认拥有全部权限，配置限制时从角色列表中排除 */
@@ -329,7 +330,7 @@ const BuiltinApiPage: React.FC = () => {
 
   return (
     <PageContainer pageHeaderRender={() => <></>}>
-      <ProTable<BuiltinApiTreeRow>
+      <UnifiedProTable<BuiltinApiTreeRow>
         headerTitle="内置 API 权限"
         actionRef={actionRef}
         rowKey="key"

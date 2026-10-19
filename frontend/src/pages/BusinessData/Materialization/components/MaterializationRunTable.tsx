@@ -73,7 +73,6 @@ const MaterializationRunTable: React.FC<MaterializationRunTableProps> = ({
 
   return (
     <UrlSyncedProTable<API.MaterializationRun>
-      size="small"
       rowKey="id"
       columns={columns}
       search={false}

@@ -1,4 +1,3 @@
-import { ProTable } from '@ant-design/pro-components';
 import type {
   ActionType,
   ParamsType,
@@ -10,6 +9,7 @@ import type { SingleParserBuilder } from 'nuqs';
 import type { TablePaginationPlacement } from 'antd/es/table/interface';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { UnifiedProTable } from '@/components/UnifiedProTable';
 import { useProTableUrlState } from '@/hooks/useProTableUrlState';
 import { URL_PAGE_KEY, URL_PAGE_SIZE_KEY } from '@/hooks/useUrlQueryState';
 import {
@@ -347,7 +347,7 @@ function LegacyUrlSyncedProTable<
   );
 
   return (
-    <ProTable<T, U, ValueType>
+    <UnifiedProTable<T, U, ValueType>
       {...rest}
       actionRef={setActionRef as any}
       formRef={setFormRef as any}
@@ -665,7 +665,7 @@ function NuqsUrlSyncedProTable<
       : Boolean(request && syncUrl && search === false) || undefined;
 
   return (
-    <ProTable<T, U, ValueType>
+    <UnifiedProTable<T, U, ValueType>
       {...rest}
       columns={mergedColumns}
       search={search}

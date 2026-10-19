@@ -12,6 +12,7 @@ import { useChatReference } from '@eadaf/ai-base';
 import { Button, Dropdown, Empty, Popconfirm, Space, Tag } from 'antd';
 import React, { useEffect, useState } from 'react';
 import ChatReferenceTarget from '@/components/ChatReferenceTarget';
+import { useProTableDensity } from '@/theme/proTableDensity';
 import { buildFieldReference } from '../../ai/chatReferenceUtils';
 type FieldRow = API.BusinessDataField & { sort: number };
 
@@ -33,6 +34,7 @@ const FieldList: React.FC<FieldListProps> = ({
   onSortChange,
 }) => {
   const { addReference } = useChatReference();
+  const { density } = useProTableDensity();
   const [dataSource, setDataSource] = useState<FieldRow[]>([]);
 
   useEffect(() => {
@@ -158,7 +160,7 @@ const FieldList: React.FC<FieldListProps> = ({
       options={false}
       optionsRender={() => []}
       pagination={false}
-      size="small"
+      size={density}
       dragSortKey="sort"
       toolBarRender={false}
       onDragSortEnd={handleDragSortEnd}

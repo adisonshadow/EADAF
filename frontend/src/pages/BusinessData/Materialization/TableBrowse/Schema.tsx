@@ -1,5 +1,6 @@
-import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { PageContainer } from '@ant-design/pro-components';
 import type { ProColumns } from '@ant-design/pro-components';
+import { UnifiedProTable } from '@/components/UnifiedProTable';
 import { Alert, Spin, Tag, Typography } from 'antd';
 import { message } from '@/utils/antdAppApis';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -95,8 +96,7 @@ const TableSchemaPage: React.FC = () => {
             {schema.tableName}
           </Typography.Paragraph>
         )}
-        <ProTable<API.MaterializedTableColumn>
-          size="small"
+        <UnifiedProTable<API.MaterializedTableColumn>
           rowKey="name"
           search={false}
           options={false}

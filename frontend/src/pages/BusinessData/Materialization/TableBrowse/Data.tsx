@@ -190,7 +190,6 @@ const TableDataPage: React.FC = () => {
         )}
         <UrlSyncedProTable<Record<string, unknown>>
           actionRef={actionRef}
-          size="small"
           rowKey={(r, i) => String(r.id || r._key || r._id || i)}
           search={false}
           options={false}

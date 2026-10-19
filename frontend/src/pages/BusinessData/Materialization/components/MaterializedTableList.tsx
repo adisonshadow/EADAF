@@ -134,7 +134,6 @@ const MaterializedTableList: React.FC<MaterializedTableListProps> = ({
 
   return (
     <UrlSyncedProTable<API.MaterializationStatusItem>
-      size="small"
       headerTitle={headerTitle}
       toolBarRender={headerExtra ? () => [headerExtra] : undefined}
       rowKey={materializedRowKey}
