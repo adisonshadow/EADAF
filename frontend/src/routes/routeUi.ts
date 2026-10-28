@@ -85,7 +85,7 @@ export const ROUTE_UI_BY_PATH: Record<string, Partial<AppRouteMeta>> = {
 
 /**
  * 不进语义清单的手写路由元数据（非目标：个人中心等）。
- * 仅保留展示/路由元数据用途（layout: false 独立布局），不参与业务菜单。
+ * 走主布局，顶栏与系统设置相同；不进主导航，只从头像菜单进入。
  */
 export const EXTRA_ROUTE_META: AppRouteMeta[] = [
   {
@@ -93,7 +93,11 @@ export const EXTRA_ROUTE_META: AppRouteMeta[] = [
     name: '个人中心',
     icon: 'UserOutlined',
     hideInMenu: true,
-    hideMenu: true,
-    layout: false,
+  },
+  {
+    path: '/account/sessions',
+    name: '我的登录信息',
+    icon: 'DesktopOutlined',
+    hideInMenu: true,
   },
 ];

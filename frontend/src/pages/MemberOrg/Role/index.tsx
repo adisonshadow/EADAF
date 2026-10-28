@@ -8,7 +8,7 @@ import { UrlSyncedProTable } from '@/components/UrlSyncedProTable';
 import { Button, Space, Modal, Drawer, Spin, Typography } from 'antd';
 import { message, modal } from '@/utils/antdAppApis';
 import { EyeOutlined, PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined } from "@ant-design/icons";
-import React, { useRef, useState, useEffect, useMemo } from "react";
+import React, { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import { useAIChatPrompts, useChatReference } from '@eadaf/ai-base';
 import { buildRolePrompts } from '@/ai/pageChatPrompts';
 import { 
@@ -30,6 +30,16 @@ import { TableActionButton, TableActions, TABLE_ACTION_COLUMN_BASE } from '@/com
 import { Form } from 'antd';
 import { augmentColumnsWithChatReference, wrapWithChatReference } from '@/utils/augmentColumnsWithChatReference';
 import { buildRoleReference } from '@/ai/chatReferenceBuilders';
+
+type PermissionOption = { label: string; value: string; code?: string };
+
+/** 下拉展示权限名称（描述），并附编码，避免只看到 permission_id */
+function permissionOptionLabel(item: API.Permission) {
+  const name = String(item.description || item.name || '').trim();
+  const code = String(item.code || '').trim();
+  if (name && code) return `${name}（${code}）`;
+  return name || code;
+}
 
 const Page: React.FC = () => {
   const actionRef = useRef<ActionType | undefined>(undefined);
@@ -106,36 +116,31 @@ const Page: React.FC = () => {
     detailsValue,
   } = state;
 
-  // 获取权限列表
+  const [permissionOptions, setPermissionOptions] = useState<PermissionOption[]>([]);
+
   const fetchPermissions = async () => {
     try {
-      const response = await getPermissions({});
+      // size=-1 走后端全量；pageSize 兼容尚未热更新、仍只认 pageSize 的进程
+      const response = await getPermissions({
+        page: 1,
+        size: -1,
+        pageSize: 500,
+      } as API.getPermissionsParams);
       if (response.code === 200 && response.data?.items) {
-        return response.data.items.map((item:any) => ({
-          label: item.name,
-          value: item.permission_id,
-        }));
+        return response.data.items
+          .map((item) => ({
+            label: permissionOptionLabel(item),
+            value: item.permission_id || '',
+            code: item.code || '',
+          }))
+          .filter((item) => item.value && item.label)
+          .sort((a, b) => a.label.localeCompare(b.label, 'zh'));
       }
       return [];
     } catch (error) {
       console.error('获取权限列表失败:', error);
       return [];
     }
-  };
-
-  // 更新权限字段的 request 函数
-  const updatePermissionsRequest = async () => {
-    const permissions = await fetchPermissions();
-    // 更新 schema 中的权限字段
-    const permissionField = editFormFields.find(
-      (field) => field.dataIndex === 'permissions',
-    ) as (typeof editFormFields)[number] & {
-      request?: () => Promise<{ label: string; value: string }[]>;
-    };
-    if (permissionField) {
-      permissionField.request = async () => permissions;
-    }
-    return permissions;
   };
 
   // 处理保存详情
@@ -186,10 +191,11 @@ const Page: React.FC = () => {
           detailsValue: { 
             ...detailsValue, 
             ...updateData,
-            permissions: values.permissions ? 
-              (await fetchPermissions()).filter(p => values.permissions.includes(p.value))
-                .map(p => ({ permission_id: p.value, name: p.label, code: '' })) : 
-              detailsValue.permissions,
+            permissions: values.permissions
+              ? (permissionOptions.length ? permissionOptions : await fetchPermissions())
+                  .filter((p) => values.permissions.includes(p.value))
+                  .map((p) => ({ permission_id: p.value, name: p.label, code: p.code || '' }))
+              : detailsValue.permissions,
           } as Role,
         });
         if (actionRef.current) {
@@ -207,10 +213,47 @@ const Page: React.FC = () => {
     }
   };
 
-  // 在组件挂载时获取权限列表
-  useEffect(() => {
-    updatePermissionsRequest();
+  const loadPermissionOptions = useCallback(async () => {
+    const options = await fetchPermissions();
+    setPermissionOptions(options);
+    return options;
   }, []);
+
+  useEffect(() => {
+    void loadPermissionOptions();
+  }, [loadPermissionOptions]);
+
+  const detailColumns = useMemo(() => {
+    const valueEnum = Object.fromEntries(
+      permissionOptions.map((item) => [item.value, { text: item.label }]),
+    );
+    const withOptions = <T extends { dataIndex?: string; fieldProps?: Record<string, unknown> }>(
+      fields: T[],
+    ) =>
+      fields.map((field) => {
+        if (field.dataIndex !== 'permissions') return field;
+        return {
+          ...field,
+          valueEnum,
+          fieldProps: {
+            ...(field.fieldProps || {}),
+            mode: 'multiple',
+            showSearch: true,
+            options: permissionOptions,
+            optionFilterProp: 'label',
+            optionLabelProp: 'label',
+            filterOption: (input: string, option?: { label?: string; code?: string }) => {
+              const text = `${option?.label ?? ''} ${option?.code ?? ''}`.toLowerCase();
+              return text.includes(input.toLowerCase());
+            },
+          },
+        };
+      });
+    return {
+      detail: withOptions(detailFields),
+      edit: withOptions(editFormFields),
+    };
+  }, [permissionOptions]);
 
   // 添加操作列
   const columns: ProColumns<Role>[] = [
@@ -544,7 +587,7 @@ const Page: React.FC = () => {
               <BetaSchemaForm
                 key={`form-${detailsValue.role_id}`}
                 layoutType="Form"
-                columns={isDetailsEditable ? editFormFields : detailFields}
+                columns={isDetailsEditable ? detailColumns.edit : detailColumns.detail}
                 readonly={!isDetailsEditable}
                 title={detailsValue.role_name}
                 initialValues={{

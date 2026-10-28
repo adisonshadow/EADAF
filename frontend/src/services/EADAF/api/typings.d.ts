@@ -1236,6 +1236,8 @@ declare namespace API {
   };
 
   type SystemFeatures = {
+    /** 当前平台版本（仓库根 package.json，只读） */
+    version?: string;
     metadataEnabled?: boolean;
     apiServiceAllowWriteOperations?: boolean;
     apiServiceTestAutoRollback?: boolean;

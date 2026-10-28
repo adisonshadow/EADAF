@@ -34,10 +34,11 @@ const restoreUploadMiddleware = koaBody({
  *   get:
  *     tags: [System]
  *     summary: 获取系统功能开关 [需要认证]
+ *     description: 返回功能开关。data.version 为当前平台版本（仓库根 package.json），只读，不随 PUT 写入。
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200:
- *         description: 获取成功，data 为系统功能开关
+ *         description: 获取成功，data 为系统功能开关；含只读字段 version（当前平台版本）
  *         content:
  *           application/json:
  *             schema:

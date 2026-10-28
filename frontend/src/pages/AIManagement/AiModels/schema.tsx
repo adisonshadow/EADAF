@@ -7,6 +7,10 @@ export const modelTableColumns: ProColumns<API.AdminAiModel>[] = [
     dataIndex: 'slug',
     copyable: true,
     width: 140,
+    // 列表不展示；字段保留，搜索和列设置里也不出现
+    hideInTable: true,
+    hideInSearch: true,
+    search: false,
   },
   {
     title: '显示名称',

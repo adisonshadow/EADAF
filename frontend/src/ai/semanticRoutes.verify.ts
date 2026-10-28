@@ -193,7 +193,7 @@ const CRITICAL_PATHS = [
   '/app_deployment/publish-platform', '/app_deployment/publish-app',
   '/ai_management', '/ai_management/providers', '/ai_management/models', '/ai_management/scopes',
   '/ai_management/tools', '/ai_management/skills', '/ai_management/chat-demo',
-  '/ai_management/request-logs', '/system', '/system/operation-logs', '/system/settings', '/account/center',
+  '/ai_management/request-logs', '/system', '/system/operation-logs', '/system/settings', '/account/center', '/account/sessions',
 ];
 for (const p of CRITICAL_PATHS) {
   assert.ok(metaByPath.has(p), `appRouteMeta 缺少关键 path: ${p}`);
@@ -221,8 +221,10 @@ assert.equal(metaByPath.get('/system')?.hideInMenu, true);
 assert.equal(metaByPath.get('/system/operation-logs')?.name, '操作日志');
 assert.equal(metaByPath.get('/system/operation-logs')?.hideInMenu, true);
 assert.equal(metaByPath.get('/system/settings')?.hideInMenu, true);
-assert.equal(metaByPath.get('/account/center')?.layout, false);
-assert.equal(metaByPath.get('/account/center')?.hideMenu, true);
+assert.equal(metaByPath.get('/account/center')?.hideInMenu, true);
+assert.equal(metaByPath.get('/account/center')?.layout, undefined);
+assert.equal(metaByPath.get('/account/sessions')?.name, '我的账户登录信息');
+assert.equal(metaByPath.get('/account/sessions')?.hideInMenu, true);
 
 // 菜单根顺序（系统分组不进主导航，仅头像下拉）
 const menu = buildMenuData();

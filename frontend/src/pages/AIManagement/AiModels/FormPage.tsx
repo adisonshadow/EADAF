@@ -234,6 +234,7 @@ const ModelFormPage: React.FC<ModelFormPageProps> = ({ mode }) => {
           <ProFormText
             name="slug"
             label="Slug"
+            hidden={mode !== 'view'}
             extra="留空将根据显示名称自动生成"
             rules={[
               {

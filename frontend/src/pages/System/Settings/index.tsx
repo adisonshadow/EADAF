@@ -5,13 +5,14 @@ import {
   ApiServiceSettingsTab,
   BackupSettingsTab,
   GeneralSettingsTab,
-  MetadataSettingsTab,
 } from './tabs';
 
 /**
  * 系统设置。
  * 注意：「应用数据导出/导入」「EADAF数据导出/导入」已迁到导航「应用部署」下，
- * 不再作为系统设置 Tab；设置里只保留通用 / 元数据 / API 服务 / 备份。
+ * 不再作为系统设置 Tab；设置里只保留通用 / API 服务 / 备份。
+ * 「应用元数据」开关原在「元数据」Tab，现归入通用设置的「元数据」分组。
+ * 通用设置分三项：系统（当前版本）、样式（界面主题、表格密度）、元数据（应用元数据）。
  */
 const SystemSettingsPage: React.FC = () => {
   return (
@@ -22,11 +23,6 @@ const SystemSettingsPage: React.FC = () => {
             key: 'general',
             label: '通用',
             children: <GeneralSettingsTab />,
-          },
-          {
-            key: 'metadata',
-            label: '元数据',
-            children: <MetadataSettingsTab />,
           },
           {
             key: 'api-service',

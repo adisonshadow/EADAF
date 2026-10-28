@@ -39,38 +39,128 @@ const UI_THEME_OPTIONS: { label: string; value: UiThemePreference }[] = [
 export const GeneralSettingsTab: React.FC = () => {
   const { preference, setPreference } = useUiTheme();
   const { density, setDensity } = useProTableDensity();
+  const { initialState, setInitialState } = useInitialState();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [version, setVersion] = useState(initialState?.systemFeatures?.version || '');
+  const [metadataEnabled, setMetadataEnabled] = useState(
+    initialState?.systemFeatures?.metadataEnabled ?? false,
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getSystemFeatures();
+      if (isApiSuccess(res)) {
+        const data = getApiData<API.SystemFeatures>(res);
+        setVersion(data?.version || '');
+        setMetadataEnabled(Boolean(data?.metadataEnabled));
+        setInitialState((prev) =>
+          prev
+            ? {
+                ...prev,
+                systemFeatures: { ...prev.systemFeatures, ...data },
+              }
+            : prev,
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [setInitialState]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const handleMetadataChange = async (checked: boolean) => {
+    setSaving(true);
+    try {
+      const res = await putSystemFeatures({ metadataEnabled: checked });
+      if (isApiSuccess(res)) {
+        const data = getApiData<API.SystemFeatures>(res);
+        setVersion(data?.version || '');
+        setMetadataEnabled(Boolean(data?.metadataEnabled));
+        setInitialState((prev) =>
+          prev
+            ? {
+                ...prev,
+                systemFeatures: {
+                  ...prev.systemFeatures,
+                  ...data,
+                  metadataEnabled: Boolean(data?.metadataEnabled),
+                },
+              }
+            : prev,
+        );
+        message.success('已保存');
+      } else {
+        message.error(res.message || '保存失败');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <Card>
-      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+      <Card title="系统">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <Typography.Text strong>界面主题</Typography.Text>
+            <Typography.Text strong>当前版本</Typography.Text>
             <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-              仅保存在本浏览器；跟随系统时会随操作系统浅色/深色自动切换
+              当前运行的平台版本
             </div>
           </div>
-          <Segmented
-            options={UI_THEME_OPTIONS}
-            value={preference}
-            onChange={(value) => setPreference(value as UiThemePreference)}
-          />
+          <Typography.Text>{loading && !version ? '…' : version || '-'}</Typography.Text>
         </div>
+      </Card>
+      <Card title="样式">
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <Typography.Text strong>界面主题</Typography.Text>
+              <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                仅保存在本浏览器；跟随系统时会随操作系统浅色/深色自动切换
+              </div>
+            </div>
+            <Segmented
+              options={UI_THEME_OPTIONS}
+              value={preference}
+              onChange={(value) => setPreference(value as UiThemePreference)}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <Typography.Text strong>表格密度</Typography.Text>
+              <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                统一应用到站内所有数据表格（工具栏已不再提供密度按钮）；仅保存在本浏览器
+              </div>
+            </div>
+            <Segmented
+              options={PRO_TABLE_DENSITY_OPTIONS}
+              value={density}
+              onChange={(value) => setDensity(value as ProTableDensity)}
+            />
+          </div>
+        </Space>
+      </Card>
+      <Card title="元数据">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <Typography.Text strong>表格密度</Typography.Text>
+            <Typography.Text strong>应用元数据</Typography.Text>
             <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-              统一应用到站内所有数据表格（工具栏已不再提供密度按钮）；仅保存在本浏览器
+              开启后，业务数据菜单将显示「数据标准」与「元数据」，并可在模型/指标/枚举中编辑元数据
             </div>
           </div>
-          <Segmented
-            options={PRO_TABLE_DENSITY_OPTIONS}
-            value={density}
-            onChange={(value) => setDensity(value as ProTableDensity)}
+          <Switch
+            checked={metadataEnabled}
+            loading={saving || loading}
+            onChange={(checked) => void handleMetadataChange(checked)}
           />
         </div>
-      </Space>
-    </Card>
+      </Card>
+    </Space>
   );
 };
 
@@ -425,84 +515,6 @@ export const BackupSettingsTab: React.FC = () => {
           <p className="ant-upload-hint">仅支持本系统备份产生的 .dump 格式文件</p>
         </Upload.Dragger>
       </Modal>
-    </Card>
-  );
-};
-
-export const MetadataSettingsTab: React.FC = () => {
-  const { initialState, setInitialState } = useInitialState();
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [metadataEnabled, setMetadataEnabled] = useState(
-    initialState?.systemFeatures?.metadataEnabled ?? false,
-  );
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await getSystemFeatures();
-      if (isApiSuccess(res)) {
-        const data = getApiData<API.SystemFeatures>(res);
-        setMetadataEnabled(Boolean(data?.metadataEnabled));
-        setInitialState((prev) =>
-          prev
-            ? {
-                ...prev,
-                systemFeatures: { ...prev.systemFeatures, ...data },
-              }
-            : prev,
-        );
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [setInitialState]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const handleSave = async (checked: boolean) => {
-    setSaving(true);
-    try {
-      const res = await putSystemFeatures({ metadataEnabled: checked });
-      if (isApiSuccess(res)) {
-        const data = getApiData<API.SystemFeatures>(res);
-        setMetadataEnabled(Boolean(data?.metadataEnabled));
-        setInitialState((prev) =>
-          prev
-            ? {
-                ...prev,
-                systemFeatures: { ...prev.systemFeatures, metadataEnabled: Boolean(data?.metadataEnabled) },
-              }
-            : prev,
-        );
-        message.success('已保存');
-      } else {
-        message.error(res.message || '保存失败');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Card loading={loading}>
-      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <Typography.Text strong>应用元数据</Typography.Text>
-            <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-              开启后，业务数据菜单将显示「数据标准」与「元数据」，并可在模型/指标/枚举中编辑元数据
-            </div>
-          </div>
-          <Switch
-            checked={metadataEnabled}
-            loading={saving}
-            onChange={(checked) => void handleSave(checked)}
-          />
-        </div>
-      </Space>
     </Card>
   );
 };

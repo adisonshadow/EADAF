@@ -4,7 +4,7 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const config = require('../../config');
 const { BizdataSetting } = require('../../models');
-const { resolveBash, toBashPath } = require('../appDeployment/packRuntime');
+const { resolveBash, toBashPath, readPackageVersion, REPO_ROOT } = require('../appDeployment/packRuntime');
 
 const execFileAsync = promisify(execFile);
 
@@ -103,9 +103,15 @@ function formatStandard(row) {
   };
 }
 
+/** 当前平台版本：仓库根 package.json 的 version，只读，不写入 system_features */
+function readPlatformVersion() {
+  return readPackageVersion(REPO_ROOT) || '';
+}
+
 async function getSystemFeatures() {
   const stored = formatStoredFeatures(await readStoredFeatures());
   return {
+    version: readPlatformVersion(),
     metadataEnabled: stored.metadataEnabled,
     apiServiceAllowWriteOperations: stored.apiServiceAllowWriteOperations,
     apiServiceTestAutoRollback: stored.apiServiceTestAutoRollback,
