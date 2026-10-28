@@ -392,10 +392,15 @@ class PermissionController {
     }
   }
 
-  // 获取权限列表
+  // 获取权限列表。size 与 swagger 一致；pageSize 仅作旧调用兜底。size=-1 返回全部。
   static async list(ctx) {
-    const { page = 1, pageSize = 10, resource_type } = ctx.query;
-    const offset = (page - 1) * pageSize;
+    const pageNum = parseInt(ctx.query.page, 10) || 1;
+    const rawSize = ctx.query.size !== undefined && ctx.query.size !== ''
+      ? ctx.query.size
+      : ctx.query.pageSize;
+    const sizeNum = parseInt(rawSize, 10);
+    const resolvedSize = Number.isFinite(sizeNum) ? sizeNum : 10;
+    const { resource_type } = ctx.query;
 
     try {
       const where = {};
@@ -403,11 +408,31 @@ class PermissionController {
         where.resource_type = resource_type;
       }
 
+      const order = [['created_at', 'DESC']];
+
+      if (resolvedSize === -1) {
+        const rows = await Permission.findAll({ where, order });
+        ctx.status = 200;
+        ctx.body = {
+          code: 200,
+          message: '获取权限列表成功',
+          data: {
+            total: rows.length,
+            items: rows,
+            page: 1,
+            size: rows.length,
+          },
+        };
+        return;
+      }
+
+      const limit = resolvedSize > 0 ? resolvedSize : 10;
+      const offset = (Math.max(pageNum, 1) - 1) * limit;
       const { count, rows } = await Permission.findAndCountAll({
         where,
         offset,
-        limit: parseInt(pageSize),
-        order: [['created_at', 'DESC']]
+        limit,
+        order,
       });
 
       ctx.status = 200;
@@ -417,9 +442,9 @@ class PermissionController {
         data: {
           total: count,
           items: rows,
-          page: parseInt(page),
-          size: parseInt(pageSize)
-        }
+          page: Math.max(pageNum, 1),
+          size: limit,
+        },
       };
     } catch (error) {
       console.error('获取权限列表失败:', error);

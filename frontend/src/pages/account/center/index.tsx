@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Tabs, Button, ConfigProvider, theme } from 'antd';
+import { Tabs, ConfigProvider, theme } from 'antd';
+import { PageContainer } from '@ant-design/pro-components';
 import { useSearchParams } from 'react-router-dom';
 import Lottie from 'react-lottie-player';
 import ProfileForm from './components/ProfileForm';
 import PasswordForm from './components/PasswordForm';
-import LoginDevices from './components/LoginDevices';
 import FirstLoginSetupModal from './components/FirstLoginSetupModal';
 import styles from './index.module.scss';
-import { LeftOutlined, LogoutOutlined } from '@ant-design/icons';
-import { history } from '@/utils/navigation';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import goodJobLottie from '@/assets/lotties/good-job.json';
-import defaultSettings from '../../../../config/defaultSettings';
 
 function isEmbedMode(params: URLSearchParams) {
   const embed = params.get('embed');
@@ -26,7 +23,13 @@ export function resolveAccountTheme(params: URLSearchParams): 'light' | 'dark' {
 
 const AccountCenter: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const embed = isEmbedMode(searchParams);
   const pageTheme = resolveAccountTheme(searchParams);
+
+  // 平台内跟随主布局主题；只有嵌入业务应用时才按 ?theme= 单独包一层
+  if (!embed) {
+    return <AccountCenterPage pageTheme={pageTheme} embed={false} />;
+  }
 
   return (
     <ConfigProvider
@@ -37,19 +40,21 @@ const AccountCenter: React.FC = () => {
         },
       }}
     >
-      <AccountCenterPage pageTheme={pageTheme} />
+      <AccountCenterPage pageTheme={pageTheme} embed />
     </ConfigProvider>
   );
 };
 
-const AccountCenterPage: React.FC<{ pageTheme: 'light' | 'dark' }> = ({ pageTheme }) => {
+const AccountCenterPage: React.FC<{ pageTheme: 'light' | 'dark'; embed: boolean }> = ({
+  pageTheme,
+  embed,
+}) => {
   const { token } = theme.useToken();
   const { initialState, refresh } = useInitialState();
-  const [searchParams] = useSearchParams();
-  const embed = isEmbedMode(searchParams);
   const canvas = pageTheme === 'dark' ? token.colorBgLayout : token.colorBgContainer;
 
   useEffect(() => {
+    if (!embed) return undefined;
     const html = document.documentElement;
     const body = document.body;
     const prev = {
@@ -65,7 +70,7 @@ const AccountCenterPage: React.FC<{ pageTheme: 'light' | 'dark' }> = ({ pageThem
       body.style.backgroundColor = prev.bodyBg;
       html.style.colorScheme = prev.scheme;
     };
-  }, [canvas, pageTheme]);
+  }, [canvas, embed, pageTheme]);
   const [activeTab, setActiveTab] = useState('profile');
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -77,22 +82,53 @@ const AccountCenterPage: React.FC<{ pageTheme: 'light' | 'dark' }> = ({ pageThem
     }, 2000);
   };
 
-  /**
-   * 退出登录：统一走 `/auth/logout` 中转页（撤 refresh + 清平台会话位与所有应用令牌，
-   * 带 `?app=` 时登出后回该应用）。
-   */
-  const loginOut = () => {
-    const app_id = new URL(window.location.href).searchParams.get('app');
-    history.push(app_id ? `/auth/logout?app=${encodeURIComponent(app_id)}` : '/auth/logout');
-  };
-
   if (!initialState?.currentUser) {
     return null;
   }
 
   const mustChangePassword = !!initialState.currentUser.must_change_password;
-  const brandingLogo = initialState.settings?.logo || defaultSettings.logo;
-  const brandingName = initialState.settings?.title || defaultSettings.title;
+
+  const tabs = (
+    <Tabs
+      activeKey={activeTab}
+      onChange={setActiveTab}
+      centered
+      items={[
+        {
+          key: 'profile',
+          label: '修改资料',
+          children: <ProfileForm onSuccess={handleSuccess} />,
+        },
+        {
+          key: 'password',
+          label: '修改密码',
+          children: <PasswordForm onSuccess={handleSuccess} />,
+        },
+      ]}
+    />
+  );
+
+  const success = showSuccess ? (
+    <div className={styles['account-center-success-animation']}>
+      <Lottie
+        animationData={goodJobLottie}
+        loop={false}
+        play
+        style={{ width: 200, height: 200 }}
+      />
+    </div>
+  ) : null;
+
+  // 平台内走主布局顶栏，与系统设置同一套 header；嵌入业务应用时仍是独立页
+  if (!embed) {
+    return (
+      <PageContainer title={<></>}>
+        <FirstLoginSetupModal open={mustChangePassword} />
+        <div className={styles['account-center-container']}>{tabs}</div>
+        {success}
+      </PageContainer>
+    );
+  }
 
   return (
     <div
@@ -109,62 +145,8 @@ const AccountCenterPage: React.FC<{ pageTheme: 'light' | 'dark' }> = ({ pageThem
     >
       <div className={styles['account-center-container']}>
         <FirstLoginSetupModal open={mustChangePassword} />
-        {!embed && (
-          <div className='d-flex justify-content-between align-items-center'>
-            <Button type='link' onClick={() => {
-              history.back();
-            }}>
-              <LeftOutlined /> 返回
-            </Button>
-
-            <img
-              src={brandingLogo}
-              alt={typeof brandingName === 'string' ? brandingName : undefined}
-              className={styles['account-center-logo']}
-            />
-
-            <Button type='link' onClick={() => {
-              loginOut();
-            }}>
-              <LogoutOutlined /> 退出
-            </Button>
-          </div>
-        )}
-        <div className={embed ? undefined : 'mt-4'}>
-          <Tabs
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            centered
-            items={[
-              {
-                key: 'profile',
-                label: '修改资料',
-                children: <ProfileForm onSuccess={handleSuccess} />,
-              },
-              {
-                key: 'password',
-                label: '修改密码',
-                children: <PasswordForm onSuccess={handleSuccess} />,
-              },
-              {
-                key: 'devices',
-                label: '登录设备',
-                // SSO 会话（sid）：一个浏览器一条，撤销即该设备上的管理台与所有业务应用一起退出
-                children: <LoginDevices />,
-              },
-            ]}
-          />
-        </div>
-        {showSuccess && (
-          <div className={styles['account-center-success-animation']}>
-            <Lottie
-              animationData={goodJobLottie}
-              loop={false}
-              play
-              style={{ width: 200, height: 200 }}
-            />
-          </div>
-        )}
+        {tabs}
+        {success}
       </div>
     </div>
   );

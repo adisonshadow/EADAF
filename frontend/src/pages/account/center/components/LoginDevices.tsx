@@ -71,8 +71,8 @@ const LoginDevices: React.FC = () => {
       setItems(Array.isArray(data?.items) ? data.items : []);
       setStoreAvailable(data?.store_available !== false);
     } catch (error) {
-      console.error('获取登录设备失败:', error);
-      message.error('获取登录设备失败');
+      console.error('获取登录信息失败:', error);
+      message.error('获取登录信息失败');
     } finally {
       setLoading(false);
     }
@@ -141,7 +141,7 @@ const LoginDevices: React.FC = () => {
           type="warning"
           showIcon
           style={{ marginBottom: 12 }}
-          message="会话存储不可用，暂时查不到登录设备"
+          message="会话存储不可用，暂时查不到登录信息"
           description="后端未连上 Redis：此时「登出立即失效」会退化为等访问令牌过期。请联系管理员检查 Redis。"
         />
       ) : null}

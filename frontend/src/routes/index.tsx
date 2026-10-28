@@ -31,6 +31,7 @@ const ApplicationOutboundWebhooksDocs = lazy(() => import('@/pages/ServiceProvid
 const ApplicationApiSkill = lazy(() => import('@/pages/ServiceProvider/Applications/PublicApiCatalog/ApiSkillPage'));
 const BusinessDataMetadataAI = lazy(() => import('@/wrappers/BusinessDataMetadataAI'));
 const AccountCenter = lazy(() => import('@/pages/account/center'));
+const AccountSessions = lazy(() => import('@/pages/account/sessions'));
 const Page404 = lazy(() => import('@/pages/404'));
 const Page403 = lazy(() => import('@/pages/403'));
 const Page401 = lazy(() => import('@/pages/401'));
@@ -147,10 +148,10 @@ export default function AppRoutes() {
         </Route>
 
         <Route element={<SecurityLayout />}>
-          <Route element={<AppLayout />}>{buildBusinessRoutes()}</Route>
-
-          <Route element={<AIChatHidden />}>
+          <Route element={<AppLayout />}>
+            {buildBusinessRoutes()}
             <Route path="/account/center" element={<AccountCenter />} />
+            <Route path="/account/sessions" element={<AccountSessions />} />
           </Route>
         </Route>
 

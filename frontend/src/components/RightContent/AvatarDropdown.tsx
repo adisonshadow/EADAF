@@ -1,4 +1,4 @@
-import { AuditOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { AuditOutlined, DesktopOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { history } from '@/utils/navigation';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import { Spin, Avatar } from 'antd';
@@ -55,6 +55,10 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
         history.push('/system/settings');
         return;
       }
+      if (key === 'account-sessions') {
+        history.push('/account/sessions');
+        return;
+      }
       if (key === 'operation-logs') {
         history.push('/system/operation-logs');
         return;
@@ -103,6 +107,11 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
             key: 'settings',
             icon: <SettingOutlined />,
             label: '系统设置',
+          },
+          {
+            key: 'account-sessions',
+            icon: <DesktopOutlined />,
+            label: '我的登录信息',
           },
           {
             key: 'operation-logs',

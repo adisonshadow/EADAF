@@ -49,6 +49,14 @@ export default function AppLayout() {
   const { initialState } = useInitialState();
   const { resolved: uiTheme } = useUiTheme();
   const routeMeta = findRouteMeta(location.pathname);
+  // 嵌入业务应用时个人中心不套平台顶栏（?embed=1 / ?hideHeader=1）
+  const embedAccountCenter = (() => {
+    if (location.pathname !== '/account/center') return false;
+    const params = new URLSearchParams(location.search);
+    const embed = params.get('embed');
+    const hideHeader = params.get('hideHeader');
+    return embed === '1' || embed === 'true' || hideHeader === '1' || hideHeader === 'true';
+  })();
   const currentUser = initialState?.currentUser;
   const metadataEnabled = Boolean(initialState?.systemFeatures?.metadataEnabled);
 
@@ -111,7 +119,7 @@ export default function AppLayout() {
       actionsRender={actionsRender}
       footerRender={footerRender}
       menuRender={routeMeta?.hideMenu ? false : undefined}
-      pure={routeMeta?.layout === false}
+      pure={routeMeta?.layout === false || embedAccountCenter}
       contentStyle={
         routeMeta?.hideMenu || routeMeta?.noContentPadding
           ? {
