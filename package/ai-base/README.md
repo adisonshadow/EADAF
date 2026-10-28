@@ -790,6 +790,11 @@ pnpm dev      # tsup --watch（宿主读 dist 联调时可用）
 
 ```bash
 cd package/ai-base
+npm login
+
+# 如果登录地址不对，记得切换 官方镜像 npm config set registry https://registry.npmjs.org/
+# 确认登录后发布
+
 npm publish --access public
 ```
 
