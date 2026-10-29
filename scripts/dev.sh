@@ -172,6 +172,25 @@ wait_for_port() {
   return 1
 }
 
+print_startup_report() {
+  # 自检写在 backend 日志里，父进程终端默认看不到，这里把最近一次贴回来。
+  local report
+  report="$(awk '
+    index($0, "────────────── 启动自检 ──────────────") { capture = 1; buf = $0; next }
+    capture { buf = buf "\n" $0 }
+    index($0, "────────────────────────────────────────────────────────────") && capture { last = buf; capture = 0 }
+    END { if (last != "") print last }
+  ' "$BACKEND_LOG" 2>/dev/null || true)"
+  if [[ -z "$report" ]]; then
+    report="$(grep -a '启动自检通过' "$BACKEND_LOG" 2>/dev/null | tail -n 1 || true)"
+  fi
+  if [[ -n "$report" ]]; then
+    echo ""
+    printf '%s\n' "$report"
+    echo ""
+  fi
+}
+
 start_backend() {
   echo "    启动 pnpm --filter \"$BACKEND_FILTER\" dev"
   echo "    日志: $BACKEND_LOG"
@@ -204,6 +223,7 @@ start_backend() {
       BACKEND_PORT="$EXPECTED_PORT"
       started=1
       echo "    检测到启动日志：$started_line"
+      print_startup_report
       break
     fi
 
@@ -212,6 +232,7 @@ start_backend() {
       BACKEND_PORT="$EXPECTED_PORT"
       started=1
       echo "    检测到端口 $EXPECTED_PORT 已可连且健康检查通过"
+      print_startup_report
       break
     fi
 
@@ -251,9 +272,10 @@ echo "================================================================"
 if port_listening "$EXPECTED_PORT"; then
   if backend_healthy "$EXPECTED_PORT"; then
     echo "♻️  端口 $EXPECTED_PORT 上已有可用 backend，跳过重复启动（nodemon 会热重载）。"
+    echo "    启动自检只在 backend 进程起来时打印，这次不会再打一遍。"
     echo "    Local:   http://localhost:${EXPECTED_PORT}/api/v1/health"
     print_lan_urls "$EXPECTED_PORT" "Network:"
-    echo "    若要强制重启：pnpm killdev && pnpm dev"
+    echo "    若要再看启动自检：pnpm killdev && pnpm dev"
   else
     echo "❌ 端口 $EXPECTED_PORT 已被占用，但健康检查失败，无法确认是本仓库 backend："
     describe_port "$EXPECTED_PORT"

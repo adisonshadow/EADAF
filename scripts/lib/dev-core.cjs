@@ -445,6 +445,37 @@ function describeEnvHint() {
   ].join('\n    ');
 }
 
+/** 从 backend 日志里取出最近一次启动自检。自检写在子进程日志里，父进程终端默认看不到。 */
+function extractStartupReport(content) {
+  const text = String(content || '');
+  const start = '────────────── 启动自检 ──────────────';
+  const end = '────────────────────────────────────────────────────────────';
+  const startAt = text.lastIndexOf(start);
+  if (startAt !== -1) {
+    const endAt = text.indexOf(end, startAt);
+    if (endAt !== -1) return text.slice(startAt, endAt + end.length).replace(/\r/g, '');
+  }
+  const lines = text.split(/\r?\n/);
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    if (lines[index].includes('启动自检通过')) return lines[index];
+  }
+  return '';
+}
+
+function printStartupReportFromLog(logFile) {
+  let content = '';
+  try {
+    content = fs.readFileSync(logFile, 'utf8');
+  } catch {
+    return;
+  }
+  const report = extractStartupReport(content);
+  if (!report) return;
+  log('');
+  log(report);
+  log('');
+}
+
 function tailFile(file, lines = 60) {
   try {
     const text = fs.readFileSync(file, 'utf8');
@@ -479,11 +510,13 @@ async function waitForBackend(child, logFile, expectedPort) {
     const match = content.match(startedRe);
     if (match) {
       log(`    检测到启动日志：${match[0]}`);
+      printStartupReportFromLog(logFile);
       return expectedPort;
     }
 
     if ((await portListening(expectedPort, 300)) && (await backendHealthy(expectedPort))) {
       log(`    检测到端口 ${expectedPort} 已可连且健康检查通过`);
+      printStartupReportFromLog(logFile);
       return expectedPort;
     }
 
@@ -589,9 +622,10 @@ async function runStack({ quietHeader = false, mode = 'dev', header = null } = {
   if (await portListening(expectedPort)) {
     if (await backendHealthy(expectedPort)) {
       ok(`♻️  端口 ${expectedPort} 上已有可用 backend，跳过重复启动（nodemon 会热重载）。`);
+      log('    启动自检只在 backend 进程起来时打印，这次不会再打一遍。');
       log(`    Local:   http://localhost:${expectedPort}${CFG.healthPath}`);
       printLanUrls(expectedPort, 'Network:');
-      log('    若要强制重启：pnpm killdev && pnpm dev');
+      log('    若要再看启动自检：pnpm killdev && pnpm dev');
     } else {
       fail(`❌ 端口 ${expectedPort} 已被占用，但健康检查失败，无法确认是本仓库 backend：`);
       log('    请先执行：pnpm killdev');
@@ -677,6 +711,7 @@ async function runStack({ quietHeader = false, mode = 'dev', header = null } = {
 }
 
 module.exports = {
+  extractStartupReport,
   probeEnvironment,
   printCheckReport,
   runStack,
