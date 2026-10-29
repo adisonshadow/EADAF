@@ -51,6 +51,10 @@ const router = new Router({ prefix: '/api/v1/admin/operation-logs' });
  *       - in: query
  *         name: keyword
  *         schema: { type: string }
+ *       - in: query
+ *         name: operatorThreeMemberRoles
+ *         schema: { type: string, example: system_admin,security_admin }
+ *         description: 按写入时的三员身份过滤，逗号分隔
  *     responses:
  *       200:
  *         description: 获取成功

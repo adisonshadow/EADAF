@@ -43,7 +43,31 @@ class SystemController {
 
   static async updateFeatures(ctx) {
     try {
-      const data = await systemService.updateSystemFeatures(ctx.request.body || {});
+      const body = ctx.request.body || {};
+      const logTouched = body.logRotationReset === true
+        || body.logMaxSize !== undefined
+        || body.logRetentionDays !== undefined
+        || body.logErrorRetentionDays !== undefined
+        || body.logZippedArchive !== undefined;
+      if (logTouched && body.logRotationReset !== true) {
+        const { queueSystemAdminAction } = require('../services/system/threeMemberApprovalService');
+        const queued = await queueSystemAdminAction(ctx, {
+          actionType: 'log_rotation',
+          summary: '修改日志滚动配置',
+          payload: {
+            features: {
+              logMaxSize: body.logMaxSize,
+              logRetentionDays: body.logRetentionDays,
+              logErrorRetentionDays: body.logErrorRetentionDays,
+              logZippedArchive: body.logZippedArchive,
+            },
+          },
+        });
+        if (queued) return;
+      }
+      const data = await systemService.updateSystemFeatures(body, {
+        skipApproval: Boolean(ctx.state.approvalExecution),
+      });
       ctx.body = { code: 200, message: '更新系统功能开关成功', data };
     } catch (error) {
       sendError(ctx, error, 400);
@@ -80,6 +104,15 @@ class SystemController {
     }
 
     try {
+      const { queueSystemAdminAction, holdDumpFile } = require('../services/system/threeMemberApprovalService');
+      const held = await holdDumpFile(file.filepath);
+      const queued = await queueSystemAdminAction(ctx, {
+        actionType: 'restore_backup',
+        summary: '恢复数据库',
+        payload: { filepath: held },
+      });
+      if (queued) return;
+      await fs.unlink(held).catch(() => {});
       const data = await systemService.restoreBackup(file.filepath);
       ctx.body = { code: 200, message: '数据恢复完成', data };
     } catch (error) {

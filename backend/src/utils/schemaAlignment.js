@@ -29,6 +29,21 @@ const logger = require('./logger');
 const FOLLOW_UP_DDL = [
   'CREATE INDEX IF NOT EXISTS idx_api_request_logs_turn_id'
     + ' ON aibase.api_request_logs (turn_id)',
+  `CREATE TABLE IF NOT EXISTS eadaf.three_member_approvals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    action_type VARCHAR(64) NOT NULL,
+    summary VARCHAR(500) NOT NULL,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    requester_id UUID NOT NULL,
+    requester_name VARCHAR(100),
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    comment TEXT,
+    reviewer_id UUID,
+    reviewer_name VARCHAR(100),
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+  )`,
 ];
 
 /** 这些类型的列不能直接用 toSql() 内联进 DDL（需要先建类型 / 无对应列类型）。 */

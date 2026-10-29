@@ -21,6 +21,7 @@ export interface Permission {
   parent_id?: string;
   status?: 'ACTIVE' | 'DISABLED';
   access_restriction?: AccessRestriction | null;
+  three_member_duty?: 'business' | 'system_admin' | 'security_admin' | 'auditor' | null;
   created_at?: string;
   updated_at?: string;
   children?: Permission[];

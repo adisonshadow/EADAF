@@ -14,6 +14,8 @@ export type OperationLogListParams = {
   endTime?: string;
   traceId?: string;
   keyword?: string;
+  /** 逗号分隔的三员身份，如 system_admin,security_admin */
+  operatorThreeMemberRoles?: string;
 };
 
 export async function getAdminOperationLogs(params?: OperationLogListParams) {

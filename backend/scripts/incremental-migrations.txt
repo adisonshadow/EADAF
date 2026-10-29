@@ -30,3 +30,5 @@ migrate-eadaf-ai-skills.sql
 migrate-app-transfer-permissions.sql
 migrate-platform-transfer-permissions.sql
 migrate-app-deployment-permissions.sql
+migrate-three-member.sql
+migrate-three-member-approval.sql

@@ -12,6 +12,8 @@ import {
   postSystemBackupRun,
   putSystemFeatures,
 } from '@/services/EADAF/api/system';
+import { getUsers } from '@/services/EADAF/api/users';
+import { THREE_MEMBER_ROLE_OPTIONS, type ThreeMemberRole } from '@/utils/threeMember';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { formatCronSummary } from '@/utils/cron';
@@ -51,7 +53,7 @@ export const GeneralSettingsTab: React.FC = () => {
   const { token } = theme.useToken();
   const { preference, setPreference } = useUiTheme();
   const { density, setDensity } = useProTableDensity();
-  const { initialState, setInitialState } = useInitialState();
+  const { initialState, setInitialState, refresh } = useInitialState();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [version, setVersion] = useState(initialState?.systemFeatures?.version || '');
@@ -74,6 +76,19 @@ export const GeneralSettingsTab: React.FC = () => {
     Boolean(initialState?.systemFeatures?.logRotationIsCustom),
   );
   const [logSaving, setLogSaving] = useState(false);
+  const [threeMemberEnabled, setThreeMemberEnabled] = useState(
+    Boolean(initialState?.systemFeatures?.threeMemberEnabled),
+  );
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [userOptions, setUserOptions] = useState<{ label: string; value: string }[]>([]);
+  const [assignments, setAssignments] = useState<Record<ThreeMemberRole, string>>({
+    system_admin: '',
+    security_admin: '',
+    auditor: '',
+  });
+  const memberRole = initialState?.currentUser?.three_member_role || null;
+  const canGovern = !threeMemberEnabled || memberRole === 'security_admin';
+  const canMaintain = !threeMemberEnabled || memberRole === 'system_admin';
 
   const applyLogFields = (data?: API.SystemFeatures) => {
     const size = splitLogSize(data?.logMaxSize);
@@ -93,6 +108,7 @@ export const GeneralSettingsTab: React.FC = () => {
         const data = getApiData<API.SystemFeatures>(res);
         setVersion(data?.version || '');
         setMetadataEnabled(Boolean(data?.metadataEnabled));
+        setThreeMemberEnabled(Boolean(data?.threeMemberEnabled));
         applyLogFields(data);
         setInitialState((prev) =>
           prev
@@ -116,6 +132,10 @@ export const GeneralSettingsTab: React.FC = () => {
     setLogSaving(true);
     try {
       const res = await putSystemFeatures(body);
+      if (res.code === 202) {
+        message.info(res.message || '已提交审批');
+        return;
+      }
       if (isApiSuccess(res)) {
         const data = getApiData<API.SystemFeatures>(res);
         applyLogFields(data);
@@ -128,6 +148,36 @@ export const GeneralSettingsTab: React.FC = () => {
       }
     } finally {
       setLogSaving(false);
+    }
+  };
+
+  const openAssignModal = async () => {
+    const res = await getUsers({ page: 1, size: 500, status: 'ACTIVE' });
+    const items = isApiSuccess(res) ? (getApiData<{ items?: API.User[] }>(res)?.items || []) : [];
+    setUserOptions(items.map((user) => ({
+      value: String(user.user_id || ''),
+      label: `${user.name || user.username}（${user.username}）`,
+    })).filter((item) => item.value));
+    setAssignOpen(true);
+  };
+
+  const saveThreeMember = async (enabled: boolean) => {
+    setSaving(true);
+    try {
+      const res = await putSystemFeatures(enabled
+        ? { threeMemberEnabled: true, threeMemberAssignments: assignments }
+        : { threeMemberEnabled: false });
+      if (isApiSuccess(res)) {
+        const data = getApiData<API.SystemFeatures>(res);
+        setThreeMemberEnabled(Boolean(data?.threeMemberEnabled));
+        setAssignOpen(false);
+        message.success(enabled ? '已启用三员管理' : '已关闭三员管理');
+        await refresh();
+      } else {
+        message.error(res.message || '保存失败');
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -172,6 +222,54 @@ export const GeneralSettingsTab: React.FC = () => {
           </div>
           <Typography.Text>{loading && !version ? '…' : version || '-'}</Typography.Text>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: token.margin }}>
+          <div>
+            <Typography.Text strong>是否启用三员管理</Typography.Text>
+            <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+              涉密 / 等保的职责分离。关闭时与现在完全一样；开启后按系统管理员、安全保密管理员、安全审计员隔离菜单
+            </div>
+          </div>
+          <Switch
+            checked={threeMemberEnabled}
+            loading={saving || loading}
+            disabled={!canGovern}
+            onChange={(checked) => {
+              if (checked) {
+                void openAssignModal();
+                return;
+              }
+              void saveThreeMember(false);
+            }}
+          />
+        </div>
+        <Modal
+          title="指定三类三员"
+          open={assignOpen}
+          confirmLoading={saving}
+          onCancel={() => setAssignOpen(false)}
+          onOk={() => void saveThreeMember(true)}
+          okText="启用"
+        >
+          <Typography.Paragraph type="secondary">
+            三类必须是三个不同的在职用户。请把当前账号放进其中一类，否则启用后将进不了管理功能。
+          </Typography.Paragraph>
+          <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+            {THREE_MEMBER_ROLE_OPTIONS.map((option) => (
+              <div key={option.value}>
+                <div style={{ marginBottom: token.marginXXS }}>{option.label}</div>
+                <Select
+                  style={{ width: '100%' }}
+                  placeholder="选择用户"
+                  options={userOptions}
+                  value={assignments[option.value] || undefined}
+                  onChange={(value) => setAssignments((prev) => ({ ...prev, [option.value]: value }))}
+                  showSearch
+                  optionFilterProp="label"
+                />
+              </div>
+            ))}
+          </Space>
+        </Modal>
       </Card>
       <Card title="样式">
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
@@ -291,6 +389,7 @@ export const GeneralSettingsTab: React.FC = () => {
             <Button
               type="primary"
               loading={logSaving}
+              disabled={!canMaintain}
               onClick={() => void saveLogRotation({
                 logMaxSize: `${logAmount}${logUnit}`,
                 logRetentionDays,
@@ -301,7 +400,7 @@ export const GeneralSettingsTab: React.FC = () => {
               保存
             </Button>
             <Button
-              disabled={!logRotationIsCustom || logSaving}
+              disabled={!canMaintain || !logRotationIsCustom || logSaving}
               onClick={() => void saveLogRotation({ logRotationReset: true })}
             >
               恢复默认
@@ -345,6 +444,9 @@ const AUTO_BACKUP_CRON_LOCALE = {
 };
 
 export const BackupSettingsTab: React.FC = () => {
+  const { initialState } = useInitialState();
+  const threeOn = Boolean(initialState?.systemFeatures?.threeMemberEnabled);
+  const canMaintain = !threeOn || initialState?.currentUser?.three_member_role === 'system_admin';
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
   const [backupDir, setBackupDir] = useState('');
@@ -476,6 +578,12 @@ export const BackupSettingsTab: React.FC = () => {
         setRestoring(true);
         try {
           const res = await postSystemBackupRestore(file);
+          if (res.code === 202) {
+            message.info(res.message || '已提交审批');
+            setRestoreModalOpen(false);
+            setRestoreFileList([]);
+            return;
+          }
           if (isApiSuccess(res)) {
             message.success('数据恢复完成');
             setRestoreModalOpen(false);
@@ -495,11 +603,11 @@ export const BackupSettingsTab: React.FC = () => {
       loading={loading}
       extra={
         <Space>
-          <Button type="primary" loading={running} onClick={() => void handleRun()}>
+          <Button type="primary" loading={running} disabled={!canMaintain} onClick={() => void handleRun()}>
             立即备份
           </Button>
-          <Button onClick={openAutoBackupModal}>自动备份</Button>
-          <Button danger onClick={() => setRestoreModalOpen(true)}>
+          <Button disabled={!canMaintain} onClick={openAutoBackupModal}>自动备份</Button>
+          <Button danger disabled={!canMaintain} onClick={() => setRestoreModalOpen(true)}>
             恢复数据
           </Button>
         </Space>
@@ -508,7 +616,7 @@ export const BackupSettingsTab: React.FC = () => {
       <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
         备份目录：{backupDir || '-'}
         {backupDirIsCustom ? '（自定义）' : ''}
-        <Button type="link" size="small" style={{ paddingInline: 4 }} onClick={openBackupDirModal}>
+        <Button type="link" size="small" disabled={!canMaintain} style={{ paddingInline: 4 }} onClick={openBackupDirModal}>
           修改
         </Button>
         {autoBackupEnabled && (

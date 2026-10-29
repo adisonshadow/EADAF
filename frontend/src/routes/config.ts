@@ -10,6 +10,7 @@ import {
   EXTRA_ROUTE_META,
   type AppRouteMeta,
 } from './routeUi';
+import { menuVisibleForThreeMember, SYSTEM_ADMIN_DATABASE_CONNECTION_PATH } from '@/utils/threeMember';
 
 function pathSegmentCount(path: string) {
   return path.split('/').filter(Boolean).length;
@@ -78,11 +79,15 @@ interface MenuAccessContext {
   departmentId?: string | null;
   /** 是否超级管理员 */
   isSuperAdmin?: boolean;
+  /** 三员开关。关闭时菜单判断与原来完全一致 */
+  threeMemberEnabled?: boolean;
+  threeMemberRole?: string | null;
 }
 
 interface MenuPermissionEntry {
   code: string;
   access_restriction?: { mode: 'none' | 'role' | 'department'; roleIds?: string[]; departmentIds?: string[] } | null;
+  three_member_duty?: string | null;
 }
 
 /**
@@ -92,15 +97,14 @@ interface MenuPermissionEntry {
  * - mode=role：用户角色命中允许角色
  * - mode=department：用户组织命中允许组织
  */
-function isMenuAllowed(
+function restrictionAllows(
   permissionCode: string,
   menuPermissions: MenuPermissionEntry[] | undefined,
   ctx: MenuAccessContext | undefined,
 ): boolean {
-  if (ctx?.isSuperAdmin) return true;
-  if (!menuPermissions || !menuPermissions.length) return true; // 无菜单权限配置 → 放行（兼容）
+  if (!menuPermissions || !menuPermissions.length) return true;
   const perm = menuPermissions.find((p) => p.code === permissionCode);
-  if (!perm) return true; // 该菜单无对应权限记录 → 放行
+  if (!perm) return true;
   const r = perm.access_restriction;
   if (!r || r.mode === 'none') return true;
   if (r.mode === 'role') {
@@ -114,6 +118,20 @@ function isMenuAllowed(
   return true;
 }
 
+function isMenuAllowed(
+  permissionCode: string,
+  menuPermissions: MenuPermissionEntry[] | undefined,
+  ctx: MenuAccessContext | undefined,
+): boolean {
+  if (!ctx?.threeMemberEnabled) {
+    if (ctx?.isSuperAdmin) return true;
+    return restrictionAllows(permissionCode, menuPermissions, ctx);
+  }
+  if (!restrictionAllows(permissionCode, menuPermissions, ctx)) return false;
+  const perm = menuPermissions?.find((item) => item.code === permissionCode);
+  return menuVisibleForThreeMember(permissionCode, ctx.threeMemberRole, perm?.three_member_duty);
+}
+
 export function buildMenuData(
   features?: API.SystemFeatures,
   menuPermissions?: MenuPermissionEntry[],
@@ -122,6 +140,7 @@ export function buildMenuData(
   const visibleRoutes = appRouteMeta.filter((item) => {
     if (!item.requiresFeature) return true;
     if (item.requiresFeature === 'metadataEnabled') return Boolean(features?.metadataEnabled);
+    if (item.requiresFeature === 'threeMemberEnabled') return Boolean(features?.threeMemberEnabled);
     return true;
   });
 
@@ -142,15 +161,26 @@ export function buildMenuData(
     .filter((root) => isMenuAllowed(rootToPermissionCode(root.path), menuPermissions, accessCtx))
     .map((root) => {
       const prefix = root.path;
+      const systemAdminDatabaseOnly =
+        Boolean(accessCtx?.threeMemberEnabled) &&
+        accessCtx?.threeMemberRole === 'system_admin' &&
+        prefix === '/business_data';
       const children = visibleRoutes
         .filter((item) => isMenuChildOf(prefix, item, visibleRoutes))
+        .filter((child) => {
+          if (!accessCtx?.threeMemberEnabled) return true;
+          if (child.path === '/three_member/approvals') return accessCtx.threeMemberRole === 'security_admin';
+          if (child.path === '/three_member/audit') return accessCtx.threeMemberRole === 'auditor';
+          if (systemAdminDatabaseOnly) return child.path === SYSTEM_ADMIN_DATABASE_CONNECTION_PATH;
+          return true;
+        })
         .map((child) => ({
           path: child.path,
           name: child.name,
         }));
 
       return {
-        path: prefix,
+        path: systemAdminDatabaseOnly ? SYSTEM_ADMIN_DATABASE_CONNECTION_PATH : prefix,
         name: root.name,
         icon: root.icon,
         children: children.length ? children : undefined,

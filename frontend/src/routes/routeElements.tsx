@@ -76,6 +76,9 @@ const RequestLogs = lazy(() => import('@/pages/AIManagement/RequestLogs'));
 const SystemSettings = lazy(() => import('@/pages/System/Settings'));
 const OperationLogs = lazy(() => import('@/pages/System/OperationLogs'));
 const SystemHealth = lazy(() => import('@/pages/System/Health'));
+const ThreeMemberHome = lazy(() => import('@/pages/ThreeMember/Home'));
+const ThreeMemberApprovals = lazy(() => import('@/pages/ThreeMember/Approvals'));
+const ThreeMemberAudit = lazy(() => import('@/pages/ThreeMember/Audit'));
 const DataStandards = lazy(() => import('@/pages/BusinessData/DataStandards'));
 const MetadataCatalog = lazy(() => import('@/pages/BusinessData/Metadata'));
 const AppDataTransferPage = lazy(() => import('@/pages/AppDeployment/AppDataTransfer'));
@@ -130,6 +133,9 @@ export const PAGE_ELEMENTS: Record<string, ReactNode | ((mode: string) => ReactN
   systemSettings: <SystemSettings />,
   operationLogs: <OperationLogs />,
   systemHealth: <SystemHealth />,
+  threeMemberHome: <ThreeMemberHome />,
+  threeMemberApprovals: <ThreeMemberApprovals />,
+  threeMemberAudit: <ThreeMemberAudit />,
 
   /* app_deployment */
   appDataTransfer: <AppDataTransferPage />,

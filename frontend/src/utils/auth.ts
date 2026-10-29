@@ -21,6 +21,8 @@ export interface CurrentUser {
   role_ids?: string[];
   /** 用户角色 code 列表（含 SUPER_ADMIN 时拥有全部权限） */
   role_codes?: string[];
+  /** 三员身份；空为普通用户。开关关闭时不参与判断 */
+  three_member_role?: 'system_admin' | 'security_admin' | 'auditor' | null;
 }
 
 /** 解析 auth/check 响应（兼容 request.dataField 解包前后） */
@@ -53,6 +55,7 @@ export function parseAuthUser(response: unknown): CurrentUser | undefined {
     must_change_password: Boolean(user.must_change_password),
     role_ids: roleIds,
     role_codes: roleCodes,
+    three_member_role: (user.three_member_role as CurrentUser['three_member_role']) || null,
   };
 }
 

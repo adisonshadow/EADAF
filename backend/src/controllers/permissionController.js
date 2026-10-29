@@ -311,7 +311,7 @@ class PermissionController {
 
   // 创建权限
   static async create(ctx) {
-    const { code, description, resource_type, actions, access_restriction } = ctx.request.body;
+    const { code, description, resource_type, actions, access_restriction, three_member_duty } = ctx.request.body;
 
     // 验证必填字段
     if (!code || !resource_type || !actions || !Array.isArray(actions)) {
@@ -351,12 +351,20 @@ class PermissionController {
       }
 
       // 创建权限
+      const { normalizeDuty } = require('../services/system/threeMemberRules');
+      const { assertCallerRole, isThreeMemberEnabled } = require('../services/system/threeMember');
+      let duty = 'business';
+      if (three_member_duty !== undefined && (resource_type === 'MENU' || resource_type === 'BUTTON') && await isThreeMemberEnabled()) {
+        await assertCallerRole(ctx.state.user.user_id, 'security_admin');
+        duty = normalizeDuty(three_member_duty);
+      }
       const permission = await Permission.create({
         permission_id: uuidv4(),
         code,
         description,
         resource_type,
         actions,
+        three_member_duty: duty,
         access_restriction: normalizePermissionAccessRestriction(access_restriction),
         status: 'ACTIVE'
       });
@@ -460,7 +468,7 @@ class PermissionController {
   static async update(ctx) {
     try {
       const { permission_id } = ctx.params;
-      const { description, resource_type, actions, access_restriction } = ctx.request.body;
+      const { description, resource_type, actions, access_restriction, three_member_duty } = ctx.request.body;
 
       // 检查权限是否存在
       const permission = await Permission.findByPk(permission_id);
@@ -502,12 +510,21 @@ class PermissionController {
         ...(actions && { actions }),
         ...(access_restriction !== undefined && { access_restriction: normalizePermissionAccessRestriction(access_restriction) }),
       };
+      if (three_member_duty !== undefined && (permission.resource_type === 'MENU' || permission.resource_type === 'BUTTON')) {
+        const { normalizeDuty } = require('../services/system/threeMemberRules');
+        const { assertCallerRole, isThreeMemberEnabled } = require('../services/system/threeMember');
+        if (await isThreeMemberEnabled()) {
+          await assertCallerRole(ctx.state.user.user_id, 'security_admin');
+          updateData.three_member_duty = normalizeDuty(three_member_duty);
+        }
+      }
 
       const oldData = {
         description: permission.description,
         resource_type: permission.resource_type,
         actions: permission.actions,
         access_restriction: permission.access_restriction,
+        three_member_duty: permission.three_member_duty,
       };
 
       await permission.update(updateData);
@@ -521,6 +538,7 @@ class PermissionController {
           resource_type: permission.resource_type,
           actions: permission.actions,
           access_restriction: permission.access_restriction,
+          three_member_duty: permission.three_member_duty,
         },
       };
 
@@ -531,6 +549,11 @@ class PermissionController {
         data: permission
       };
     } catch (error) {
+      if (error.status === 400 || error.status === 403) {
+        ctx.status = error.status;
+        ctx.body = { code: error.status, message: error.message };
+        return;
+      }
       console.error('更新权限失败:', error);
       ctx.status = 500;
       ctx.body = {

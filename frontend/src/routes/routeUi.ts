@@ -19,7 +19,7 @@ export interface AppRouteMeta {
   noContentPadding?: boolean;
   redirect?: string;
   /** 依赖系统功能开关，未开启时不展示菜单 */
-  requiresFeature?: 'metadataEnabled';
+  requiresFeature?: 'metadataEnabled' | 'threeMemberEnabled';
 }
 
 /** path → 菜单/布局补充；未列出的字段用默认 */
@@ -82,6 +82,9 @@ export const ROUTE_UI_BY_PATH: Record<string, Partial<AppRouteMeta>> = {
   '/system/operation-logs': { name: '操作日志', icon: 'AuditOutlined', hideInMenu: true },
   '/system/health': { name: '系统健康', icon: 'HeartOutlined', hideInMenu: true },
   '/system/settings': { hideInMenu: true },
+  '/three_member': { name: '三员', icon: 'SafetyCertificateOutlined', requiresFeature: 'threeMemberEnabled' },
+  '/three_member/approvals': { name: '审批' },
+  '/three_member/audit': { name: '三员审计' },
 };
 
 /**

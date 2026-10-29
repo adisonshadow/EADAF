@@ -101,21 +101,36 @@ const MemberFormPage: React.FC<MemberFormPageProps> = ({ mode }) => {
     [departmentOptions, roleOptions],
   );
 
+  const threeOn = Boolean(initialState?.systemFeatures?.threeMemberEnabled);
+  const canGovern = !threeOn || initialState?.currentUser?.three_member_role === 'security_admin';
+
   const formColumns = useMemo(() => {
-    if (mode === 'create') {
-      return injectFormOptions(userCreateFormColumns as typeof userEditFormColumns);
-    }
-    return injectFormOptions([
-      {
-        title: '用户ID',
-        dataIndex: 'user_id',
-        valueType: 'text' as const,
-        readonly: true,
-        colProps: { span: 12 },
-      },
-      ...userEditFormColumns,
-    ]);
-  }, [injectFormOptions, mode]);
+    const source = mode === 'create'
+      ? (userCreateFormColumns as typeof userEditFormColumns)
+      : [
+          {
+            title: '用户ID',
+            dataIndex: 'user_id',
+            valueType: 'text' as const,
+            readonly: true,
+            colProps: { span: 12 },
+          },
+          ...userEditFormColumns,
+        ];
+    const visible = threeOn
+      ? source
+      : source.filter((column) => column.dataIndex !== 'three_member_role');
+    return injectFormOptions(visible).map((column) => {
+      if (!threeOn) return column;
+      if (column.dataIndex === 'role_ids' || column.dataIndex === 'three_member_role') {
+        return {
+          ...column,
+          fieldProps: { ...column.fieldProps, disabled: !canGovern },
+        };
+      }
+      return column;
+    });
+  }, [canGovern, injectFormOptions, mode, threeOn]);
 
   const loadDetail = useCallback(async () => {
     if (mode !== 'edit' || !id) return;
@@ -192,7 +207,10 @@ const MemberFormPage: React.FC<MemberFormPageProps> = ({ mode }) => {
           phone: processedValue.phone as string | undefined,
           gender: processedValue.gender as 'MALE' | 'FEMALE' | 'OTHER' | undefined,
           department_id: processedValue.department_id as string | undefined,
-          role_ids: processedValue.role_ids as string[] | undefined,
+          role_ids: canGovern ? (processedValue.role_ids as string[] | undefined) : undefined,
+          three_member_role: threeOn && canGovern
+            ? (processedValue.three_member_role as 'system_admin' | 'security_admin' | 'auditor' | undefined)
+            : undefined,
         };
 
         if (processedValue.auto_create_user_id === false && processedValue.user_id) {
@@ -230,16 +248,27 @@ const MemberFormPage: React.FC<MemberFormPageProps> = ({ mode }) => {
           : typeof value.department_id === 'string'
             ? value.department_id
             : undefined,
+        ...(threeOn && canGovern
+          ? {
+              three_member_role: (value.three_member_role as string | undefined) || '',
+            }
+          : {}),
       };
 
       const response = await putUsersUserId({ user_id: id }, updateData);
+      if (response.code === 202) {
+        message.info(response.message || '已提交审批');
+        return true;
+      }
       if (response.code !== 200) {
         message.error(response.message || '更新失败');
         return false;
       }
 
-      const roleIds = Array.isArray(value.role_ids) ? value.role_ids : [];
-      await putUsersUserIdRoles({ user_id: id }, { role_ids: roleIds });
+      if (!threeOn || canGovern) {
+        const roleIds = Array.isArray(value.role_ids) ? value.role_ids : [];
+        await putUsersUserIdRoles({ user_id: id }, { role_ids: roleIds });
+      }
 
       message.success('更新成功');
       navigateToList(LIST_PATH);
@@ -287,6 +316,10 @@ const MemberFormPage: React.FC<MemberFormPageProps> = ({ mode }) => {
         { user_id: id },
         { password: newPassword } as Parameters<typeof putUsersUserId>[1],
       );
+      if (response.code === 202) {
+        message.info(response.message || '已提交审批');
+        return;
+      }
       if (response.code !== 200) {
         message.error(response.message || '密码重置失败');
         return;
@@ -309,7 +342,11 @@ const MemberFormPage: React.FC<MemberFormPageProps> = ({ mode }) => {
       onOk: async () => {
         try {
           setDeleteLoading(true);
-          await deleteUsersUserId({ user_id: id });
+          const response = await deleteUsersUserId({ user_id: id });
+          if (response?.code === 202) {
+            message.info(response.message || '已提交审批');
+            return;
+          }
           message.success('删除成功');
           navigateToList(LIST_PATH);
         } catch {

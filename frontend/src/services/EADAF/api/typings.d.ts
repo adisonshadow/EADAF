@@ -1261,6 +1261,14 @@ declare namespace API {
     logRotationIsCustom?: boolean;
     /** 传 true 时清掉设置页的日志滚动配置 */
     logRotationReset?: boolean;
+    /** 是否启用三员管理 */
+    threeMemberEnabled?: boolean;
+    /** 开启三员时一次性指定三类用户 */
+    threeMemberAssignments?: {
+      system_admin?: string;
+      security_admin?: string;
+      auditor?: string;
+    };
   };
 
   type SystemBackupItem = {

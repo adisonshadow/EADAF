@@ -10,6 +10,7 @@ const DepartmentRole = require('./department_role');
 const RolePermission = require('./role_permission');
 const DataPermissionRule = require('./data_permission_rule');
 const OperationLog = require('./operation_log');
+const ThreeMemberApproval = require('./three_member_approval');
 const RefreshToken = require('./refreshToken');
 const DepartmentClosure = require('./department_closure');
 const DepartmentHistory = require('./department_history');
@@ -205,6 +206,7 @@ module.exports = {
   RolePermission,
   DataPermissionRule,
   OperationLog,
+  ThreeMemberApproval,
   RefreshToken,
   DepartmentClosure,
   DepartmentHistory,
