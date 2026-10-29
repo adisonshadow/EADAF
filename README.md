@@ -158,22 +158,35 @@ cd backend && docker compose --env-file .env.compose up -d minio
 
 
 
-### 3.5.1 启动依赖自检（Docker 忘了起时不再刷屏）
+### 3.5.1 启动自检（Docker 忘了起时不再刷屏）
 
-后端 `pnpm dev` 会先并行探一次 PostgreSQL / MinIO / Redis 的端口，把结论打在一张表里：
+这张表由 backend 进程在监听端口之前打出。根目录 `pnpm dev` 会把 backend 的输出先写到临时日志，再把其中最近一次「启动自检」贴回当前终端。`pnpm dev:check` 不打这张表。
+
+如果 `29526` 上已经有健康的 backend，根脚本会打印「跳过重复启动」然后只起前端，这时不再贴自检。要再看一次：`pnpm killdev && pnpm dev`。
+
+开发环境每次启动都打完整清单（运行环境、env、三条连接、库结构、系统存储桶）。地址来自 env 级联，`.env.development.local` 覆盖了端口就会显示成你的端口，不是写死的 `25432`。下面是默认端口都连不上时的样子：
 
 ```
-────────────── 启动依赖自检 ──────────────
-  ✗ PostgreSQL  localhost:25432   ECONNREFUSED   必需
-  ✗ MinIO       127.0.0.1:9000    ECONNREFUSED   必需
-  ✗ Redis       localhost:26379   ECONNREFUSED   可选（降级）
-  ⚠️  2 项必需依赖不可用（PostgreSQL、MinIO）：服务仍会启动，但数据库不可用，几乎所有接口都会失败；上传 / 预览 / 导出不可用。
-  🔧 修复：pnpm --filter ./backend compose:up   （本机 Docker 似乎没启动）
+────────────── 启动自检 ──────────────
+  ✓ 运行环境      node v24.11.0 · development · :29526
+  ✓ env 配置      .env.development → .env.development.local · 关键键 10/10
+  ✗ PostgreSQL    localhost:25432 · ECONNREFUSED｜影响：数据库不可用，几乎所有接口都会失败
+                  🔧 cd backend && docker compose up -d
+  ✗ MinIO         127.0.0.1:9000 · ECONNREFUSED｜影响：上传 / 预览 / 导出不可用
+                  🔧 cd backend && docker compose up -d
+  ✗ Redis         localhost:26379 · ECONNREFUSED｜影响：指标与上传进度降级，功能仍可用
+                  🔧 cd backend && docker compose up -d
+  · 库结构        PostgreSQL 不可达，跳过表检查
+  · 系统存储桶    PostgreSQL 不可达，跳过
+  ── 2/7 通过 · 5 项需处理 ──
+  🔇 依赖不可用期间的同类报错只写入 logs/error-*.log，控制台不再重复刷屏
+────────────────────────────────────────────────────────────
 ```
 
-- 必需依赖是 PostgreSQL 与 MinIO，不可用时服务仍会启动（便于 nodemon / 前端继续连着），但相关接口会失败；Redis 不可用自动降级为「仅 PostgreSQL」，并每 30s 自动重试，起好容器后无需重启即可恢复。
+- 必需依赖是 PostgreSQL 与 MinIO。不可用时服务仍会启动（便于 nodemon / 前端继续连着），但相关接口会失败。Redis 不可用自动降级，并每 30s 自动重试，起好容器后无需重启即可恢复。
 - 某个依赖判为不可用后，控制台只说一次；之后的同类报错只写 `logs/error-*.log`（完整堆栈和出现次数都在），不会每几百毫秒刷一条。
 - 依赖已恢复时日志里会补一条 `依赖已恢复：...`。
+- 生产环境在全部通过且没有告警时只留一行 `✅ 启动自检通过`。
 - 探活实现见 [backend/src/utils/dependencyDiagnostics.js](./backend/src/utils/dependencyDiagnostics.js)，判定逻辑有单测：`cd backend && node --test src/utils/dependencyDiagnostics.test.js`。
 
 
@@ -185,6 +198,8 @@ cd backend && docker compose --env-file .env.compose up -d minio
 ```bash
 pnpm dev:check    # 只打印判别矩阵（平台、可用 shell、换行符、.env、端口），不启动服务
 ```
+
+这和上面的「启动自检」不是同一张表：这里不探 PostgreSQL / MinIO / Redis，也不会把服务拉起来。
 
 | 平台 | runner | 说明 |
 | --- | --- | --- |
