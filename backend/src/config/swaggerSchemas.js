@@ -753,7 +753,7 @@ const schemas = {
   SystemFeatures: {
     type: 'object',
     properties: {
-      version: str('当前平台版本（仓库根 package.json，只读，PUT 不写入）', '1.3.2'),
+      version: str('当前平台版本（仓库根 package.json，只读，PUT 不写入）', '1.3.3'),
       metadataEnabled: bool('是否启用元数据目录'),
       apiServiceAllowWriteOperations: bool('API 测试是否允许写操作'),
       apiServiceTestAutoRollback: bool('API 测试写操作是否自动回滚'),
@@ -762,6 +762,11 @@ const schemas = {
       backupDir: str('当前生效的数据库备份目录（绝对路径）', 'D:\\\\DEV\\\\EADAF\\\\backend\\\\db-backup'),
       backupDirIsCustom: bool('备份目录是否被设置页改过（false=用 env DB_BACKUP_DIR / 默认目录）'),
       defaultBackupDir: str('默认备份目录（清空自定义时回退到这里）'),
+      logMaxSize: str('单个运行日志文件最大大小，如 20m、1g', '20m'),
+      logRetentionDays: int('运行日志保留天数', 14),
+      logErrorRetentionDays: int('错误、异常、拒绝日志保留天数', 30),
+      logZippedArchive: bool('滚动后的旧日志是否 gzip 压缩'),
+      logRotationIsCustom: bool('日志滚动是否被设置页改过（false=用环境变量默认值）'),
     },
   },
   SystemBackupFile: {

@@ -1,7 +1,17 @@
-import { AuditOutlined, DesktopOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import {
+  AuditOutlined,
+  CloseCircleFilled,
+  DesktopOutlined,
+  ExclamationCircleFilled,
+  HeartOutlined,
+  LogoutOutlined,
+  SettingOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 import { history } from '@/utils/navigation';
 import { useInitialState } from '@/providers/InitialStateProvider';
-import { Spin, Avatar } from 'antd';
+import { useSystemHealth } from '@/hooks/useSystemHealth';
+import { Badge, Spin, Avatar, theme } from 'antd';
 import type { MenuInfo } from 'rc-menu/lib/interface';
 import React, { useCallback } from 'react';
 import { flushSync } from 'react-dom';
@@ -32,7 +42,14 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
     history.push(appId ? `/auth/logout?app=${encodeURIComponent(appId)}` : '/auth/logout');
   };
 
+  const { token } = theme.useToken();
   const { initialState, setInitialState } = useInitialState();
+  const currentUser = initialState?.currentUser;
+  const { report } = useSystemHealth(Boolean(menu && currentUser?.username));
+  const unhealthyCount = (report?.errorCount || 0) + (report?.warningCount || 0);
+  const severity = report?.status === 'error' || report?.status === 'warning' ? report.status : null;
+  const severityColor = severity === 'error' ? token.colorError : token.colorWarning;
+  const SeverityIcon = severity === 'error' ? CloseCircleFilled : ExclamationCircleFilled;
 
   const onMenuClick = useCallback(
     (event: MenuInfo) => {
@@ -63,6 +80,9 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
         history.push('/system/operation-logs');
         return;
       }
+      if (key === 'system-health') {
+        history.push('/system/health');
+      }
     },
     [setInitialState],
   );
@@ -88,8 +108,6 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
   if (!initialState) {
     return loading;
   }
-
-  const { currentUser } = initialState;
 
   if (!currentUser || !currentUser.username) {
     return loading;
@@ -119,6 +137,22 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
             label: '系统日志',
           },
           {
+            key: 'system-health',
+            icon: severity ? (
+              <SeverityIcon style={{ color: severityColor }} />
+            ) : (
+              <HeartOutlined />
+            ),
+            label: (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: token.marginXS }}>
+                系统健康
+                {severity && unhealthyCount > 0 ? (
+                  <Badge count={unhealthyCount} color={severityColor} />
+                ) : null}
+              </span>
+            ),
+          },
+          {
             type: 'divider' as const,
           },
         ]
@@ -141,10 +175,20 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
       <span className="anticon">
         {children || (
           <span style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            {severity ? (
+              <SeverityIcon
+                aria-label={
+                  severity === 'error'
+                    ? `系统健康：${report?.errorCount || 0} 个错误`
+                    : `系统健康：${report?.warningCount || 0} 个警告`
+                }
+                style={{ color: severityColor, fontSize: token.fontSizeLG, marginRight: token.marginXS }}
+              />
+            ) : null}
             <Avatar
               src={getImageUrlIfValid(currentUser?.avatar)}
               icon={<UserOutlined />}
-              style={{ marginRight: 8 }}
+              style={{ marginRight: token.marginXS }}
             />
             <span>{currentUser?.name || currentUser?.username}</span>
           </span>

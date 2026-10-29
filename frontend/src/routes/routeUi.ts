@@ -80,6 +80,7 @@ export const ROUTE_UI_BY_PATH: Record<string, Partial<AppRouteMeta>> = {
   '/ai_management/scopes/:id/edit': { hideInMenu: true },
   '/ai_management/scopes/:id': { hideInMenu: true },
   '/system/operation-logs': { name: '操作日志', icon: 'AuditOutlined', hideInMenu: true },
+  '/system/health': { name: '系统健康', icon: 'HeartOutlined', hideInMenu: true },
   '/system/settings': { hideInMenu: true },
 };
 

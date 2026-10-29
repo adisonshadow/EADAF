@@ -2503,7 +2503,7 @@
           "version": {
             "type": "string",
             "description": "当前平台版本（仓库根 package.json，只读，PUT 不写入）",
-            "example": "1.3.2"
+            "example": "1.3.3"
           },
           "metadataEnabled": {
             "type": "boolean",
@@ -2529,6 +2529,46 @@
             "type": "string",
             "description": "自动备份 cron",
             "example": "0 2 * * *"
+          },
+          "backupDir": {
+            "type": "string",
+            "description": "当前生效的数据库备份目录（绝对路径）",
+            "example": "D:\\\\DEV\\\\EADAF\\\\backend\\\\db-backup"
+          },
+          "backupDirIsCustom": {
+            "type": "boolean",
+            "description": "备份目录是否被设置页改过（false=用 env DB_BACKUP_DIR / 默认目录）",
+            "example": true
+          },
+          "defaultBackupDir": {
+            "type": "string",
+            "description": "默认备份目录（清空自定义时回退到这里）",
+            "example": "string"
+          },
+          "logMaxSize": {
+            "type": "string",
+            "description": "单个运行日志文件最大大小，如 20m、1g",
+            "example": "20m"
+          },
+          "logRetentionDays": {
+            "type": "integer",
+            "description": "运行日志保留天数",
+            "example": 14
+          },
+          "logErrorRetentionDays": {
+            "type": "integer",
+            "description": "错误、异常、拒绝日志保留天数",
+            "example": 30
+          },
+          "logZippedArchive": {
+            "type": "boolean",
+            "description": "滚动后的旧日志是否 gzip 压缩",
+            "example": true
+          },
+          "logRotationIsCustom": {
+            "type": "boolean",
+            "description": "日志滚动是否被设置页改过（false=用环境变量默认值）",
+            "example": true
           }
         }
       },
@@ -8647,6 +8687,33 @@
                   "autoBackupCron": {
                     "type": "string",
                     "description": "自动备份 cron，如 0 2 * * *"
+                  },
+                  "backupDir": {
+                    "type": "string",
+                    "description": "数据库备份目录（绝对路径，保存前会创建并验证可写；传空串恢复默认目录）"
+                  },
+                  "logMaxSize": {
+                    "type": "string",
+                    "description": "单个日志文件最大大小，如 20m、1g",
+                    "example": "20m"
+                  },
+                  "logRetentionDays": {
+                    "type": "integer",
+                    "description": "运行日志保留天数",
+                    "example": 14
+                  },
+                  "logErrorRetentionDays": {
+                    "type": "integer",
+                    "description": "错误、异常、拒绝日志保留天数",
+                    "example": 30
+                  },
+                  "logZippedArchive": {
+                    "type": "boolean",
+                    "description": "滚动后的旧日志是否 gzip 压缩"
+                  },
+                  "logRotationReset": {
+                    "type": "boolean",
+                    "description": "传 true 时清掉设置页的日志滚动配置，恢复环境变量默认值"
                   }
                 }
               }
@@ -17802,6 +17869,12 @@
                     "description": "应用ID，用于SSO登录模式\n- 如果提供且应用启用了SSO，将返回该应用的SSO配置信息\n- 系统将使用应用统一密钥（client_secret / app_secret，兼容旧 salt）作为JWT签名密钥\n",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                   },
+                  "login_app_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "登录页所属应用ID，仅用于判定「人类验证」（sso_config.login_verify_enabled）\n- 授权码流程（/oauth/authorize）的登录页没有 application_id（那会用应用密钥签发令牌），\n  用它说明这一页属于哪个应用；不影响令牌签发与 SSO 响应\n",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                  },
                   "captcha_data": {
                     "type": "object",
                     "description": "验证码数据，用于普通登录模式的验证码验证步骤\n- 在首次登录返回需要验证码后，需要提供此参数完成验证\n",
@@ -22478,6 +22551,123 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/system-health": {
+      "get": {
+        "tags": [
+          "Admin-System-Health"
+        ],
+        "summary": "系统健康报告 [需要认证]",
+        "description": "只读汇总运行环境、关键配置、依赖端口、库结构、系统存储桶、业务数据库连接和 AI 模型。\n不连接业务库做实时探测，默认缓存约 15 秒。refresh=1 时跳过缓存。\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "refresh",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "传 1 时忽略服务端缓存，立即重新采集"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "warning",
+                            "error"
+                          ],
+                          "description": "取最严重的一档"
+                        },
+                        "errorCount": {
+                          "type": "integer",
+                          "example": 0
+                        },
+                        "warningCount": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "checkedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "example": "bizdataConnections"
+                              },
+                              "label": {
+                                "type": "string",
+                                "example": "业务数据库连接"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "ok",
+                                  "warning",
+                                  "error",
+                                  "skip"
+                                ]
+                              },
+                              "summary": {
+                                "type": "string"
+                              },
+                              "hint": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "href": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "500": {
+            "description": "采集失败"
           }
         }
       }

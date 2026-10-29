@@ -5,6 +5,12 @@ const { promisify } = require('util');
 const config = require('../../config');
 const { BizdataSetting } = require('../../models');
 const { resolveBash, toBashPath, readPackageVersion, REPO_ROOT } = require('../appDeployment/packRuntime');
+const {
+  readStoredLogRotation,
+  resolveLogRotation,
+  normalizeLogRotation,
+  toWinstonRotation,
+} = require('./logRotationSettings');
 
 const execFileAsync = promisify(execFile);
 
@@ -47,6 +53,7 @@ function formatStoredFeatures(value = {}) {
         ? value.autoBackupCron.trim()
         : DEFAULT_AUTO_BACKUP_CRON,
     backupDir: normalizeBackupDirPath(value.backupDir),
+    logRotation: readStoredLogRotation(value.logRotation),
   };
 }
 
@@ -123,7 +130,34 @@ async function getSystemFeatures() {
     backupDirIsCustom: Boolean(stored.backupDir),
     /** 默认目录，供设置页在清空自定义时提示 */
     defaultBackupDir: defaultBackupDir(),
+    ...publicLogRotation(stored.logRotation),
   };
+}
+
+function publicLogRotation(stored) {
+  const effective = resolveLogRotation(stored);
+  return {
+    logMaxSize: effective.maxSize,
+    logRetentionDays: effective.retentionDays,
+    logErrorRetentionDays: effective.errorRetentionDays,
+    logZippedArchive: effective.zippedArchive,
+    /** false 表示还在用 env / 默认值，设置页没保存过 */
+    logRotationIsCustom: Boolean(stored),
+  };
+}
+
+function applyEffectiveLogRotation(stored) {
+  const winstonRotation = toWinstonRotation(resolveLogRotation(stored));
+  const logger = require('../../utils/logger');
+  logger.applyLogRotation(winstonRotation);
+  const { applyAiToolInvokeLogRotation } = require('../ai/aiToolInvokeLogService');
+  applyAiToolInvokeLogRotation(winstonRotation);
+}
+
+/** 启动后把设置页保存的日志滚动套到当前进程；库不可用时保持 env 默认。 */
+async function applyStoredLogRotation() {
+  const stored = formatStoredFeatures(await readStoredFeatures());
+  applyEffectiveLogRotation(stored.logRotation);
 }
 
 async function updateSystemFeatures(payload) {
@@ -150,9 +184,35 @@ async function updateSystemFeatures(payload) {
     // 目录先验证可写再落库，避免存进一个备份时必然失败/需要手工修库的路径
     next.backupDir = await prepareBackupDir(payload.backupDir);
   }
+  const logRotationTouched = payload.logRotationReset === true
+    || payload.logMaxSize !== undefined
+    || payload.logRetentionDays !== undefined
+    || payload.logErrorRetentionDays !== undefined
+    || payload.logZippedArchive !== undefined;
+  if (payload.logRotationReset === true) {
+    next.logRotation = null;
+  } else if (
+    payload.logMaxSize !== undefined
+    || payload.logRetentionDays !== undefined
+    || payload.logErrorRetentionDays !== undefined
+    || payload.logZippedArchive !== undefined
+  ) {
+    const current = resolveLogRotation(stored.logRotation);
+    next.logRotation = normalizeLogRotation({
+      maxSize: payload.logMaxSize !== undefined ? payload.logMaxSize : current.maxSize,
+      retentionDays: payload.logRetentionDays !== undefined ? payload.logRetentionDays : current.retentionDays,
+      errorRetentionDays: payload.logErrorRetentionDays !== undefined
+        ? payload.logErrorRetentionDays
+        : current.errorRetentionDays,
+      zippedArchive: payload.logZippedArchive !== undefined
+        ? payload.logZippedArchive
+        : current.zippedArchive,
+    });
+  }
 
   const value = { ...next };
   if (!value.backupDir) delete value.backupDir; // 保持 JSON 干净，恢复默认时不留空键
+  if (!value.logRotation) delete value.logRotation;
 
   const [setting] = await BizdataSetting.findOrCreate({
     where: { key: SYSTEM_FEATURES_KEY },
@@ -166,6 +226,7 @@ async function updateSystemFeatures(payload) {
   // 配置变更后重排自动备份定时任务（惰性 require 避免循环依赖）
   const { applyAutoBackupSchedule } = require('./autoBackupScheduler');
   applyAutoBackupSchedule(next);
+  if (logRotationTouched) applyEffectiveLogRotation(next.logRotation);
 
   return getSystemFeatures();
 }
@@ -311,6 +372,7 @@ module.exports = {
   DEFAULT_AUTO_BACKUP_CRON,
   formatStandard,
   getSystemFeatures,
+  applyStoredLogRotation,
   updateSystemFeatures,
   listBackups,
   runBackup,

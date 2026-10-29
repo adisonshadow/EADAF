@@ -8,6 +8,27 @@ const LOG_FILE =
   process.env.AI_TOOL_INVOKE_LOG_FILE || path.join(process.cwd(), 'logs/ai-tool-invoke-%DATE%.log');
 
 let fileLogger = null;
+let rotationOverride = null;
+
+function currentRotation() {
+  return {
+    maxSize: rotationOverride?.maxSize || process.env.LOG_ROTATION_MAX_SIZE || '20m',
+    maxFiles: rotationOverride?.errorMaxFiles || process.env.LOG_ERROR_MAX_FILES || '30d',
+  };
+}
+
+/** 设置页改了滚动参数后，已创建的工具调用日志跟着换；还没创建则下次创建时用新值。 */
+function applyAiToolInvokeLogRotation(rotation) {
+  rotationOverride = rotation || null;
+  if (!fileLogger) return;
+  fileLogger.clear();
+  fileLogger.add(new winston.transports.DailyRotateFile({
+    filename: LOG_FILE,
+    datePattern: 'YYYY-MM-DD',
+    maxSize: currentRotation().maxSize,
+    maxFiles: currentRotation().maxFiles,
+  }));
+}
 
 function getFileLogger() {
   if (!ENABLED) return null;
@@ -28,8 +49,8 @@ function getFileLogger() {
       new winston.transports.DailyRotateFile({
         filename: LOG_FILE,
         datePattern: 'YYYY-MM-DD',
-        maxSize: process.env.LOG_ROTATION_MAX_SIZE || '20m',
-        maxFiles: process.env.LOG_ERROR_MAX_FILES || '30d',
+        maxSize: currentRotation().maxSize,
+        maxFiles: currentRotation().maxFiles,
       }),
     ],
   });
@@ -69,4 +90,5 @@ function logAiToolInvokeFailure(entry) {
 module.exports = {
   logAiToolInvokeFailure,
   isAiToolInvokeLogEnabled: () => ENABLED,
+  applyAiToolInvokeLogRotation,
 };
