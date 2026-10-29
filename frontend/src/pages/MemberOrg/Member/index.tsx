@@ -78,7 +78,11 @@ const Page: React.FC = () => {
                     onOk: async () => {
                       if (!record.user_id) return;
                       try {
-                        await deleteUsersUserId({ user_id: record.user_id });
+                        const response = await deleteUsersUserId({ user_id: record.user_id });
+                        if (response?.code === 202) {
+                          message.info(response.message || '已提交审批');
+                          return;
+                        }
                         message.success('删除成功');
                         actionRef.current?.reload();
                       } catch {

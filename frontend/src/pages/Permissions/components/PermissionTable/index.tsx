@@ -7,7 +7,7 @@ import {
   type ProColumns,
 } from '@ant-design/pro-components';
 import { UrlSyncedProTable } from '@/components/UrlSyncedProTable';
-import { Button, Space, Modal, Drawer, Spin, Tag, Typography } from 'antd';
+import { Button, Select, Space, Modal, Drawer, Spin, Tag, Typography } from 'antd';
 import { message, modal } from '@/utils/antdAppApis';
 import { EyeOutlined, PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined, ControlOutlined } from "@ant-design/icons";
 import { Form } from 'antd';
@@ -24,6 +24,8 @@ import { wrapWithChatReference } from '@/utils/augmentColumnsWithChatReference';
 import { buildPermissionReference } from '@/ai/chatReferenceBuilders';
 import { enableDisableStatusEnum } from '@/enums';
 import { passthroughStatusCell } from '@/utils/statusBadge';
+import { useInitialState } from '@/providers/InitialStateProvider';
+import { THREE_MEMBER_DUTY_OPTIONS, effectiveThreeMemberDuty } from '@/utils/threeMember';
 
 const PermissionTable: React.FC<PermissionTableProps> = ({
   resourceType,
@@ -44,6 +46,9 @@ const PermissionTable: React.FC<PermissionTableProps> = ({
   const [arDrawerOpen, setArDrawerOpen] = useState(false);
   const [arPermission, setArPermission] = useState<Permission | null>(null);
   const isMenuOrButton = resourceType === 'MENU' || resourceType === 'BUTTON';
+  const { initialState } = useInitialState();
+  const threeOn = Boolean(initialState?.systemFeatures?.threeMemberEnabled);
+  const canEditDuty = threeOn && initialState?.currentUser?.three_member_role === 'security_admin';
   const { references } = useChatReference();
   const chatPrompts = useMemo(
     () => buildPermissionPrompts(resourceType, references),
@@ -209,7 +214,41 @@ const PermissionTable: React.FC<PermissionTableProps> = ({
         if (r.mode === 'department') return <Tag color="geekblue">限制组织</Tag>;
         return <Tag color="default">无限制</Tag>;
       },
-    }] : []),
+    }, ...(threeOn ? [{
+      title: '三员性质',
+      dataIndex: 'three_member_duty',
+      width: 160,
+      render: (_: unknown, record: Permission) => {
+        if (record.permission_id.startsWith('virtual-')) return null;
+        const value = effectiveThreeMemberDuty(record.code, record.three_member_duty);
+        return (
+          <Select
+            size="small"
+            style={{ width: 140 }}
+            disabled={!canEditDuty}
+            value={value}
+            options={THREE_MEMBER_DUTY_OPTIONS}
+            onChange={async (next) => {
+              const response = await putPermissionsPermissionId(
+                { permission_id: record.permission_id },
+                {
+                  description: record.description,
+                  resource_type: record.resource_type,
+                  actions: record.actions,
+                  three_member_duty: next,
+                },
+              );
+              if (response.code === 200) {
+                message.success('已更新三员性质');
+                actionRef.current?.reload();
+              } else {
+                message.error(response.message || '更新失败');
+              }
+            }}
+          />
+        );
+      },
+    }] : [])] : []),
     {
       ...TABLE_ACTION_COLUMN_BASE,
       dataIndex: 'option',

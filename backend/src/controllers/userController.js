@@ -120,6 +120,14 @@ class UserController {
           status: 'ACTIVE',
           must_change_password: true,
         };
+        if (ctx.request.body.three_member_role !== undefined) {
+          const { normalizeRole } = require('../services/system/threeMemberRules');
+          const { assertCallerRole, isThreeMemberEnabled } = require('../services/system/threeMember');
+          if (await isThreeMemberEnabled()) {
+            await assertCallerRole(ctx.state.user.user_id, 'security_admin');
+            createPayload.three_member_role = normalizeRole(ctx.request.body.three_member_role);
+          }
+        }
         if (requestedUserId) {
           createPayload.user_id = requestedUserId;
         }
@@ -215,6 +223,14 @@ class UserController {
 
       const passwordWasReset = Boolean(updateData.password);
       if (passwordWasReset) {
+        const { queueSystemAdminAction, hashPassword } = require('../services/system/threeMemberApprovalService');
+        const passwordHash = await hashPassword(updateData.password);
+        const queued = await queueSystemAdminAction(ctx, {
+          actionType: 'reset_password',
+          summary: `重置用户 ${user.username} 的密码`,
+          payload: { userId: user_id, passwordHash, mustChangePassword: true },
+        });
+        if (queued) return;
         const salt = await bcrypt.genSalt(10);
         updateData.password_hash = await bcrypt.hash(updateData.password, salt);
         delete updateData.password;
@@ -222,8 +238,29 @@ class UserController {
         updateData.must_change_password = true;
       }
 
+      if (updateData.status === 'DISABLED' || updateData.status === 'ARCHIVED') {
+        const { queueSystemAdminAction } = require('../services/system/threeMemberApprovalService');
+        const queued = await queueSystemAdminAction(ctx, {
+          actionType: 'user_status',
+          summary: `${updateData.status === 'DISABLED' ? '停用' : '归档'}用户 ${user.username}`,
+          payload: { userId: user_id, status: updateData.status },
+        });
+        if (queued) return;
+      }
+
       if (updateData.email === '') {
         updateData.email = null;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(updateData, 'three_member_role')) {
+        const { normalizeRole } = require('../services/system/threeMemberRules');
+        const { assertCallerRole, isThreeMemberEnabled } = require('../services/system/threeMember');
+        if (!(await isThreeMemberEnabled())) {
+          delete updateData.three_member_role;
+        } else {
+          await assertCallerRole(ctx.state.user.user_id, 'security_admin');
+          updateData.three_member_role = normalizeRole(updateData.three_member_role);
+        }
       }
 
       delete updateData.user_id;
@@ -236,7 +273,8 @@ class UserController {
         gender: user.gender,
         email: user.email,
         phone: user.phone,
-        status: user.status
+        status: user.status,
+        three_member_role: user.three_member_role,
       };
 
       await user.update(updateData);
@@ -260,6 +298,7 @@ class UserController {
           email: updatedUser.email,
           phone: updatedUser.phone,
           status: updatedUser.status,
+          three_member_role: updatedUser.three_member_role,
         }),
       };
 
@@ -281,6 +320,11 @@ class UserController {
         }
       };
     } catch (error) {
+      if (error.status === 400 || error.status === 403) {
+        ctx.status = error.status;
+        ctx.body = { code: error.status, message: error.message, data: null };
+        return;
+      }
       logger.error('Error updating user', {
         name: error.name,
         message: error.message,
@@ -382,6 +426,7 @@ class UserController {
           'phone',
           'status',
           'department_id',
+          'three_member_role',
           'created_at',
           'updated_at'
         ],
@@ -780,6 +825,14 @@ class UserController {
         return;
       }
 
+      const { queueSystemAdminAction } = require('../services/system/threeMemberApprovalService');
+      const queued = await queueSystemAdminAction(ctx, {
+        actionType: 'user_delete',
+        summary: `删除用户 ${user.username}`,
+        payload: { userId: user_id },
+      });
+      if (queued) return;
+
       // 执行软删除
       await user.softDelete();
       logger.debug('User deleted successfully', { user_id });
@@ -919,6 +972,7 @@ class UserController {
           'phone',
           'status',
           'department_id',
+          'three_member_role',
           'created_at',
           'updated_at'
         ],
@@ -1057,6 +1111,15 @@ class UserController {
         return;
       }
 
+      const { queueSystemAdminAction, hashPassword } = require('../services/system/threeMemberApprovalService');
+      const passwordHash = await hashPassword(new_password);
+      const queued = await queueSystemAdminAction(ctx, {
+        actionType: 'reset_password',
+        summary: `重置用户 ${user.username} 的密码`,
+        payload: { userId: user_id, passwordHash, mustChangePassword: false },
+      });
+      if (queued) return;
+
       // 生成新的密码哈希
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(new_password, salt);
@@ -1115,6 +1178,8 @@ class UserController {
     }
 
     try {
+      const { assertCallerRole } = require('../services/system/threeMember');
+      await assertCallerRole(ctx.state.user.user_id, 'security_admin');
       const user = await User.findByPk(user_id);
       if (!user) {
         ctx.status = 404;
@@ -1145,9 +1210,9 @@ class UserController {
         }
       };
     } catch (error) {
-      if (error.status === 400) {
-        ctx.status = 400;
-        ctx.body = { code: 400, message: error.message, data: null };
+      if (error.status === 400 || error.status === 403) {
+        ctx.status = error.status;
+        ctx.body = { code: error.status, message: error.message, data: null };
         return;
       }
       logger.error('Error assigning roles to user', {
@@ -1274,6 +1339,16 @@ class UserController {
           data: null
         };
         return;
+      }
+
+      if (status === 'DISABLED' || status === 'ARCHIVED') {
+        const { queueSystemAdminAction } = require('../services/system/threeMemberApprovalService');
+        const queued = await queueSystemAdminAction(ctx, {
+          actionType: 'user_status',
+          summary: `${status === 'DISABLED' ? '停用' : '归档'}用户 ${user.username}`,
+          payload: { userId: user_id, status },
+        });
+        if (queued) return;
       }
 
       const oldStatus = user.status;

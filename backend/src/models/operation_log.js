@@ -85,7 +85,11 @@ const OperationLog = sequelize.define('OperationLog', {
     type: DataTypes.JSONB,
     allowNull: true
   },
-  created_at: {
+    operator_three_member_role: {
+      type: DataTypes.STRING(32),
+      allowNull: true,
+    },
+    created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
   },

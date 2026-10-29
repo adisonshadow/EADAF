@@ -843,7 +843,7 @@ class AuthController {
           user_id: ctx.state.user.user_id,
           status: 'ACTIVE'
         },
-        attributes: ['user_id', 'username', 'name', 'avatar', 'gender', 'email', 'phone', 'status', 'department_id', 'must_change_password'],
+        attributes: ['user_id', 'username', 'name', 'avatar', 'gender', 'email', 'phone', 'status', 'department_id', 'must_change_password', 'three_member_role'],
         include: [
           {
             model: Role,

@@ -34,6 +34,7 @@ export interface MenuPermissionItem {
     roleIds?: string[];
     departmentIds?: string[];
   } | null;
+  three_member_duty?: string | null;
 }
 
 export interface InitialState {

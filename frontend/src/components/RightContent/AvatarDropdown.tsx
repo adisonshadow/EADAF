@@ -17,6 +17,7 @@ import React, { useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import HeaderDropdown from '../HeaderDropdown';
 import { getImageUrlIfValid } from '@/utils/image';
+import type { ThreeMemberRole } from '@/utils/threeMember';
 
 export type GlobalHeaderRightProps = {
   menu?: boolean;
@@ -113,6 +114,11 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
     return loading;
   }
 
+  const threeOn = Boolean(initialState?.systemFeatures?.threeMemberEnabled);
+  const memberRole = (currentUser?.three_member_role || null) as ThreeMemberRole | null;
+  const showSettings = !threeOn || memberRole === 'system_admin' || memberRole === 'security_admin';
+  const showAudit = !threeOn || memberRole === 'auditor';
+
   const menuItems = [
     ...(menu
       ? [
@@ -121,37 +127,43 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
             icon: <UserOutlined />,
             label: '个人中心',
           },
-          {
-            key: 'settings',
-            icon: <SettingOutlined />,
-            label: '系统设置',
-          },
+          ...(showSettings
+            ? [{
+                key: 'settings',
+                icon: <SettingOutlined />,
+                label: '系统设置',
+              }]
+            : []),
           {
             key: 'account-sessions',
             icon: <DesktopOutlined />,
             label: '我的登录信息',
           },
-          {
-            key: 'operation-logs',
-            icon: <AuditOutlined />,
-            label: '系统日志',
-          },
-          {
-            key: 'system-health',
-            icon: severity ? (
-              <SeverityIcon style={{ color: severityColor }} />
-            ) : (
-              <HeartOutlined />
-            ),
-            label: (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: token.marginXS }}>
-                系统健康
-                {severity && unhealthyCount > 0 ? (
-                  <Badge count={unhealthyCount} color={severityColor} />
-                ) : null}
-              </span>
-            ),
-          },
+          ...(showAudit
+            ? [{
+                key: 'operation-logs',
+                icon: <AuditOutlined />,
+                label: '系统日志',
+              }]
+            : []),
+          ...(showAudit
+            ? [{
+                key: 'system-health',
+                icon: severity ? (
+                  <SeverityIcon style={{ color: severityColor }} />
+                ) : (
+                  <HeartOutlined />
+                ),
+                label: (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: token.marginXS }}>
+                    系统健康
+                    {severity && unhealthyCount > 0 ? (
+                      <Badge count={unhealthyCount} color={severityColor} />
+                    ) : null}
+                  </span>
+                ),
+              }]
+            : []),
           {
             type: 'divider' as const,
           },

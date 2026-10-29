@@ -54,7 +54,8 @@ CREATE TABLE eadaf.permissions (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
-    access_restriction JSONB
+    access_restriction JSONB,
+    three_member_duty VARCHAR(32) DEFAULT 'business'
 );
 
 -- 添加权限表注释
@@ -77,7 +78,8 @@ CREATE TABLE eadaf.users (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
     last_password_updated TIMESTAMPTZ,
-    must_change_password BOOLEAN NOT NULL DEFAULT FALSE
+    must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
+    three_member_role VARCHAR(32)
 );
 
 -- 添加用户表外键
@@ -212,6 +214,7 @@ CREATE TABLE eadaf.operation_logs (
     trace_id VARCHAR(64),
     duration_ms INTEGER,
     request_summary JSONB,
+    operator_three_member_role VARCHAR(32),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

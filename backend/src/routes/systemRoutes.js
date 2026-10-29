@@ -64,6 +64,14 @@ const restoreUploadMiddleware = koaBody({
  *               logErrorRetentionDays: { type: integer, description: '错误、异常、拒绝日志保留天数', example: 30 }
  *               logZippedArchive: { type: boolean, description: '滚动后的旧日志是否 gzip 压缩' }
  *               logRotationReset: { type: boolean, description: '传 true 时清掉设置页的日志滚动配置，恢复环境变量默认值' }
+ *               threeMemberEnabled: { type: boolean, description: '是否启用三员管理。开启时须已有三类三员各一名在职用户，或同时提交 threeMemberAssignments' }
+ *               threeMemberAssignments:
+ *                 type: object
+ *                 description: 开启三员时一次性指定三类用户 id
+ *                 properties:
+ *                   system_admin: { type: string, format: uuid }
+ *                   security_admin: { type: string, format: uuid }
+ *                   auditor: { type: string, format: uuid }
  *     responses:
  *       200:
  *         description: 更新成功，data 为更新后的功能开关

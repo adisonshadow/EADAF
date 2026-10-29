@@ -9,6 +9,7 @@ import {
   PartitionOutlined,
   RobotOutlined,
   SettingOutlined,
+  SafetyCertificateOutlined,
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -22,6 +23,8 @@ import defaultSettings from '../../config/defaultSettings';
 import { buildMenuData, findRouteMeta } from '@/routes/config';
 import { useInitialState } from '@/providers/InitialStateProvider';
 import { useUiTheme } from '@/theme/uiTheme';
+import { pathAllowedWhenThreeMember } from '@/utils/threeMember';
+import { Result } from 'antd';
 
 const iconMap: Record<string, ReactNode> = {
   TeamOutlined: <TeamOutlined />,
@@ -34,6 +37,7 @@ const iconMap: Record<string, ReactNode> = {
   DeploymentUnitOutlined: <DeploymentUnitOutlined />,
   RobotOutlined: <RobotOutlined />,
   SettingOutlined: <SettingOutlined />,
+  SafetyCertificateOutlined: <SafetyCertificateOutlined />,
   UserOutlined: <UserOutlined />,
 };
 
@@ -73,6 +77,8 @@ export default function AppLayout() {
             roleCodes: currentUser?.role_codes,
             departmentId: currentUser?.department_id,
             isSuperAdmin: currentUser?.role_codes?.includes('SUPER_ADMIN'),
+            threeMemberEnabled: Boolean(initialState?.systemFeatures?.threeMemberEnabled),
+            threeMemberRole: currentUser?.three_member_role || null,
           },
         ),
       ),
@@ -82,7 +88,14 @@ export default function AppLayout() {
       currentUser?.role_ids,
       currentUser?.role_codes,
       currentUser?.department_id,
+      currentUser?.three_member_role,
     ],
+  );
+
+  const threeMemberBlocked = !pathAllowedWhenThreeMember(
+    location.pathname,
+    Boolean(initialState?.systemFeatures?.threeMemberEnabled),
+    currentUser?.three_member_role,
   );
 
   const menuDataRender = useCallback(() => menuData, [menuData]);
@@ -133,7 +146,11 @@ export default function AppLayout() {
       onMenuHeaderClick={() => navigate('/')}
     >
       <Suspense fallback={null}>
-        <AnimatedOutlet />
+        {threeMemberBlocked ? (
+          <Result status="403" title="当前身份不能访问此页" subTitle="三员管理已启用，此功能不属于你的职责。" />
+        ) : (
+          <AnimatedOutlet />
+        )}
       </Suspense>
     </ProLayout>
   );

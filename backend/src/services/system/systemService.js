@@ -54,6 +54,7 @@ function formatStoredFeatures(value = {}) {
         : DEFAULT_AUTO_BACKUP_CRON,
     backupDir: normalizeBackupDirPath(value.backupDir),
     logRotation: readStoredLogRotation(value.logRotation),
+    threeMemberEnabled: Boolean(value.threeMemberEnabled),
   };
 }
 
@@ -131,6 +132,7 @@ async function getSystemFeatures() {
     /** 默认目录，供设置页在清空自定义时提示 */
     defaultBackupDir: defaultBackupDir(),
     ...publicLogRotation(stored.logRotation),
+    threeMemberEnabled: stored.threeMemberEnabled,
   };
 }
 
@@ -160,7 +162,7 @@ async function applyStoredLogRotation() {
   applyEffectiveLogRotation(stored.logRotation);
 }
 
-async function updateSystemFeatures(payload) {
+async function updateSystemFeatures(payload, options = {}) {
   const stored = formatStoredFeatures(await readStoredFeatures());
   const next = { ...stored };
 
@@ -189,6 +191,18 @@ async function updateSystemFeatures(payload) {
     || payload.logRetentionDays !== undefined
     || payload.logErrorRetentionDays !== undefined
     || payload.logZippedArchive !== undefined;
+  if (payload.threeMemberEnabled !== undefined) {
+    const enabling = Boolean(payload.threeMemberEnabled);
+    if (enabling && !stored.threeMemberEnabled) {
+      const { assignThreeMembers, assertThreeMembersPresent, applyDefaultDuties } = require('./threeMember');
+      if (payload.threeMemberAssignments) {
+        await assignThreeMembers(payload.threeMemberAssignments);
+      }
+      await assertThreeMembersPresent();
+      await applyDefaultDuties();
+    }
+    next.threeMemberEnabled = enabling;
+  }
   if (payload.logRotationReset === true) {
     next.logRotation = null;
   } else if (

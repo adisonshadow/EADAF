@@ -10,6 +10,7 @@ function formatLogListItem(data) {
     operatorType: data.operator_type,
     applicationId: data.application_id,
     domain: data.domain,
+    operatorThreeMemberRole: data.operator_three_member_role || null,
     operationType: data.operation_type,
     resourceType: data.resource_type,
     resourceId: data.resource_id,
@@ -42,6 +43,13 @@ class OperationLogController {
       const size = Math.min(Math.max(parseInt(ctx.query.size, 10) || 20, 1), 100);
       const where = {};
 
+      if (ctx.query.operatorThreeMemberRoles) {
+        const roles = String(ctx.query.operatorThreeMemberRoles)
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+        if (roles.length) where.operator_three_member_role = { [Op.in]: roles };
+      }
       if (ctx.query.domain) where.domain = ctx.query.domain;
       if (ctx.query.operationType) where.operation_type = ctx.query.operationType;
       if (ctx.query.resourceType) where.resource_type = ctx.query.resourceType;

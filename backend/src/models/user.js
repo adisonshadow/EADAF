@@ -78,6 +78,12 @@ const User = sequelize.define('User', {
     field: 'must_change_password',
     comment: '是否须修改默认密码'
   },
+  three_member_role: {
+    type: DataTypes.STRING(32),
+    allowNull: true,
+    field: 'three_member_role',
+    comment: '三员身份：system_admin | security_admin | auditor；空为普通用户'
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,

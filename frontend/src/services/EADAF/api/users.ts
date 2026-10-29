@@ -49,6 +49,8 @@ export async function postUsers(
     department_id?: string;
     /** 角色ID列表 */
     role_ids?: string[];
+    /** 三员身份，可空 */
+    three_member_role?: 'system_admin' | 'security_admin' | 'auditor' | '';
   },
   options?: { [key: string]: any },
 ) {
@@ -101,6 +103,8 @@ export async function putUsersUserId(
     department_id?: string;
     /** 用户状态 */
     status?: 'ACTIVE' | 'DISABLED' | 'ARCHIVED';
+    /** 三员身份，空字符串表示清除 */
+    three_member_role?: 'system_admin' | 'security_admin' | 'auditor' | '';
   },
   options?: { [key: string]: any },
 ) {

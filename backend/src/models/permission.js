@@ -43,6 +43,13 @@ Permission.init({
     field: 'status',
     comment: '权限状态'
   },
+  three_member_duty: {
+    type: DataTypes.STRING(32),
+    allowNull: true,
+    defaultValue: 'business',
+    field: 'three_member_duty',
+    comment: '三员职责：business | system_admin | security_admin | auditor'
+  },
   access_restriction: {
     type: DataTypes.JSONB,
     allowNull: true,

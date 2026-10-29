@@ -116,6 +116,20 @@ export const fieldDefinitions: MixedFieldType[] = [
     ifShowInDetail: true,
     ifShowInForm: true,
   },
+  {
+    title: "三员属性",
+    dataIndex: "three_member_role",
+    valueType: 'select',
+    valueEnum: {
+      system_admin: { text: '系统管理员' },
+      security_admin: { text: '安全保密管理员' },
+      auditor: { text: '安全审计员' },
+    },
+    fieldProps: { allowClear: true },
+    ifShowInTable: false,
+    ifShowInDetail: true,
+    ifShowInForm: true,
+  },
   
   {
     title: "邮箱",

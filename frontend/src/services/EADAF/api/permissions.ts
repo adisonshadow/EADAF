@@ -105,6 +105,7 @@ export async function putPermissionsPermissionId(
     actions?: ('create' | 'read' | 'update' | 'delete')[];
     /** 访问限制（菜单/按钮运行时可见性） */
     access_restriction?: { mode: 'none' | 'role' | 'department'; roleIds?: string[]; departmentIds?: string[] };
+    three_member_duty?: 'business' | 'system_admin' | 'security_admin' | 'auditor';
   },
   options?: { [key: string]: any },
 ) {

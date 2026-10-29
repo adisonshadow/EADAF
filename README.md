@@ -29,6 +29,7 @@
 - **角色管理**：RBAC 角色定义与权限绑定
 - **角色绑定**：成员、组织均可绑定多个角色；成员有效角色 = 直接角色 ∪ 组织继承角色
 - **权限**：菜单、按钮、API 三级权限资源
+- **三员**：可选的职责分离。关闭时与原来一致；开启后系统管理员的高风险操作需安全保密管理员审批，安全审计员只核查这两类人的日志并可导出报告。用法见 [docs/三员审批与审计.md](./docs/三员审批与审计.md)
 - **认证**：登录验证码、JWT / Refresh Token、会话校验
 
 
@@ -358,4 +359,5 @@ pnpm pack:app      # 业务应用包 → deploy-artifacts/APP/
 5. [frontend/README.md](./frontend/README.md) — 管理端前端
 6. [docs/app-api-skill/README.md](./docs/app-api-skill/README.md) — 给业务应用的 AI 准备「业务 API Skill」（生成顶层 Skill，别再让模型猜接口）
 7. [docs/ai-api-contract.md](./docs/ai-api-contract.md) — 让 AI 准确调用 API：`eadaf_api_contract` 契约查询 Tool + 全局 Skill（附实测对比）
+8. [docs/三员审批与审计.md](./docs/三员审批与审计.md) — 三员开关、审批队列和审计员导出报告的用法
 
