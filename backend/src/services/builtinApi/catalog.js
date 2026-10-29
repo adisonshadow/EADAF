@@ -1103,6 +1103,15 @@ const BUILTIN_API_CATALOG = [
     description: '查看操作日志详情',
   },
   {
+    code: 'system:health:get',
+    domain: 'system',
+    label: '系统健康',
+    routePath: '/api/v1/admin/system-health',
+    httpMethods: ['GET'],
+    actions: ['read'],
+    description: '读取系统健康报告（依赖、关键配置、业务数据库连接）',
+  },
+  {
     code: 'system:app_transfer:export',
     domain: 'system',
     label: '应用导出',

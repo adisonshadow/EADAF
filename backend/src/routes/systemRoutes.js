@@ -59,6 +59,11 @@ const restoreUploadMiddleware = koaBody({
  *               autoBackupEnabled: { type: boolean, description: '是否启用自动备份' }
  *               autoBackupCron: { type: string, description: '自动备份 cron，如 0 2 * * *' }
  *               backupDir: { type: string, description: '数据库备份目录（绝对路径，保存前会创建并验证可写；传空串恢复默认目录）' }
+ *               logMaxSize: { type: string, description: '单个日志文件最大大小，如 20m、1g', example: "20m" }
+ *               logRetentionDays: { type: integer, description: '运行日志保留天数', example: 14 }
+ *               logErrorRetentionDays: { type: integer, description: '错误、异常、拒绝日志保留天数', example: 30 }
+ *               logZippedArchive: { type: boolean, description: '滚动后的旧日志是否 gzip 压缩' }
+ *               logRotationReset: { type: boolean, description: '传 true 时清掉设置页的日志滚动配置，恢复环境变量默认值' }
  *     responses:
  *       200:
  *         description: 更新成功，data 为更新后的功能开关

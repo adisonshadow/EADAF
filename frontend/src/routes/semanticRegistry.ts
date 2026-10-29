@@ -960,6 +960,17 @@ export const EADAF_SEMANTIC_ROUTES: AppSemanticEntry[] = [
     keywords: ['操作日志', '系统日志', '审计'],
   },
   {
+    path: '/system/health',
+    mode: 'list',
+    pageKey: 'systemHealth',
+    title: '系统健康',
+    description: '查看依赖、关键配置和业务数据库连接是否可用',
+    domain: 'system',
+    scopeGroup: 'system',
+    actions: ['list'],
+    keywords: ['系统健康', '健康检查'],
+  },
+  {
     path: '/system/settings',
     mode: 'settings',
     pageKey: 'systemSettings',

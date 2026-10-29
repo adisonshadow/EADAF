@@ -75,6 +75,7 @@ const SkillFormPage = lazy(() => import('@/pages/AIManagement/Skills/FormPage'))
 const RequestLogs = lazy(() => import('@/pages/AIManagement/RequestLogs'));
 const SystemSettings = lazy(() => import('@/pages/System/Settings'));
 const OperationLogs = lazy(() => import('@/pages/System/OperationLogs'));
+const SystemHealth = lazy(() => import('@/pages/System/Health'));
 const DataStandards = lazy(() => import('@/pages/BusinessData/DataStandards'));
 const MetadataCatalog = lazy(() => import('@/pages/BusinessData/Metadata'));
 const AppDataTransferPage = lazy(() => import('@/pages/AppDeployment/AppDataTransfer'));
@@ -128,6 +129,7 @@ export const PAGE_ELEMENTS: Record<string, ReactNode | ((mode: string) => ReactN
   /* system */
   systemSettings: <SystemSettings />,
   operationLogs: <OperationLogs />,
+  systemHealth: <SystemHealth />,
 
   /* app_deployment */
   appDataTransfer: <AppDataTransferPage />,

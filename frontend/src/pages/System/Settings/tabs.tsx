@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Input, Modal, Segmented, Space, Switch, Table, Typography, Upload } from 'antd';
+import { Alert, Button, Card, Input, InputNumber, Modal, Segmented, Select, Space, Switch, Table, Typography, Upload, theme } from 'antd';
 import type { UploadFile } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { message, modal } from '@/utils/antdAppApis';
@@ -36,7 +36,19 @@ const UI_THEME_OPTIONS: { label: string; value: UiThemePreference }[] = [
   { label: '深色', value: 'dark' },
 ];
 
+const LOG_SIZE_UNITS = [
+  { label: 'MB', value: 'm' },
+  { label: 'GB', value: 'g' },
+];
+
+function splitLogSize(value?: string) {
+  const match = String(value || '20m').trim().toLowerCase().match(/^(\d+(?:\.\d+)?)([mg])$/);
+  if (!match) return { amount: 20, unit: 'm' as const };
+  return { amount: Number(match[1]), unit: match[2] as 'm' | 'g' };
+}
+
 export const GeneralSettingsTab: React.FC = () => {
+  const { token } = theme.useToken();
   const { preference, setPreference } = useUiTheme();
   const { density, setDensity } = useProTableDensity();
   const { initialState, setInitialState } = useInitialState();
@@ -46,6 +58,32 @@ export const GeneralSettingsTab: React.FC = () => {
   const [metadataEnabled, setMetadataEnabled] = useState(
     initialState?.systemFeatures?.metadataEnabled ?? false,
   );
+  const initialSize = splitLogSize(initialState?.systemFeatures?.logMaxSize);
+  const [logAmount, setLogAmount] = useState(initialSize.amount);
+  const [logUnit, setLogUnit] = useState<'m' | 'g'>(initialSize.unit);
+  const [logRetentionDays, setLogRetentionDays] = useState(
+    initialState?.systemFeatures?.logRetentionDays ?? 14,
+  );
+  const [logErrorRetentionDays, setLogErrorRetentionDays] = useState(
+    initialState?.systemFeatures?.logErrorRetentionDays ?? 30,
+  );
+  const [logZippedArchive, setLogZippedArchive] = useState(
+    initialState?.systemFeatures?.logZippedArchive ?? true,
+  );
+  const [logRotationIsCustom, setLogRotationIsCustom] = useState(
+    Boolean(initialState?.systemFeatures?.logRotationIsCustom),
+  );
+  const [logSaving, setLogSaving] = useState(false);
+
+  const applyLogFields = (data?: API.SystemFeatures) => {
+    const size = splitLogSize(data?.logMaxSize);
+    setLogAmount(size.amount);
+    setLogUnit(size.unit);
+    setLogRetentionDays(data?.logRetentionDays ?? 14);
+    setLogErrorRetentionDays(data?.logErrorRetentionDays ?? 30);
+    setLogZippedArchive(data?.logZippedArchive !== false);
+    setLogRotationIsCustom(Boolean(data?.logRotationIsCustom));
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -55,6 +93,7 @@ export const GeneralSettingsTab: React.FC = () => {
         const data = getApiData<API.SystemFeatures>(res);
         setVersion(data?.version || '');
         setMetadataEnabled(Boolean(data?.metadataEnabled));
+        applyLogFields(data);
         setInitialState((prev) =>
           prev
             ? {
@@ -72,6 +111,25 @@ export const GeneralSettingsTab: React.FC = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const saveLogRotation = async (body: API.SystemFeatures) => {
+    setLogSaving(true);
+    try {
+      const res = await putSystemFeatures(body);
+      if (isApiSuccess(res)) {
+        const data = getApiData<API.SystemFeatures>(res);
+        applyLogFields(data);
+        setInitialState((prev) =>
+          prev ? { ...prev, systemFeatures: { ...prev.systemFeatures, ...data } } : prev,
+        );
+        message.success(body.logRotationReset ? '已恢复默认日志配置' : '日志配置已保存');
+      } else {
+        message.error(res.message || '保存失败');
+      }
+    } finally {
+      setLogSaving(false);
+    }
+  };
 
   const handleMetadataChange = async (checked: boolean) => {
     setSaving(true);
@@ -159,6 +217,97 @@ export const GeneralSettingsTab: React.FC = () => {
             onChange={(checked) => void handleMetadataChange(checked)}
           />
         </div>
+      </Card>
+      <Card title="日志">
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+            {logRotationIsCustom
+              ? '当前使用这里保存的配置，保存后立即作用于本进程。'
+              : '当前使用环境变量默认值。保存后改为这里的配置，并立即作用于本进程。'}
+            单个文件超过大小会切到新文件；超过保留天数的旧文件会被删除。
+          </Typography.Text>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>单个文件最大</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                运行日志、错误日志、异常日志共用这个上限
+              </div>
+            </div>
+            <Space.Compact>
+              <InputNumber
+                min={1}
+                max={1024}
+                value={logAmount}
+                onChange={(value) => setLogAmount(typeof value === 'number' ? value : 1)}
+              />
+              <Select
+                value={logUnit}
+                options={LOG_SIZE_UNITS}
+                onChange={(value) => setLogUnit(value)}
+                style={{ width: 72 }}
+              />
+            </Space.Compact>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>运行日志保留</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                app-*.log 保留天数
+              </div>
+            </div>
+            <InputNumber
+              min={1}
+              max={3650}
+              addonAfter="天"
+              value={logRetentionDays}
+              onChange={(value) => setLogRetentionDays(typeof value === 'number' ? value : 1)}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>错误日志保留</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                error / exceptions / rejections 共用
+              </div>
+            </div>
+            <InputNumber
+              min={1}
+              max={3650}
+              addonAfter="天"
+              value={logErrorRetentionDays}
+              onChange={(value) => setLogErrorRetentionDays(typeof value === 'number' ? value : 1)}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>压缩旧日志</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                滚动后的旧文件打成 gzip
+              </div>
+            </div>
+            <Switch checked={logZippedArchive} onChange={setLogZippedArchive} />
+          </div>
+          <Space>
+            <Button
+              type="primary"
+              loading={logSaving}
+              onClick={() => void saveLogRotation({
+                logMaxSize: `${logAmount}${logUnit}`,
+                logRetentionDays,
+                logErrorRetentionDays,
+                logZippedArchive,
+              })}
+            >
+              保存
+            </Button>
+            <Button
+              disabled={!logRotationIsCustom || logSaving}
+              onClick={() => void saveLogRotation({ logRotationReset: true })}
+            >
+              恢复默认
+            </Button>
+          </Space>
+        </Space>
       </Card>
     </Space>
   );

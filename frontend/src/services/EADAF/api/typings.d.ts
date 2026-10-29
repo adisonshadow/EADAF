@@ -1249,6 +1249,18 @@ declare namespace API {
     backupDirIsCustom?: boolean;
     /** 默认备份目录，清空自定义时回退到这里 */
     defaultBackupDir?: string;
+    /** 单个日志文件最大大小，如 20m、1g */
+    logMaxSize?: string;
+    /** 运行日志保留天数 */
+    logRetentionDays?: number;
+    /** 错误、异常、拒绝日志保留天数 */
+    logErrorRetentionDays?: number;
+    /** 滚动后的旧日志是否 gzip */
+    logZippedArchive?: boolean;
+    /** 是否被设置页改过（false = 用环境变量默认值） */
+    logRotationIsCustom?: boolean;
+    /** 传 true 时清掉设置页的日志滚动配置 */
+    logRotationReset?: boolean;
   };
 
   type SystemBackupItem = {

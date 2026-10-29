@@ -63,7 +63,9 @@ services:
     volumes:
       - EADAF_minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      # mc ready 内部每 5 秒重试并打印一行，数据目录或 MC_CONFIG_DIR 不存在时会一直写。
+      # live 只探本节点 HTTP，一次退出，不扫盘、不写 mc 配置。
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
       interval: 5s
       timeout: 5s
       retries: 20

@@ -194,11 +194,15 @@ app.use(async (ctx, next) => {
   await next();
 });
 
+// 头像菜单每 30 秒轮询系统健康。成功请求不写访问日志，避免 app-*.log 被这条请求写满。
+const QUIET_REQUEST_LOG_PATHS = new Set(['/api/v1/admin/system-health']);
+
 // 添加请求日志
 app.use(async (ctx, next) => {
   const start = Date.now();
   try {
     await next();
+    if (QUIET_REQUEST_LOG_PATHS.has(ctx.path)) return;
     const ms = Date.now() - start;
     logger.info('Request completed', {
       method: ctx.method,
@@ -272,6 +276,15 @@ async function bootstrap() {
   const { runStartupChecks } = require('./utils/startupSelfCheck');
   const checks = await runStartupChecks({ dependencies });
   printStartupReport(dependencies, { extra: checks });
+
+  if (postgres && postgres.reachable) {
+    try {
+      const { applyStoredLogRotation } = require('./services/system/systemService');
+      await applyStoredLogRotation();
+    } catch (error) {
+      logger.warn('日志滚动配置未应用（继续使用环境变量默认值）', { error: error.message });
+    }
+  }
 
   // 系统内置 Storage Bucket 已在自检里确保（失败会作为自检项报出来）
   const { ensureBucket } = require('./services/storage/objectStore');

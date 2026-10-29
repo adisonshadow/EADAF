@@ -17,26 +17,79 @@ const logFormat = winston.format.combine(
 const logger = winston.createLogger({
     level: process.env.NODE_ENV === 'development' ? 'silly' : config.logging.level,
     format: logFormat,
-    transports: [
-        new winston.transports.DailyRotateFile({
-            filename: path.join(logDir, 'app-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            maxSize: config.logging.rotation.maxSize,
-            maxFiles: config.logging.rotation.maxFiles,
-            zippedArchive: config.logging.rotation.zippedArchive,
-            format: logFormat
-        }),
-        new winston.transports.DailyRotateFile({
-            filename: path.join(logDir, 'error-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            maxSize: config.logging.rotation.maxSize,
-            maxFiles: config.logging.rotation.errorMaxFiles,
-            zippedArchive: config.logging.rotation.zippedArchive,
-            level: 'error',
-            format: logFormat
-        })
-    ]
+    transports: []
 });
+
+let exceptionTransport = null;
+let rejectionTransport = null;
+
+function closeTransport(transport) {
+    if (!transport || typeof transport.close !== 'function') return;
+    try {
+        transport.close();
+    } catch {
+        /* 已经关掉 */
+    }
+}
+
+function dailyRotateFile(filename, rotation, extra = {}) {
+    return new winston.transports.DailyRotateFile({
+        filename,
+        datePattern: 'YYYY-MM-DD',
+        maxSize: rotation.maxSize,
+        maxFiles: extra.maxFiles,
+        zippedArchive: rotation.zippedArchive,
+        format: logFormat,
+        ...extra.level ? { level: extra.level } : {}
+    });
+}
+
+/**
+ * 按给定滚动参数重建文件传输。
+ * winston-daily-rotate-file 在创建流时就把 maxSize / maxFiles 收进闭包，
+ * 改 options 不会作用到已经打开的文件，所以要拆掉再挂上。
+ * 控制台传输留着不动。
+ */
+function applyLogRotation(rotation) {
+    const next = {
+        maxSize: rotation.maxSize,
+        zippedArchive: Boolean(rotation.zippedArchive)
+    };
+    logger.transports
+        .filter((transport) => transport.name === 'dailyRotateFile')
+        .forEach((transport) => {
+            logger.remove(transport);
+            closeTransport(transport);
+        });
+
+    logger.add(dailyRotateFile(path.join(logDir, 'app-%DATE%.log'), next, {
+        maxFiles: rotation.maxFiles
+    }));
+    logger.add(dailyRotateFile(path.join(logDir, 'error-%DATE%.log'), next, {
+        maxFiles: rotation.errorMaxFiles,
+        level: 'error'
+    }));
+
+    if (exceptionTransport || rejectionTransport) {
+        logger.exceptions.unhandle();
+        logger.exceptions.handlers?.clear?.();
+        logger.rejections.unhandle();
+        logger.rejections.handlers?.clear?.();
+        closeTransport(exceptionTransport);
+        closeTransport(rejectionTransport);
+    }
+
+    exceptionTransport = dailyRotateFile(path.join(logDir, 'exceptions-%DATE%.log'), next, {
+        maxFiles: rotation.exceptionsMaxFiles || rotation.errorMaxFiles
+    });
+    rejectionTransport = dailyRotateFile(path.join(logDir, 'rejections-%DATE%.log'), next, {
+        maxFiles: rotation.rejectionsMaxFiles || rotation.errorMaxFiles
+    });
+    logger.exceptions.handle(exceptionTransport);
+    logger.rejections.handle(rejectionTransport);
+}
+
+applyLogRotation(config.logging.rotation);
 
 /**
  * 控制台格式：只留「时刻 级别 正文」，元数据压成 k=v，堆栈换行缩进。
@@ -92,24 +145,6 @@ if (process.env.NODE_ENV !== 'production') {
     logger.add(new FileOnlyConsoleTransport({ format: consoleFormat }));
 }
 
-logger.exceptions.handle(
-    new winston.transports.DailyRotateFile({
-        filename: path.join(logDir, 'exceptions-%DATE%.log'),
-        datePattern: 'YYYY-MM-DD',
-        maxSize: config.logging.rotation.maxSize,
-        maxFiles: config.logging.rotation.exceptionsMaxFiles,
-        zippedArchive: config.logging.rotation.zippedArchive
-    })
-);
-
-logger.rejections.handle(
-    new winston.transports.DailyRotateFile({
-        filename: path.join(logDir, 'rejections-%DATE%.log'),
-        datePattern: 'YYYY-MM-DD',
-        maxSize: config.logging.rotation.maxSize,
-        maxFiles: config.logging.rotation.rejectionsMaxFiles,
-        zippedArchive: config.logging.rotation.zippedArchive
-    })
-);
+logger.applyLogRotation = applyLogRotation;
 
 module.exports = logger;
