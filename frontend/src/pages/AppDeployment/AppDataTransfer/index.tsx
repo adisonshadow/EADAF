@@ -421,7 +421,7 @@ const AppTransferPanel: React.FC = () => {
       : '关闭安全模式(保持源端发布状态)';
     const schemaDesc =
       mustConfirmSchema && forceSchema
-        ? `物理表与行数据写入 schema「${forceSchema}」。`
+        ? `物理表、行数据，以及 API / 采集管道里的表 schema 都写入「${forceSchema}」。`
         : '';
     modal.confirm({
       title: '确认导入应用数据?',

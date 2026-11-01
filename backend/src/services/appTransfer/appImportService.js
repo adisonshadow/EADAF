@@ -24,7 +24,8 @@
  * - 安全模式:导入请求 options.safeMode 可覆盖包内设置;未传时默认 true,
  *   覆盖导入把已发布 API/管道/Webhook 退回 draft。显式传 false 才保持源发布状态。
  * - 包内物理表 schema 与本地连接不一致时,请求可带 forceTargetSchema(用户从本地 schema 确认)。
- *   物化与行数据都改写到该 schema;未传时仍按包内 schema 写数。
+ *   物化与行数据都改写到该 schema;API / 采集管道里指向这些表的 schema 限定名一并改写。
+ *   未传时仍按包内 schema 写数,SQL 保持原样。
  */
 const { Op } = require('sequelize');
 const models = require('../../models');
@@ -48,7 +49,12 @@ const {
   importStorageBucketsSection,
   importStorageObjectsSection,
 } = require('./transferStorage');
-const { assertForceTargetSchema } = require('./schemaRelocation');
+const {
+  assertForceTargetSchema,
+  collectPackageSchemas,
+  collectPackageTableNames,
+  relocateImportedRecord,
+} = require('./schemaRelocation');
 
 const STRATEGIES = ['overwrite', 'skip', 'abort'];
 
@@ -358,6 +364,10 @@ class ImportContext {
     this.includeFiles = file.options?.includeFiles === true;
     this.safeMode = resolveImportSafeMode(file, options);
     this.forceTargetSchema = assertForceTargetSchema(options.forceTargetSchema);
+    this.packageSchemas = collectPackageSchemas(file);
+    this.packageTableNames = collectPackageTableNames(file);
+    this.schemaSqlRewrites = 0;
+    this.apiSchemaRewrites = 0;
     this.sourceAppId = file.options?.sourceApplicationId || file.application?.application_id || null;
     this.targetAppId = null;
     this.currentSection = null;
@@ -385,6 +395,23 @@ class ImportContext {
     };
     this.targetConnections = null;
     this.connectionMatchCache = new Map();
+  }
+
+  /** forceTargetSchema 确认后,把这条记录里写死的源 schema 改到目标 schema。 */
+  relocateRecord(row) {
+    if (!this.forceTargetSchema) return {};
+    const overrides = relocateImportedRecord(row, {
+      toSchema: this.forceTargetSchema,
+      fromSchemas: this.packageSchemas,
+      tableNames: this.packageTableNames,
+    });
+    return overrides;
+  }
+
+  noteRelocation(overrides, applied) {
+    if (!applied || !overrides || !Object.keys(overrides).length) return;
+    this.schemaSqlRewrites += 1;
+    if (this.currentSection === 'apiServices') this.apiSchemaRewrites += 1;
   }
 
   // ---------- 节结果与链控制 ----------
@@ -1291,10 +1318,12 @@ class ImportContext {
             this.itemFailed(section, `API 服务「${svc.code}」`, new Error('源连接在目标实例未匹配到,服务未导入'));
             continue;
           }
+          const relocation = this.relocateRecord(svc);
           const overrides = {
             connection_id: conn.id,
             entity_id: svc.entity_id ? (this.idMap.entities.get(svc.entity_id) || null) : null,
             version: svc.version ?? 0,
+            ...relocation,
           };
            
           const result = await this.upsertMeta(models.BizdataApiService, svc, 'code', this.idMap.apiServices, overrides, section, {
@@ -1302,9 +1331,13 @@ class ImportContext {
             secondKey: { field: 'route_path', model: models.BizdataApiService },
           });
           if (!result) continue;
+          this.noteRelocation(relocation, result.created || this.strategy === 'overwrite');
           await this.demotePublishedIfSafe(result, section, transaction);
         }
         this.noteSafeDemotion(section, 'API');
+        if (this.apiSchemaRewrites) {
+          section.notes.push(`已把 ${this.apiSchemaRewrites} 个 API 的 schema 限定名改写到「${this.forceTargetSchema}」`);
+        }
         for (const op of operations) {
           const serviceId = this.idMap.apiServices.get(op.api_service_id);
           if (!serviceId) {
@@ -1382,9 +1415,11 @@ class ImportContext {
             this.itemFailed(section, `采集管道「${pipeline.code}」`, new Error('源连接在目标实例未匹配到,管道未导入'));
             continue;
           }
+          const relocation = this.relocateRecord(pipeline);
           const overrides = {
             connection_id: conn.id,
             entity_id: pipeline.entity_id ? (this.idMap.entities.get(pipeline.entity_id) || null) : null,
+            ...relocation,
           };
            
           const result = await this.upsertMeta(models.BizdataCollectionPipeline, pipeline, 'code', this.idMap.pipelines, overrides, section, {
@@ -1392,9 +1427,14 @@ class ImportContext {
             secondKey: { field: 'route_path', model: models.BizdataCollectionPipeline },
           });
           if (!result) continue;
+          this.noteRelocation(relocation, result.created || this.strategy === 'overwrite');
           await this.demotePublishedIfSafe(result, section, transaction);
         }
         this.noteSafeDemotion(section, '采集管道');
+        const pipelineRewrites = this.schemaSqlRewrites - this.apiSchemaRewrites;
+        if (pipelineRewrites > 0) {
+          section.notes.push(`已把 ${pipelineRewrites} 个采集管道的 schema 限定名改写到「${this.forceTargetSchema}」`);
+        }
         for (const link of applications) {
           const pipelineId = this.idMap.pipelines.get(link.pipeline_id);
           if (!pipelineId || link.application_id !== this.sourceAppId) {
@@ -2051,7 +2091,7 @@ async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
   result.forceTargetSchema = ctx.forceTargetSchema;
   result.dataMode = ctx.dataMode;
   if (ctx.forceTargetSchema) {
-    result.warnings.push(`已按确认把物理表建在 schema「${ctx.forceTargetSchema}」，行数据写入该 schema`);
+    result.warnings.push(`已按确认把物理表建在 schema「${ctx.forceTargetSchema}」，行数据写入该 schema，API 与采集管道中的表限定名也改到该 schema`);
   }
   if (ctx.safeMode) {
     result.warnings.push('安全模式已开启:覆盖导入会把已发布的 API、采集管道、出站 Webhook 退回未发布');
