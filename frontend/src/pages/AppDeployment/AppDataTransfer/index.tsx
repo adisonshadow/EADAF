@@ -17,6 +17,7 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Col,
   Descriptions,
   Form,
@@ -40,6 +41,30 @@ import {
 } from './exportContent';
 
 const SYSTEM_APPLICATION_CODE = 'EADAF';
+
+function schemaOptionLabel(option: API.AppTransferSchemaOption): string {
+  if (option.configured && option.exists === false) {
+    return `${option.name}（当前连接，确认后创建）`;
+  }
+  if (option.configured) return `${option.name}（当前连接）`;
+  return option.name;
+}
+
+function preferredForceSchema(
+  relocation?: API.AppTransferSchemaRelocation | null,
+): string | undefined {
+  const options = relocation?.localSchemas || [];
+  if (!options.length) return undefined;
+  const configured = options.find((item) => item.configured);
+  if (configured) return configured.name;
+  if (
+    relocation?.localSchema &&
+    options.some((item) => item.name === relocation.localSchema)
+  ) {
+    return relocation.localSchema;
+  }
+  return options[0].name;
+}
 
 const SECTION_LABELS: Record<string, string> = {
   application: '应用配置',
@@ -319,6 +344,8 @@ const AppTransferPanel: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] =
     useState<API.AppTransferImportResult | null>(null);
+  const [forceSchema, setForceSchema] = useState<string | undefined>();
+  const [forceSchemaConfirmed, setForceSchemaConfirmed] = useState(false);
 
   const resetImport = () => {
     setImportFile(null);
@@ -326,16 +353,24 @@ const AppTransferPanel: React.FC = () => {
     setStrategy('overwrite');
     setImportSafeMode(true);
     setImportResult(null);
+    setForceSchema(undefined);
+    setForceSchemaConfirmed(false);
   };
 
   const runPreview = async (file: File) => {
     setPreviewLoading(true);
     setPreview(null);
     setImportResult(null);
+    setForceSchema(undefined);
+    setForceSchemaConfirmed(false);
     try {
       const res = await postAppTransferPreview(file);
       if (isApiSuccess(res)) {
-        setPreview(getApiData<API.AppTransferPreviewResult>(res) || null);
+        const data = getApiData<API.AppTransferPreviewResult>(res) || null;
+        setPreview(data);
+        if (data?.schemaRelocation?.needed) {
+          setForceSchema(preferredForceSchema(data.schemaRelocation));
+        }
       } else {
         message.error(res.message || '预览失败');
         setImportFile(null);
@@ -361,6 +396,10 @@ const AppTransferPanel: React.FC = () => {
   const unwritableCount = (preview?.entityData || []).filter(
     (e) => e.writable === false,
   ).length;
+  const relocation = preview?.schemaRelocation;
+  const mustConfirmSchema = Boolean(
+    relocation?.needed && (relocation.localSchemas?.length || 0) > 0,
+  );
 
   const handleImport = () => {
     if (!importFile || !preview) {
@@ -371,16 +410,24 @@ const AppTransferPanel: React.FC = () => {
       message.error('内置系统应用 EADAF 不允许导入');
       return;
     }
+    if (mustConfirmSchema && (!forceSchema || !forceSchemaConfirmed)) {
+      message.warning('请选择本地 schema，并确认把表建到该 schema');
+      return;
+    }
     const strategyDesc =
       STRATEGY_OPTIONS.find((o) => o.value === strategy)?.label || strategy;
     const safeModeDesc = importSafeMode
       ? '开启安全模式(覆盖时退回已发布 API/管道/Webhook)'
       : '关闭安全模式(保持源端发布状态)';
+    const schemaDesc =
+      mustConfirmSchema && forceSchema
+        ? `物理表与行数据写入 schema「${forceSchema}」。`
+        : '';
     modal.confirm({
       title: '确认导入应用数据?',
       content: `将按「${strategyDesc}」策略、${safeModeDesc}把「${
         preview.application?.code || ''
-      }」导入当前实例,导入不会自动撤销,请确认。`,
+      }」导入当前实例。${schemaDesc}导入不会自动撤销,请确认。`,
       okText: '开始导入',
       okButtonProps: { danger: strategy === 'overwrite' },
       cancelText: '取消',
@@ -389,6 +436,9 @@ const AppTransferPanel: React.FC = () => {
         try {
           const res = await postAppTransferImport(importFile, strategy, {
             safeMode: importSafeMode,
+            ...(mustConfirmSchema && forceSchema
+              ? { forceTargetSchema: forceSchema }
+              : {}),
           });
           if (isApiSuccess(res)) {
             const data = getApiData<API.AppTransferImportResult>(res) || null;
@@ -884,6 +934,76 @@ const AppTransferPanel: React.FC = () => {
                         <li key={i}>{w}</li>
                       ))}
                     </ul>
+                  }
+                />
+              )}
+
+              {relocation?.needed && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  style={{ marginTop: 12 }}
+                  message="源物理表不在同一个本地 schema"
+                  description={
+                    <div>
+                      <div style={{ marginBottom: 8 }}>{relocation.reason}</div>
+                      {(relocation.fileSchemas?.length || 0) > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          包内 schema：
+                          {relocation.fileSchemas?.map((item) => (
+                            <Tag key={item.schema}>
+                              {item.schema} · {item.entityCount} 个实体 ·{' '}
+                              {item.rowCount} 行
+                            </Tag>
+                          ))}
+                        </div>
+                      )}
+                      {relocation.listError && (
+                        <Typography.Text
+                          type="danger"
+                          style={{ display: 'block', marginBottom: 8 }}
+                        >
+                          读取本地 schema 失败：{relocation.listError}
+                          {(relocation.localSchemas?.length || 0) > 0
+                            ? '。连接配置的 schema 已保留在列表中。'
+                            : ''}
+                        </Typography.Text>
+                      )}
+                      {(relocation.localSchemas?.length || 0) > 0 ? (
+                        <Space direction="vertical" size={8}>
+                          <Space wrap>
+                            <span>建表 schema</span>
+                            <Select
+                              style={{ minWidth: 280 }}
+                              value={forceSchema}
+                              options={(relocation.localSchemas || []).map(
+                                (item) => ({
+                                  value: item.name,
+                                  label: schemaOptionLabel(item),
+                                }),
+                              )}
+                              onChange={(value) => {
+                                setForceSchema(value);
+                                setForceSchemaConfirmed(false);
+                              }}
+                            />
+                          </Space>
+                          <Checkbox
+                            checked={forceSchemaConfirmed}
+                            onChange={(event) =>
+                              setForceSchemaConfirmed(event.target.checked)
+                            }
+                          >
+                            确认把全部物理表建在「{forceSchema || '未选择'}」，行数据也写入该 schema
+                          </Checkbox>
+                        </Space>
+                      ) : (
+                        <Typography.Text type="secondary">
+                          没有可选的本地 schema，无法强制改写。导入会按包内记录的
+                          schema 写数。
+                        </Typography.Text>
+                      )}
+                    </div>
                   }
                 />
               )}

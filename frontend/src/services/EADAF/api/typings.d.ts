@@ -1350,6 +1350,28 @@ declare namespace API {
     createFromName?: string | null;
   };
 
+  /** 导入预览:本地可选 schema */
+  type AppTransferSchemaOption = {
+    name: string;
+    /** 是否为当前连接配置的物化 schema */
+    configured?: boolean;
+    /** 库中是否已有该 schema;false 时确认导入后才会创建 */
+    exists?: boolean;
+  };
+
+  /** 导入预览:包内物理表 schema 与本地连接不一致时的处置 */
+  type AppTransferSchemaRelocation = {
+    needed?: boolean;
+    reason?: string;
+    fileSchemas?: { schema: string; entityCount: number; rowCount: number }[];
+    localSchema?: string | null;
+    connectionName?: string | null;
+    sourceId?: string | null;
+    dbType?: string | null;
+    localSchemas?: AppTransferSchemaOption[];
+    listError?: string | null;
+  };
+
   /** 导入预览:物化库表摘要 */
   type AppTransferPhysicalTable = {
     entityCode?: string;
@@ -1385,6 +1407,7 @@ declare namespace API {
     conflicts?: AppTransferPreviewConflict[];
     hookMultiMatch?: { name?: string; eventType?: string; matched?: number }[];
     connectionMatches?: AppTransferConnectionMatch[];
+    schemaRelocation?: AppTransferSchemaRelocation;
     physicalTables?: AppTransferPhysicalTable[];
     entityData?: AppTransferEntityDataPreview[];
     missingReferences?: string[];
@@ -1414,6 +1437,8 @@ declare namespace API {
     includeEadaf?: boolean;
     includeFiles?: boolean;
     safeMode?: boolean;
+    /** 用户确认后实际写入的本地 schema */
+    forceTargetSchema?: string | null;
     durationMs?: number;
   };
 

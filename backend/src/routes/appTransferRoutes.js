@@ -68,7 +68,7 @@ router.post('/export', authWithBuiltinApiGuard, operationAudit({
  * /api/v1/system/app-transfer/preview:
  *   post:
  *     tags: [System]
- *     summary: 预览应用导出包(节条数/冲突/连接匹配与将创建/物化库表摘要/缺失引用/文件计数,不写数据) [需要认证]
+ *     summary: 预览应用导出包(节条数/冲突/连接匹配与将创建/物化库表摘要/schema 改写/缺失引用/文件计数,不写数据) [需要认证]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       content:
@@ -110,9 +110,10 @@ router.post('/preview', authWithBuiltinApiGuard, operationAudit({
  *               file: { type: string, format: binary, description: 'eadaf-app-export .zip 包(仍接受旧版单 .json)' }
  *               strategy: { type: string, enum: [overwrite, skip, abort], default: overwrite, description: '冲突策略:覆盖更新 / 跳过已存在 / 有冲突即中止(不写任何数据)' }
  *               safeMode: { type: boolean, default: true, description: '安全模式。默认开启:覆盖导入把已发布 API/采集管道/出站 Webhook 退回未发布。显式 false 才保持源发布状态(可覆盖包内标记)' }
+ *               forceTargetSchema: { type: string, description: '用户确认后的本地 schema。包内物理表 schema 与本地连接不一致时传入;物化与行数据都写入该 schema。须为预览 schemaRelocation.localSchemas 中的名称' }
  *     responses:
  *       200:
- *         description: 导入结果(分节计数/errors/notes)。新建应用保持源 application_id;仅 overwrite 且目标同 code 但 ID 不同时才对齐为源 ID,skip 沿用目标 ID。默认安全模式退回已发布 API/管道/Webhook,导入请求 safeMode=false 可保持发布。行数据 json/jsonb 列会先序列化再写入。钩子 action_config.apiServiceId / event_filter.apiServiceIds 与存储桶 access_restrictions.role_ids 按 idMap 改写(未映射完时不落空过滤/空角色以免放宽访问)。物化与行数据失败不终止后续 API 等元数据节;源行含空值时会放开目标列 NOT NULL 再写入,避免整表回滚;对象引用的桶在目标不存在时会按 code 自动创建(public)。未勾选 includeEadaf / includeFiles 写入 notes 而非 errors。不含平台 AI 目录/全局 Skill
+ *         description: 导入结果(分节计数/errors/notes)。新建应用保持源 application_id;仅 overwrite 且目标同 code 但 ID 不同时才对齐为源 ID,skip 沿用目标 ID。默认安全模式退回已发布 API/管道/Webhook,导入请求 safeMode=false 可保持发布。传入 forceTargetSchema 时,物化与行数据都写入该本地 schema(用户已在预览中确认)。行数据 json/jsonb 列会先序列化再写入。钩子 action_config.apiServiceId / event_filter.apiServiceIds 与存储桶 access_restrictions.role_ids 按 idMap 改写(未映射完时不落空过滤/空角色以免放宽访问)。物化与行数据失败不终止后续 API 等元数据节;源行含空值时会放开目标列 NOT NULL 再写入,避免整表回滚;对象引用的桶在目标不存在时会按 code 自动创建(public)。未勾选 includeEadaf / includeFiles 写入 notes 而非 errors。不含平台 AI 目录/全局 Skill
  *         content:
  *           application/json:
  *             schema:

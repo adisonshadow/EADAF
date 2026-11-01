@@ -1,6 +1,7 @@
 const AppTransferExportService = require('../services/appTransfer/appExportService');
 const AppTransferPreviewService = require('../services/appTransfer/appPreviewService');
 const AppTransferImportService = require('../services/appTransfer/appImportService');
+const { assertForceTargetSchema } = require('../services/appTransfer/schemaRelocation');
 const { cleanupUpload } = require('../services/appTransfer/transferZip');
 const logger = require('../utils/logger');
 const { formatApiError } = require('../utils/formatApiError');
@@ -87,6 +88,15 @@ class AppTransferController {
     if (Object.prototype.hasOwnProperty.call(body, 'safeMode')) {
       const raw = body.safeMode;
       importOptions.safeMode = raw === true || raw === 'true' || raw === '1';
+    }
+    if (body.forceTargetSchema != null && String(body.forceTargetSchema).trim() !== '') {
+      try {
+        importOptions.forceTargetSchema = assertForceTargetSchema(body.forceTargetSchema);
+      } catch (error) {
+        sendError(ctx, error, 400);
+        await cleanupUpload(file.filepath);
+        return;
+      }
     }
     try {
       const data = await AppTransferImportService.importAppFile(file.filepath, strategy, importOptions);

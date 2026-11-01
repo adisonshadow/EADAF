@@ -23,6 +23,8 @@
  *   主键不同时先摘掉外键再物理清除,新应用落库后把文件引用改挂回去。
  * - 安全模式:导入请求 options.safeMode 可覆盖包内设置;未传时默认 true,
  *   覆盖导入把已发布 API/管道/Webhook 退回 draft。显式传 false 才保持源发布状态。
+ * - 包内物理表 schema 与本地连接不一致时,请求可带 forceTargetSchema(用户从本地 schema 确认)。
+ *   物化与行数据都改写到该 schema;未传时仍按包内 schema 写数。
  */
 const { Op } = require('sequelize');
 const models = require('../../models');
@@ -46,6 +48,7 @@ const {
   importStorageBucketsSection,
   importStorageObjectsSection,
 } = require('./transferStorage');
+const { assertForceTargetSchema } = require('./schemaRelocation');
 
 const STRATEGIES = ['overwrite', 'skip', 'abort'];
 
@@ -354,6 +357,7 @@ class ImportContext {
     this.includeEadaf = transferCompat.readIncludeEadaf(file.options);
     this.includeFiles = file.options?.includeFiles === true;
     this.safeMode = resolveImportSafeMode(file, options);
+    this.forceTargetSchema = assertForceTargetSchema(options.forceTargetSchema);
     this.sourceAppId = file.options?.sourceApplicationId || file.application?.application_id || null;
     this.targetAppId = null;
     this.currentSection = null;
@@ -1059,6 +1063,9 @@ class ImportContext {
     if (this.dataMode === 'data_only') {
       return this.skipSection(section, 'data_only 模式在写数阶段按目标现结构物化');
     }
+    if (this.forceTargetSchema) {
+      section.notes.push(`已按确认把本次物化表建在 schema「${this.forceTargetSchema}」`);
+    }
     const entityData = Array.isArray(this.file.entityData) ? this.file.entityData : [];
     // 所有带连接信息的实体(无论是否带行数据)都参与物化,保证目标端物理表就绪
     const byConnection = new Map(); // targetConnId -> [{entityId, version, entityCode}]
@@ -1101,6 +1108,7 @@ class ImportContext {
         await executeMaterialization({
           entityIds: entries.map((e) => e.entityId),
           connectionId: connId,
+          ...(this.forceTargetSchema ? { targetSchema: this.forceTargetSchema } : {}),
           expectedVersions,
           createTargetIfMissing: true,
           createdBy: this.createdBy,
@@ -1122,6 +1130,9 @@ class ImportContext {
     const entityData = Array.isArray(this.file.entityData) ? this.file.entityData : [];
     if (!entityData.length) {
       return this.skipSection(section, '文件不含行数据');
+    }
+    if (this.forceTargetSchema) {
+      section.notes.push(`行数据写入 schema「${this.forceTargetSchema}」（已确认强制建表）`);
     }
     for (const item of entityData) {
       const label = `实体「${item.entityCode}」`;
@@ -1186,6 +1197,7 @@ class ImportContext {
             await executeMaterialization({
               entityIds: [targetEntity.id],
               connectionId: conn.id,
+              ...(this.forceTargetSchema ? { targetSchema: this.forceTargetSchema } : {}),
               createTargetIfMissing: true,
               createdBy: this.createdBy,
             });
@@ -1198,7 +1210,8 @@ class ImportContext {
 
         // 列集校验:文件物理列可能比 entity_fields 多,先按导出列补 DDL 再校验
          
-        let actualColumns = await readTableColumns(runtime, item.targetSchema, item.tableName);
+        const writeSchema = this.forceTargetSchema || item.targetSchema;
+        let actualColumns = await readTableColumns(runtime, writeSchema, item.tableName);
         const declaredCols = (item.columns || []).map((c) => c.name).filter(Boolean);
         // 文件没带列清单时按行数据的键兜底,否则所有目标必填列都会被判成「文件未提供」
         const fileCols = declaredCols.length ? declaredCols : columnsFromRows(rows);
@@ -1210,8 +1223,8 @@ class ImportContext {
         if (!declaredCols.length) {
           section.notes.push(`${label}: 文件未带列清单,已按行数据推断 ${fileCols.length} 列`);
         }
-        await ensureFileColumnsOnTarget(runtime, item.targetSchema, item.tableName, item.columns || [], actualColumns);
-        actualColumns = await readTableColumns(runtime, item.targetSchema, item.tableName);
+        await ensureFileColumnsOnTarget(runtime, writeSchema, item.tableName, item.columns || [], actualColumns);
+        actualColumns = await readTableColumns(runtime, writeSchema, item.tableName);
         const actualNames = new Set(actualColumns.map((c) => c.name));
         const missingInTarget = fileCols.filter((c) => !actualNames.has(c));
         if (missingInTarget.length) {
@@ -1238,7 +1251,7 @@ class ImportContext {
         // 文件里哪怕只有一行空值,批量 INSERT 也会整表回滚(设备/型号页只见型号不见实例)。
         const nullCols = columnsWithNulls(cols, rows);
         if (nullCols.length) {
-          await relaxNotNullOnTarget(runtime, item.targetSchema, item.tableName, nullCols);
+          await relaxNotNullOnTarget(runtime, writeSchema, item.tableName, nullCols);
           section.notes.push(`${label}: 源数据含空值,已放开目标列 NOT NULL: ${nullCols.join(', ')}`);
         }
 
@@ -1253,7 +1266,7 @@ class ImportContext {
         }
 
         const writeResult = await writeEntityRows(
-          runtime, item.targetSchema, item.tableName, cols, rows, this.strategy, colTypeByName,
+          runtime, writeSchema, item.tableName, cols, rows, this.strategy, colTypeByName,
         );
         section.counts[writeResult] = (section.counts[writeResult] || 0) + 1;
       } catch (e) {
@@ -1968,7 +1981,8 @@ async function writeEntityRows(runtime, schemaName, tableName, cols, rows, strat
  * @param {string} strategy overwrite | skip | abort
  * @param {{ createdBy?: string, safeMode?: boolean }} [options]
  *   createdBy 须为操作者 UUID,否则物化 run 记空;
- *   safeMode 显式传入时覆盖默认(默认 true:覆盖导入退回已发布)
+ *   safeMode 显式传入时覆盖默认(默认 true:覆盖导入退回已发布);
+ *   forceTargetSchema 为用户确认后的本地 schema,物化与行数据都写入该 schema
  */
 async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
   const effectiveStrategy = STRATEGIES.includes(strategy) ? strategy : 'overwrite';
@@ -2034,7 +2048,11 @@ async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
   result.includeEadaf = ctx.includeEadaf;
   result.includeFiles = ctx.includeFiles;
   result.safeMode = ctx.safeMode;
+  result.forceTargetSchema = ctx.forceTargetSchema;
   result.dataMode = ctx.dataMode;
+  if (ctx.forceTargetSchema) {
+    result.warnings.push(`已按确认把物理表建在 schema「${ctx.forceTargetSchema}」，行数据写入该 schema`);
+  }
   if (ctx.safeMode) {
     result.warnings.push('安全模式已开启:覆盖导入会把已发布的 API、采集管道、出站 Webhook 退回未发布');
   } else {

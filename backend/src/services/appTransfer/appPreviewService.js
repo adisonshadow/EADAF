@@ -14,6 +14,7 @@ const models = require('../../models');
 const transferCompat = require('./transferCompat');
 const { prefixHit } = require('./scopePrefix');
 const { openTransferPackage, cleanupUpload } = require('./transferZip');
+const { buildSchemaRelocation } = require('./schemaRelocation');
 
 const SUPPORTED_ROW_DB = ['postgresql', 'mysql'];
 
@@ -405,6 +406,14 @@ async function previewImportFile(filePath) {
     if (orphanEntity) warnings.push(`实体「${orphanEntity.code}」不在应用 bizdata_scope_codes 前缀内(文件来源异常,仍会按文件导入)`);
   }
 
+  const schemaRelocation = await buildSchemaRelocation({
+    entityData,
+    connectionMatches,
+    hints,
+    targetConnections,
+    findCredentialTemplate,
+  });
+
   return {
     format: file.format,
     formatVersion: file.formatVersion,
@@ -458,6 +467,7 @@ async function previewImportFile(filePath) {
     conflicts,
     hookMultiMatch,
     connectionMatches,
+    schemaRelocation,
     physicalTables,
     entityData: entityDataPreview,
     missingReferences,
