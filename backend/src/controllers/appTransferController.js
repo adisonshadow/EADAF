@@ -84,7 +84,7 @@ class AppTransferController {
     }
     const body = ctx.request.body || {};
     const importOptions = { createdBy: ctx.state.user?.user_id };
-    // multipart 字段多为字符串;仅在显式传入时覆盖包内/默认安全模式
+    // multipart 字段多为字符串;显式传入时覆盖包内安全模式,未传则由导入服务沿用包内值
     if (Object.prototype.hasOwnProperty.call(body, 'safeMode')) {
       const raw = body.safeMode;
       importOptions.safeMode = raw === true || raw === 'true' || raw === '1';

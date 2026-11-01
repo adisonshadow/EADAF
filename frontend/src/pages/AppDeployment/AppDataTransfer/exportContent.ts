@@ -223,13 +223,14 @@ export function resolveExportContent(
   };
 }
 
+/** 导出、导入共用的安全模式说明。开关写入导出包,导入默认沿用。 */
+export const SAFE_MODE_EFFECT =
+  '覆盖导入时，把已发布的 API、采集管道、出站 Webhook 退回未发布。关闭后保持源端发布状态。';
+
 /**
- * 包内安全模式标记的说明。该标记只写进 manifest / payload.options,
- * 真正是否把已发布资源退回未发布由导入页的「安全模式」开关决定,
- * 所以不能把它算成「导出内容」。
+ * 导出内容清单下方的安全模式说明。
+ * 该设置只写入导出包,不改变包内业务数据,因此不计入导出内容清单。
  */
 export function describeSafeMode(safeMode: boolean): string {
-  return `包内标记为${
-    safeMode ? '开启' : '关闭'
-  }。该标记只供导入预览参考;导入时是否把已发布的 API / 采集管道 / Webhook 退回未发布,由导入页的「安全模式」开关决定(默认开启),不改变包内数据。`;
+  return `安全模式${safeMode ? '开启' : '关闭'}：${SAFE_MODE_EFFECT}该设置写入导出包，导入时默认沿用，不改变包内数据。`;
 }

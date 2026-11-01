@@ -21,8 +21,9 @@
  *   仅 overwrite 才对「同 code 不同 ID」做主键对齐,skip 沿用目标 ID。
  *   同 code 软删行若主键与源 ID 相同则直接恢复,避免 storage_objects 等外键挡住物理删除;
  *   主键不同时先摘掉外键再物理清除,新应用落库后把文件引用改挂回去。
- * - 安全模式:导入请求 options.safeMode 可覆盖包内设置;未传时默认 true,
- *   覆盖导入把已发布 API/管道/Webhook 退回 draft。显式传 false 才保持源发布状态。
+ * - 安全模式:与导出是同一设置,写入包内 options.safeMode。
+ *   导入请求显式传入时以请求为准;未传时沿用包内值(缺省为关闭,保持源端发布状态)。
+ *   开启且策略为 overwrite 时,把已发布 API/管道/Webhook 退回 draft。
  * - 包内物理表 schema 与本地连接不一致时,请求可带 forceTargetSchema(用户从本地 schema 确认)。
  *   物化与行数据都改写到该 schema;API / 采集管道里指向这些表的 schema 限定名一并改写。
  *   未传时仍按包内 schema 写数,SQL 保持原样。
@@ -344,14 +345,14 @@ function remapHookApiServiceIds(hook, apiServiceIdMap) {
 }
 
 /**
- * 导入安全模式:请求体可覆盖包内 options.safeMode。
- * 未传时默认 true(覆盖导入退回已发布),须显式 false 才保持源发布状态。
+ * 导入安全模式与导出包是同一设置。
+ * 请求显式传入 safeMode 时以请求为准;未传时沿用包内 options.safeMode。
  */
 function resolveImportSafeMode(file, options = {}) {
   if (Object.prototype.hasOwnProperty.call(options, 'safeMode')) {
     return options.safeMode === true;
   }
-  return true;
+  return file?.options?.safeMode === true;
 }
 
 class ImportContext {
@@ -2021,7 +2022,7 @@ async function writeEntityRows(runtime, schemaName, tableName, cols, rows, strat
  * @param {string} strategy overwrite | skip | abort
  * @param {{ createdBy?: string, safeMode?: boolean }} [options]
  *   createdBy 须为操作者 UUID,否则物化 run 记空;
- *   safeMode 显式传入时覆盖默认(默认 true:覆盖导入退回已发布);
+ *   safeMode 显式传入时覆盖包内设置;未传时沿用包内 options.safeMode;
  *   forceTargetSchema 为用户确认后的本地 schema,物化与行数据都写入该 schema
  */
 async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
@@ -2094,9 +2095,9 @@ async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
     result.warnings.push(`已按确认把物理表建在 schema「${ctx.forceTargetSchema}」，行数据写入该 schema，API 与采集管道中的表限定名也改到该 schema`);
   }
   if (ctx.safeMode) {
-    result.warnings.push('安全模式已开启:覆盖导入会把已发布的 API、采集管道、出站 Webhook 退回未发布');
+    result.warnings.push('安全模式已开启:覆盖导入时，把已发布的 API、采集管道、出站 Webhook 退回未发布');
   } else {
-    result.warnings.push('安全模式已关闭:覆盖导入将保持源端 API、采集管道、出站 Webhook 的发布状态');
+    result.warnings.push('安全模式已关闭:覆盖导入时保持源端发布状态');
   }
   if (!result.chainStoppedAt) {
     const failedSections = Object.entries(result.sections)

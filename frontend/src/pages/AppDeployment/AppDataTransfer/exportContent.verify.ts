@@ -101,8 +101,9 @@ for (const group of EXPORT_CONTENT_GROUPS) {
 }
 
 // 7. 安全模式只写提示文案，随开关变化，且不计入清单
-assert.match(describeSafeMode(true), /包内标记为开启/);
-assert.match(describeSafeMode(false), /包内标记为关闭/);
+assert.match(describeSafeMode(true), /安全模式开启/);
+assert.match(describeSafeMode(false), /安全模式关闭/);
+assert.match(describeSafeMode(true), /导入时默认沿用/);
 assert.ok(!keys.includes('safeMode'));
 
 console.log('exportContent.verify: ok');

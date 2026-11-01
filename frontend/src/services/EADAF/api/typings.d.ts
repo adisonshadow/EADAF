@@ -1317,7 +1317,7 @@ declare namespace API {
     dataMode?: 'structure_and_data' | 'data_only';
     includeEadaf?: boolean;
     includeFiles?: boolean;
-    /** 写入导出包的安全模式标记(供预览);导入默认开启安全模式,可由导入请求覆盖 */
+    /** 安全模式,写入导出包。导入默认沿用;导入请求可覆盖 */
     safeMode?: boolean;
   };
 

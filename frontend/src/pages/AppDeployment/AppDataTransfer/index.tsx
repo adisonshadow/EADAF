@@ -37,6 +37,7 @@ import HeaderNotice from '../components/HeaderNotice';
 import {
   describeSafeMode,
   resolveExportContent,
+  SAFE_MODE_EFFECT,
   type ExportDataMode,
 } from './exportContent';
 
@@ -339,8 +340,8 @@ const AppTransferPanel: React.FC = () => {
     null,
   );
   const [strategy, setStrategy] = useState('overwrite');
-  /** 导入安全模式:默认开启(覆盖时退回已发布),显式关闭才保持源发布状态 */
-  const [importSafeMode, setImportSafeMode] = useState(true);
+  /** 导入安全模式:预览后沿用导出包里的设置,可在导入前改 */
+  const [importSafeMode, setImportSafeMode] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] =
     useState<API.AppTransferImportResult | null>(null);
@@ -351,7 +352,7 @@ const AppTransferPanel: React.FC = () => {
     setImportFile(null);
     setPreview(null);
     setStrategy('overwrite');
-    setImportSafeMode(true);
+    setImportSafeMode(false);
     setImportResult(null);
     setForceSchema(undefined);
     setForceSchemaConfirmed(false);
@@ -368,6 +369,7 @@ const AppTransferPanel: React.FC = () => {
       if (isApiSuccess(res)) {
         const data = getApiData<API.AppTransferPreviewResult>(res) || null;
         setPreview(data);
+        setImportSafeMode(data?.options?.safeMode === true);
         if (data?.schemaRelocation?.needed) {
           setForceSchema(preferredForceSchema(data.schemaRelocation));
         }
@@ -417,7 +419,7 @@ const AppTransferPanel: React.FC = () => {
     const strategyDesc =
       STRATEGY_OPTIONS.find((o) => o.value === strategy)?.label || strategy;
     const safeModeDesc = importSafeMode
-      ? '开启安全模式(覆盖时退回已发布 API/管道/Webhook)'
+      ? '开启安全模式(覆盖导入时把已发布的 API、采集管道、出站 Webhook 退回未发布)'
       : '关闭安全模式(保持源端发布状态)';
     const schemaDesc =
       mustConfirmSchema && forceSchema
@@ -546,7 +548,8 @@ const AppTransferPanel: React.FC = () => {
                     onChange={setSafeMode}
                   />
                   <span>
-                    包内安全模式标记(供预览)。导入默认开启安全模式退回已发布;可在导入侧关闭以保持源发布状态
+                    安全模式。{SAFE_MODE_EFFECT}
+                    此设置写入导出包，导入时默认沿用。
                   </span>
                 </Space>
               </Space>
@@ -722,10 +725,10 @@ const AppTransferPanel: React.FC = () => {
                   },
                   {
                     key: 'safeMode',
-                    label: '包内安全模式标记',
+                    label: '安全模式',
                     children: preview.options?.safeMode
-                      ? '包内标记为开启'
-                      : '包内标记为关闭(导入默认仍开启安全模式,可在下方关闭)',
+                      ? '开启。导入已沿用该设置，可在下方修改'
+                      : '关闭。导入已沿用该设置，可在下方修改',
                   },
                 ]}
               />
@@ -1037,8 +1040,8 @@ const AppTransferPanel: React.FC = () => {
                       onChange={setImportSafeMode}
                     />
                     <span>
-                      默认开启:覆盖导入把已发布的 API、采集管道、出站 Webhook
-                      退回未发布。关闭后保持源端发布状态
+                      {SAFE_MODE_EFFECT}
+                      默认沿用导出包中的设置，可在此修改。
                     </span>
                   </Space>
                 </Form.Item>

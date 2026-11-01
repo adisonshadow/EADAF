@@ -992,7 +992,7 @@ Object.assign(schemas, {
     obj('应用导出文件预览摘要', {
       format: str('文件格式标识', 'eadaf-app-export'),
       formatVersion: int('文件版本', 1),
-      options: obj('导出选项(dataMode / includeEadaf / includeFiles / safeMode;包内 safeMode 供预览,导入默认开启安全模式退回已发布,可由导入请求 safeMode 覆盖)'),
+      options: obj('导出选项(dataMode / includeEadaf / includeFiles / safeMode;safeMode 写入导出包,导入未另传时沿用)'),
       application: obj('应用信息', { code: str('应用编码', 'CRM'), name: str('应用名称') }),
       targetApplicationExists: bool('目标实例是否已存在同 code 应用'),
       sections: obj('各节条数统计'),
@@ -1020,7 +1020,7 @@ Object.assign(schemas, {
     obj('应用导入结果', {
       strategy: str('冲突策略', 'overwrite'),
       aborted: bool('abort 策略下是否因冲突中止', false),
-      safeMode: bool('实际生效的安全模式(请求可覆盖包内标记;默认 true)', true),
+      safeMode: bool('实际生效的安全模式(请求可覆盖包内标记;未传时沿用包内值)', false),
       forceTargetSchema: { type: 'string', nullable: true, description: '用户确认后实际使用的本地 schema;未传则为 null' },
       dataMode: str('数据模式', 'structure_and_data'),
       includeEadaf: bool('是否导入了用户数据', false),
