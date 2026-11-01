@@ -767,6 +767,27 @@ const schemas = {
       logErrorRetentionDays: int('错误、异常、拒绝日志保留天数', 30),
       logZippedArchive: bool('滚动后的旧日志是否 gzip 压缩'),
       logRotationIsCustom: bool('日志滚动是否被设置页改过（false=用环境变量默认值）'),
+      fileStorage: {
+        type: 'object',
+        description: '文件存储上传限制（图片/文档/视频三档）；info 为只读的存储后端信息',
+        properties: {
+          imageMaxMb: int('图片上限（MB）', 5),
+          documentMaxMb: int('文档上限（MB）', 50),
+          videoMaxMb: int('视频/大文件上限（MB）', 500),
+          imageFormats: {
+            type: 'array',
+            items: { type: 'string', enum: ['jpg', 'png', 'gif', 'webp', 'svg'] },
+            description: '允许的图片格式',
+          },
+          imageCompress: bool('是否把 JPEG/PNG 转成 WebP 存储'),
+          isCustom: bool('是否被设置页改过（false=用代码默认值）'),
+          info: {
+            type: 'object',
+            additionalProperties: true,
+            description: '只读：MinIO 桶、对象键规则、图片缓存前缀、tus 临时目录、硬顶',
+          },
+        },
+      },
       threeMemberEnabled: bool('是否启用三员管理（关闭时忽略三员身份与职责）'),
     },
   },

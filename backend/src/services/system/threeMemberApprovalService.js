@@ -145,6 +145,14 @@ async function execute(row) {
     await systemService.updateSystemFeatures(payload.features, { skipApproval: true });
     return;
   }
+  if (row.action_type === 'file_storage') {
+    const systemService = require('./systemService');
+    await systemService.updateSystemFeatures(
+      { fileStorage: payload.features?.fileStorage },
+      { skipApproval: true },
+    );
+    return;
+  }
   if (row.action_type === 'restore_backup') {
     const systemService = require('./systemService');
     try {

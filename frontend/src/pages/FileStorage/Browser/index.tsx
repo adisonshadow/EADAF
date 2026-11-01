@@ -21,6 +21,8 @@ import {
 import { resolveApiUrl } from '@/constants/env';
 import { DEFAULT_PRO_TABLE_OPTIONS } from '@/constants/proTable';
 import { useProTableSearchCollapse } from '@/hooks/useProTableSearchCollapse';
+import { useFileStorageLimits } from '@/hooks/useFileStorageLimits';
+import { validateFileUpload } from '@/utils/fileStorage';
 import { TABLE_ACTION_COLUMN_BASE, TableActionButton, TableActions } from '@/components/TableActions';
 import { isApiSuccess, parseApiListResponse } from '@/utils/apiResponse';
 import { request } from '@/utils/request';
@@ -90,6 +92,7 @@ function triggerBlobDownload(blob: Blob, filename: string) {
 
 const BrowserPage: React.FC = () => {
   const actionRef = useRef<ActionType | undefined>(undefined);
+  const storageLimits = useFileStorageLimits();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [cropGuideOpen, setCropGuideOpen] = useState(false);
   const [demoObjectId, setDemoObjectId] = useState('');
@@ -320,7 +323,9 @@ const BrowserPage: React.FC = () => {
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <Typography.Text type="secondary">
-            支持断点续传；超过 100MB 必须走此通道。刷新页面后可继续未完成的同一文件。
+            支持断点续传，刷新页面后可继续未完成的同一文件。当前上限：图片 ≤{' '}
+            {storageLimits.imageMaxMb} MB、文档 ≤ {storageLimits.documentMaxMb} MB、视频/大文件 ≤{' '}
+            {storageLimits.videoMaxMb} MB（可在「设置 → 通用 → 文件存储」调整）。
           </Typography.Text>
           {uploadingBucketCode ? (
             <div>
@@ -383,6 +388,13 @@ const BrowserPage: React.FC = () => {
                             return;
                           }
                           const raw = file as File;
+                          // 先按「设置 → 通用 → 文件存储」的当前上限拦一次，省掉白传几百 MB
+                          const invalid = validateFileUpload(raw, storageLimits);
+                          if (invalid) {
+                            message.error(invalid);
+                            onError?.(new Error(invalid));
+                            return;
+                          }
                           setUploadingBucketCode(row.code);
                           setUploadFilename(raw.name);
                           setUploadPercent(0);

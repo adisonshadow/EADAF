@@ -19,6 +19,11 @@ import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { formatCronSummary } from '@/utils/cron';
 import { useUiTheme, type UiThemePreference } from '@/theme/uiTheme';
 import {
+  IMAGE_FORMAT_OPTIONS,
+  resolveFileStorageSettings,
+  type FileStorageSettings,
+} from '@/utils/fileStorage';
+import {
   PRO_TABLE_DENSITY_OPTIONS,
   useProTableDensity,
   type ProTableDensity,
@@ -76,6 +81,30 @@ export const GeneralSettingsTab: React.FC = () => {
     Boolean(initialState?.systemFeatures?.logRotationIsCustom),
   );
   const [logSaving, setLogSaving] = useState(false);
+  const initialFileStorage = resolveFileStorageSettings(
+    initialState?.systemFeatures?.fileStorage,
+  );
+  const [fileStorageImageMaxMb, setFileStorageImageMaxMb] = useState(
+    initialFileStorage.imageMaxMb,
+  );
+  const [fileStorageDocumentMaxMb, setFileStorageDocumentMaxMb] = useState(
+    initialFileStorage.documentMaxMb,
+  );
+  const [fileStorageVideoMaxMb, setFileStorageVideoMaxMb] = useState(
+    initialFileStorage.videoMaxMb,
+  );
+  const [fileStorageImageFormats, setFileStorageImageFormats] = useState<string[]>(
+    initialFileStorage.imageFormats,
+  );
+  const [fileStorageImageCompress, setFileStorageImageCompress] = useState(
+    initialFileStorage.imageCompress,
+  );
+  const [fileStorageIsCustom, setFileStorageIsCustom] = useState(
+    Boolean(initialState?.systemFeatures?.fileStorage?.isCustom),
+  );
+  const fileStorageInfo = initialState?.systemFeatures?.fileStorage?.info;
+  const fileStorageHardMaxMb = fileStorageInfo?.hardMaxMb || 5120;
+  const [fileStorageSaving, setFileStorageSaving] = useState(false);
   const [threeMemberEnabled, setThreeMemberEnabled] = useState(
     Boolean(initialState?.systemFeatures?.threeMemberEnabled),
   );
@@ -100,6 +129,16 @@ export const GeneralSettingsTab: React.FC = () => {
     setLogRotationIsCustom(Boolean(data?.logRotationIsCustom));
   };
 
+  const applyFileStorageFields = (data?: API.FileStorageFeature) => {
+    const settings: FileStorageSettings = resolveFileStorageSettings(data);
+    setFileStorageImageMaxMb(settings.imageMaxMb);
+    setFileStorageDocumentMaxMb(settings.documentMaxMb);
+    setFileStorageVideoMaxMb(settings.videoMaxMb);
+    setFileStorageImageFormats(settings.imageFormats);
+    setFileStorageImageCompress(settings.imageCompress);
+    setFileStorageIsCustom(Boolean(data?.isCustom));
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -110,6 +149,7 @@ export const GeneralSettingsTab: React.FC = () => {
         setMetadataEnabled(Boolean(data?.metadataEnabled));
         setThreeMemberEnabled(Boolean(data?.threeMemberEnabled));
         applyLogFields(data);
+        applyFileStorageFields(data?.fileStorage);
         setInitialState((prev) =>
           prev
             ? {
@@ -148,6 +188,49 @@ export const GeneralSettingsTab: React.FC = () => {
       }
     } finally {
       setLogSaving(false);
+    }
+  };
+
+  const saveFileStorage = async (reset = false) => {
+    setFileStorageSaving(true);
+    try {
+      const res = await putSystemFeatures(
+        reset
+          ? { fileStorageReset: true }
+          : {
+            fileStorage: {
+              imageMaxMb: fileStorageImageMaxMb,
+              documentMaxMb: fileStorageDocumentMaxMb,
+              videoMaxMb: fileStorageVideoMaxMb,
+              imageFormats: fileStorageImageFormats,
+              imageCompress: fileStorageImageCompress,
+            },
+          },
+      );
+      if (res.code === 202) {
+        message.info(res.message || '已提交审批');
+        return;
+      }
+      if (isApiSuccess(res)) {
+        const data = getApiData<API.SystemFeatures>(res);
+        applyFileStorageFields(data?.fileStorage);
+        setInitialState((prev) =>
+          prev
+            ? {
+                ...prev,
+                systemFeatures: {
+                  ...prev.systemFeatures,
+                  fileStorage: data?.fileStorage,
+                },
+              }
+            : prev,
+        );
+        message.success(reset ? '已恢复默认文件存储设置' : '文件存储设置已保存');
+      } else {
+        message.error(res.message || '保存失败');
+      }
+    } finally {
+      setFileStorageSaving(false);
     }
   };
 
@@ -315,6 +398,125 @@ export const GeneralSettingsTab: React.FC = () => {
             onChange={(checked) => void handleMetadataChange(checked)}
           />
         </div>
+      </Card>
+      <Card title="文件存储">
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+            {fileStorageIsCustom
+              ? '当前使用这里保存的上限，保存后立即作用于所有上传通道。'
+              : '当前使用代码默认值。保存后改为这里的配置，并立即作用于所有上传通道，无需重启。'}
+            上限由服务端在写入 MinIO 前校验；图片、文档之外的视频/音频/压缩包等统一按「视频/大文件」上限。
+          </Typography.Text>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>图片上限</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                头像、应用 Logo、登录页插图等展示类图片；同时约束下方允许的格式
+              </div>
+            </div>
+            <InputNumber
+              min={1}
+              max={fileStorageHardMaxMb}
+              addonAfter="MB"
+              value={fileStorageImageMaxMb}
+              onChange={(value) => setFileStorageImageMaxMb(typeof value === 'number' ? value : 1)}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>文档上限</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                PDF、Word、Excel、PPT、纯文本等文档类文件
+              </div>
+            </div>
+            <InputNumber
+              min={1}
+              max={fileStorageHardMaxMb}
+              addonAfter="MB"
+              value={fileStorageDocumentMaxMb}
+              onChange={(value) => setFileStorageDocumentMaxMb(typeof value === 'number' ? value : 1)}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>视频 / 大文件上限</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                视频、音频、压缩包、安装包，以及未归到图片/文档的其它类型
+              </div>
+            </div>
+            <InputNumber
+              min={1}
+              max={fileStorageHardMaxMb}
+              addonAfter="MB"
+              value={fileStorageVideoMaxMb}
+              onChange={(value) => setFileStorageVideoMaxMb(typeof value === 'number' ? value : 1)}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>允许的图片格式</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                服务端按文件真实内容判断，不只看扩展名；SVG 可携带脚本，不需要就别勾
+              </div>
+            </div>
+            <Select
+              mode="multiple"
+              allowClear
+              style={{ minWidth: 260 }}
+              options={IMAGE_FORMAT_OPTIONS}
+              value={fileStorageImageFormats}
+              onChange={(value) => setFileStorageImageFormats(value)}
+              placeholder="至少保留一种"
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>图片转 WebP 存储</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                开启后 JPEG/PNG 落库前压成 WebP（质量 80），体积更小；GIF 保留动画、SVG 保留矢量，均不转换
+              </div>
+            </div>
+            <Switch checked={fileStorageImageCompress} onChange={setFileStorageImageCompress} />
+          </div>
+          <div
+            style={{
+              color: token.colorTextDescription,
+              fontSize: token.fontSizeSM,
+              lineHeight: 1.9,
+              borderTop: `1px solid ${token.colorSplit}`,
+              paddingTop: token.paddingSM,
+            }}
+          >
+            <div>存储后端：MinIO（唯一二进制后端，由环境变量决定，界面不提供切换）</div>
+            <div>
+              存储桶：<Typography.Text code>{fileStorageInfo?.bucket || '-'}</Typography.Text>
+              ；对象键：<Typography.Text code>{fileStorageInfo?.objectKeyPattern || '{bucketCode}/{objectId}{ext}'}</Typography.Text>
+            </div>
+            <div>
+              图片裁剪缓存：同桶 <Typography.Text code>{fileStorageInfo?.cropCachePrefix || 'img-crop-cache/'}</Typography.Text>
+              ；断点续传临时目录：<Typography.Text code>{fileStorageInfo?.tusTempDir || '-'}</Typography.Text>
+            </div>
+            <div>
+              硬顶：{fileStorageHardMaxMb} MB（环境变量 STORAGE_TUS_MAX_SIZE，上面的上限不能超过它）
+            </div>
+          </div>
+          <Space>
+            <Button
+              type="primary"
+              loading={fileStorageSaving}
+              disabled={!canMaintain}
+              onClick={() => void saveFileStorage(false)}
+            >
+              保存
+            </Button>
+            <Button
+              disabled={!canMaintain || !fileStorageIsCustom || fileStorageSaving}
+              onClick={() => void saveFileStorage(true)}
+            >
+              恢复默认
+            </Button>
+          </Space>
+        </Space>
       </Card>
       <Card title="日志">
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>

@@ -435,12 +435,23 @@ function forcePartialUpdateContainers(jsonSchema, zodSchema, operation) {
  * - filter JSON 字符串 / filter[k]
  * - body/set：拒绝实体未建模字段（须与 fieldKey / 物化表列一致）
  */
+/**
+ * 系统托管字段：由物化表默认值/平台自动维护，客户端既不能写、也不该必填。
+ * 写校验（getEntityWritableFieldKeys）和 body 结构（buildEntityBodyZod/Schema）必须用同一份清单，
+ * 否则会出现「传了报未建模字段、不传报必填」的自相矛盾。
+ */
+const SYSTEM_MANAGED_FIELD_KEYS = new Set(['created_at', 'updated_at', 'createdAt', 'updatedAt']);
+
+function isSystemManagedFieldKey(key) {
+  return SYSTEM_MANAGED_FIELD_KEYS.has(key);
+}
+
 function getEntityWritableFieldKeys(entity) {
   const set = new Set();
   (entity?.fields || []).forEach((field) => {
     const key = field.fieldKey || field.field_key;
     if (!key || key === 'id') return;
-    if (['created_at', 'updated_at', 'createdAt', 'updatedAt'].includes(key)) return;
+    if (isSystemManagedFieldKey(key)) return;
     set.add(key);
   });
   return set;
@@ -982,7 +993,8 @@ function buildEntityBodySchema(fields, enumMap, { partial = false } = {}) {
       ...schema,
       description: field.columnInfo?.label || field.column_info?.label || key,
     };
-    if (!partial && typeorm.nullable === false) {
+    // 系统字段不进 required：它们由平台填，客户端不该传
+    if (!partial && typeorm.nullable === false && !isSystemManagedFieldKey(key)) {
       required.push(key);
     }
   });
@@ -1014,7 +1026,7 @@ function buildEntityBodyZod(fields, enumMap, { partial = false } = {}) {
     } else {
       schema = z.string();
     }
-    if (partial || typeorm.nullable !== false) {
+    if (partial || typeorm.nullable !== false || isSystemManagedFieldKey(key)) {
       schema = schema.optional();
     }
     shape[key] = schema;

@@ -57,9 +57,13 @@ export function getApiErrorMessage(response: unknown, fallback?: string): string
     code?: number;
   };
 
-  // axios / umi 异常：优先使用 response.data.message
+  // axios / umi 异常：优先使用 response.data.message；OAuth 端点用 error_description
   const responseData = err.response?.data;
   if (responseData && typeof responseData === 'object') {
+    const oauthDetail = (responseData as { error_description?: string }).error_description;
+    if (typeof oauthDetail === 'string' && oauthDetail.trim()) {
+      return oauthDetail;
+    }
     const apiMessage = responseData.message;
     if (typeof apiMessage === 'string' && apiMessage.trim()) {
       return apiMessage;

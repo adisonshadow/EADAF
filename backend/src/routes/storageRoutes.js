@@ -8,6 +8,7 @@ const auth = require('../middlewares/auth');
 const authWithBuiltinApiGuard = require('../middlewares/withBuiltinApiGuard');
 
 const { operationAudit } = require('../middlewares/operationAudit');const { authRequired, authOptional } = require('../middlewares/storageAuth');
+const fileStorageSettings = require('../services/storage/fileStorageSettings');
 const router = new Router({ prefix: '/api/v1/storage' });
 
 const storageRoot = path.join(os.tmpdir(), 'eadaf-storage-upload');
@@ -15,13 +16,20 @@ if (!fs.existsSync(storageRoot)) {
   fs.mkdirSync(storageRoot, { recursive: true });
 }
 
+/**
+ * 传输层只兜一个「三档里最大的」上限，具体是图片/文档/视频由
+ * storageService 按类别校验——这样设置页改上限后无需重启即可生效。
+ */
+const formidableOptions = {
+  uploadDir: storageRoot,
+  keepExtensions: true,
+  maxFileSize: 100 * 1024 * 1024,
+};
+fileStorageSettings.bindMultipartOptions(formidableOptions);
+
 const uploadMiddleware = koaBody({
   multipart: true,
-  formidable: {
-    uploadDir: storageRoot,
-    keepExtensions: true,
-    maxFileSize: 100 * 1024 * 1024,
-  },
+  formidable: formidableOptions,
 });
 
 /**

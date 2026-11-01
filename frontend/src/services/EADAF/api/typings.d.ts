@@ -1235,9 +1235,35 @@ declare namespace API {
     size?: number;
   };
 
+  type FileStorageFeature = {
+    /** 图片上限（MB） */
+    imageMaxMb: number;
+    /** 文档上限（MB） */
+    documentMaxMb: number;
+    /** 视频 / 大文件上限（MB） */
+    videoMaxMb: number;
+    /** 允许的图片格式 */
+    imageFormats: string[];
+    /** 是否把 JPEG/PNG 转 WebP 存储 */
+    imageCompress: boolean;
+    /** 是否被设置页改过（false = 用代码默认值） */
+    isCustom?: boolean;
+    /** 只读：MinIO 桶、对象键规则、图片缓存前缀、tus 临时目录、硬顶 */
+    info?: {
+      backend?: string;
+      bucket?: string;
+      objectKeyPattern?: string;
+      cropCachePrefix?: string;
+      tusTempDir?: string;
+      hardMaxMb?: number;
+    };
+  };
+
   type SystemFeatures = {
     /** 当前平台版本（仓库根 package.json，只读） */
     version?: string;
+    /** 文件存储上传限制（图片/文档/视频）与只读的存储后端信息 */
+    fileStorage?: FileStorageFeature;
     metadataEnabled?: boolean;
     apiServiceAllowWriteOperations?: boolean;
     apiServiceTestAutoRollback?: boolean;
@@ -1261,6 +1287,8 @@ declare namespace API {
     logRotationIsCustom?: boolean;
     /** 传 true 时清掉设置页的日志滚动配置 */
     logRotationReset?: boolean;
+    /** 传 true 时清掉设置页的文件存储配置，恢复代码默认值 */
+    fileStorageReset?: boolean;
     /** 是否启用三员管理 */
     threeMemberEnabled?: boolean;
     /** 开启三员时一次性指定三类用户 */

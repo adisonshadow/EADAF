@@ -9,11 +9,11 @@ import { postStorageObjectUpload } from '@/services/EADAF/api/storage';
 import { isApiSuccess, getApiData } from '@/utils/apiResponse';
 import { resolveMediaUrl } from '@/utils/mediaUrl';
 import { isSvgFile } from '@/utils/prepareLogoUploadFile';
+import { formatImageFormatList, validateFileUpload } from '@/utils/fileStorage';
+import { useFileStorageLimits } from '@/hooks/useFileStorageLimits';
 import type { SsoLoginAsideKind } from '@/utils/ssoLoginPage';
 
 const { Text } = Typography;
-
-const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
 interface SsoLoginAsideUploadProps {
   value?: string | null;
@@ -40,6 +40,7 @@ const SsoLoginAsideUpload: React.FC<SsoLoginAsideUploadProps> = ({
 }) => {
   const { token } = theme.useToken();
   const [uploading, setUploading] = useState(false);
+  const storageLimits = useFileStorageLimits();
   const previewUrl = resolveMediaUrl(value);
 
   const customRequest: UploadProps['customRequest'] = async ({ file, onSuccess, onError }) => {
@@ -71,8 +72,9 @@ const SsoLoginAsideUpload: React.FC<SsoLoginAsideUploadProps> = ({
   };
 
   const beforeUpload: UploadProps['beforeUpload'] = async (file) => {
-    if (file.size > MAX_FILE_BYTES) {
-      message.error('文件大小不能超过 8MB');
+    const invalid = validateFileUpload(file, storageLimits);
+    if (invalid) {
+      message.error(invalid);
       return Upload.LIST_IGNORE;
     }
     if (kind === 'lottie') {
@@ -154,8 +156,8 @@ const SsoLoginAsideUpload: React.FC<SsoLoginAsideUploadProps> = ({
       </Space>
       <Text type="secondary" style={{ fontSize: 12 }}>
         {kind === 'lottie'
-          ? `上传 Bodymovin / Lottie JSON，不超过 8MB。存储于「${SYSTEM_STORAGE_BUCKET_CODE}」`
-          : `支持 jpg、png、gif、webp、SVG，不超过 8MB。存储于「${SYSTEM_STORAGE_BUCKET_CODE}」`}
+          ? `上传 Bodymovin / Lottie JSON，不超过 ${storageLimits.documentMaxMb} MB。存储于「${SYSTEM_STORAGE_BUCKET_CODE}」`
+          : `支持 ${formatImageFormatList(storageLimits)}，不超过 ${storageLimits.imageMaxMb} MB。存储于「${SYSTEM_STORAGE_BUCKET_CODE}」`}
       </Text>
     </Space>
   );

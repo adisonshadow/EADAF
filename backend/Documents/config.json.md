@@ -192,14 +192,18 @@
 - `defaultType`: 默认文件类型，默认为 image（遗留 `/api/v1/uploads`）
 
 ### 企业文件存储配置
-- `root`: 文件落盘根目录，默认 `upload_test`（`STORAGE_ROOT`）
+- `root`: 文件落盘根目录，默认 `upload_test`（`STORAGE_ROOT`；当前只用于遗留路径解析）
+- 二进制实际存储在 MinIO 单桶（`MINIO_BUCKET`，默认 `eadaf`），对象键 `{bucketCode}/{objectId}{ext}`；
+  图片裁剪缓存也在同一个桶的 `img-crop-cache/` 前缀下
 - `systemBucket`: 系统内置 Bucket（头像/Logo），默认编码 `eadaf-system`
 - `tus`: 超大文件断点续传
-  - `maxSize`: 单文件上限，默认 5GB（`STORAGE_TUS_MAX_SIZE`）
+  - `maxSize`: 单文件硬顶，默认 5GB（`STORAGE_TUS_MAX_SIZE`）；设置页的图片/文档/视频上限不能超过它
   - `expirationMs`: 未完成上传过期时间，默认 24 小时（`STORAGE_TUS_EXPIRATION_MS`）
-  - `dirName`: tus 临时目录名，默认 `.tus`，完整路径 `{root}/.tus`
-- `cropCacheDir`: 图片裁剪缓存目录，默认 `img_crop_cache`（`IMG_CROP_CACHE_DIR`，相对 backend 根目录）
-- 轻量接口 `POST /api/v1/storage/objects/upload` 硬上限 **100MB**；超过必须走 `/api/v1/storage/tus`
+  - `dirName`: tus 临时目录名，默认 `.tus`，完整路径 `{os.tmpdir()}/.tus`
+- `cropCacheDir`: 遗留配置；图片裁剪缓存现写入 MinIO 的 `img-crop-cache/` 前缀
+- 上传上限由「系统设置 → 通用 → 文件存储」按图片/文档/视频三档控制（默认 5 / 50 / 500 MB），
+  服务端在写入 MinIO 前按类别和真实文件内容校验，保存后立即生效；
+  `POST /api/v1/storage/objects/upload`（轻量）与 `/api/v1/storage/tus`（断点续传）都走这套上限
 - 已有库需执行 `scripts/migrate-storage-tus.sql`（`content_md5` + `storage_upload_sessions`）
 
 ### 日志配置

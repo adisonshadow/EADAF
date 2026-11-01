@@ -12,6 +12,7 @@ const {
 const { enqueueFinalize } = require('./finalizeTusUpload');
 const { getTusDir, sanitizeStorageFilename } = require('./storageService');
 const { resolveUploadApplicationId, resolveUploadUserId } = require('./storageAccessService');
+const fileStorageSettings = require('./fileStorageSettings');
 
 const TUS_PATH = '/api/v1/storage/tus';
 
@@ -87,6 +88,16 @@ async function onUploadCreate(req, upload) {
   const maxSize = config.storage.tus.maxSize;
   if (upload.size != null && Number(upload.size) > maxSize) {
     throw tusError(413, `文件超过上限 ${maxSize} 字节`);
+  }
+  // 按设置里的图片/文档/视频三档校验：建会话时就拒，避免白传几百 MB
+  try {
+    fileStorageSettings.assertUploadAllowed({
+      mimeType: metadata.contentType || metadata.filetype,
+      filename: metadata.filename || metadata.name,
+      size: upload.size || 0,
+    });
+  } catch (error) {
+    throw tusError(error.status || 400, error.message);
   }
   const filename = sanitizeStorageFilename(metadata.filename || metadata.name || 'file');
   const expectedMd5 = normalizeMd5(metadata.md5);

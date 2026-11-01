@@ -65,6 +65,17 @@ class SystemController {
         });
         if (queued) return;
       }
+      const fileStorageTouched = body.fileStorageReset === true
+        || body.fileStorage !== undefined;
+      if (fileStorageTouched && body.fileStorageReset !== true) {
+        const { queueSystemAdminAction } = require('../services/system/threeMemberApprovalService');
+        const queued = await queueSystemAdminAction(ctx, {
+          actionType: 'file_storage',
+          summary: '修改文件存储上传限制',
+          payload: { features: { fileStorage: body.fileStorage } },
+        });
+        if (queued) return;
+      }
       const data = await systemService.updateSystemFeatures(body, {
         skipApproval: Boolean(ctx.state.approvalExecution),
       });

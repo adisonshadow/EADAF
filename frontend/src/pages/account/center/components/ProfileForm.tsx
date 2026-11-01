@@ -71,7 +71,6 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ onSuccess }) => {
       <Form.Item
         label="头像"
         name="avatar"
-        extra="支持 jpg、png、gif 格式，大小不超过 2MB"
       >
         <AvatarUpload />
       </Form.Item>

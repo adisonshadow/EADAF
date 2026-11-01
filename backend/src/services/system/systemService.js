@@ -11,6 +11,7 @@ const {
   normalizeLogRotation,
   toWinstonRotation,
 } = require('./logRotationSettings');
+const fileStorageSettings = require('../storage/fileStorageSettings');
 
 const execFileAsync = promisify(execFile);
 
@@ -54,6 +55,7 @@ function formatStoredFeatures(value = {}) {
         : DEFAULT_AUTO_BACKUP_CRON,
     backupDir: normalizeBackupDirPath(value.backupDir),
     logRotation: readStoredLogRotation(value.logRotation),
+    fileStorage: fileStorageSettings.readStoredFileStorage(value.fileStorage),
     threeMemberEnabled: Boolean(value.threeMemberEnabled),
   };
 }
@@ -132,7 +134,18 @@ async function getSystemFeatures() {
     /** 默认目录，供设置页在清空自定义时提示 */
     defaultBackupDir: defaultBackupDir(),
     ...publicLogRotation(stored.logRotation),
+    /** 文件存储上传限制（图片 / 文档 / 视频）；info 为只读的存储后端信息 */
+    fileStorage: publicFileStorage(stored.fileStorage),
     threeMemberEnabled: stored.threeMemberEnabled,
+  };
+}
+
+function publicFileStorage(stored) {
+  return {
+    ...fileStorageSettings.publicSettings(stored),
+    /** false 表示从未保存过，仍用代码默认值 */
+    isCustom: Boolean(stored),
+    info: fileStorageSettings.storageInfo(),
   };
 }
 
@@ -160,6 +173,12 @@ function applyEffectiveLogRotation(stored) {
 async function applyStoredLogRotation() {
   const stored = formatStoredFeatures(await readStoredFeatures());
   applyEffectiveLogRotation(stored.logRotation);
+}
+
+/** 启动后把设置页保存的文件存储上限套到当前进程；库不可用时保持代码默认值。 */
+async function applyStoredFileStorageSettings() {
+  const stored = formatStoredFeatures(await readStoredFeatures());
+  fileStorageSettings.applyFileStorageSettings(stored.fileStorage);
 }
 
 async function updateSystemFeatures(payload, options = {}) {
@@ -223,10 +242,24 @@ async function updateSystemFeatures(payload, options = {}) {
         : current.zippedArchive,
     });
   }
+  const fileStorageTouched = payload.fileStorageReset === true
+    || payload.fileStorage !== undefined;
+  if (payload.fileStorageReset === true) {
+    next.fileStorage = null;
+  } else if (payload.fileStorage !== undefined) {
+    if (!payload.fileStorage || typeof payload.fileStorage !== 'object') {
+      throw Object.assign(new Error('文件存储设置格式无效'), { status: 400 });
+    }
+    next.fileStorage = fileStorageSettings.normalizeSettings({
+      ...fileStorageSettings.publicSettings(stored.fileStorage),
+      ...payload.fileStorage,
+    });
+  }
 
   const value = { ...next };
   if (!value.backupDir) delete value.backupDir; // 保持 JSON 干净，恢复默认时不留空键
   if (!value.logRotation) delete value.logRotation;
+  if (!value.fileStorage) delete value.fileStorage;
 
   const [setting] = await BizdataSetting.findOrCreate({
     where: { key: SYSTEM_FEATURES_KEY },
@@ -241,6 +274,7 @@ async function updateSystemFeatures(payload, options = {}) {
   const { applyAutoBackupSchedule } = require('./autoBackupScheduler');
   applyAutoBackupSchedule(next);
   if (logRotationTouched) applyEffectiveLogRotation(next.logRotation);
+  if (fileStorageTouched) fileStorageSettings.applyFileStorageSettings(next.fileStorage);
 
   return getSystemFeatures();
 }
@@ -387,6 +421,7 @@ module.exports = {
   formatStandard,
   getSystemFeatures,
   applyStoredLogRotation,
+  applyStoredFileStorageSettings,
   updateSystemFeatures,
   listBackups,
   runBackup,

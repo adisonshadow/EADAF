@@ -284,6 +284,12 @@ async function bootstrap() {
     } catch (error) {
       logger.warn('日志滚动配置未应用（继续使用环境变量默认值）', { error: error.message });
     }
+    try {
+      const { applyStoredFileStorageSettings } = require('./services/system/systemService');
+      await applyStoredFileStorageSettings();
+    } catch (error) {
+      logger.warn('文件存储上限未应用（继续使用代码默认值）', { error: error.message });
+    }
   }
 
   // 系统内置 Storage Bucket 已在自检里确保（失败会作为自检项报出来）

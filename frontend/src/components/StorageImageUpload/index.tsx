@@ -9,6 +9,8 @@ import { postStorageObjectUpload } from '@/services/EADAF/api/storage';
 import { isApiSuccess, getApiData } from '@/utils/apiResponse';
 import { resolveMediaUrl } from '@/utils/mediaUrl';
 import { isSvgFile, prepareLogoUploadFile } from '@/utils/prepareLogoUploadFile';
+import { formatImageFormatList, imageFormatOfFile, validateFileUpload } from '@/utils/fileStorage';
+import { useFileStorageLimits } from '@/hooks/useFileStorageLimits';
 
 const { Text } = Typography;
 
@@ -34,6 +36,7 @@ const StorageImageUpload: React.FC<StorageImageUploadProps> = ({
 }) => {
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const blobUrlRef = useRef<string | undefined>(undefined);
+  const storageLimits = useFileStorageLimits();
 
   const revokeBlob = () => {
     if (blobUrlRef.current) {
@@ -64,6 +67,13 @@ const StorageImageUpload: React.FC<StorageImageUploadProps> = ({
   const customRequest: UploadProps['customRequest'] = async ({ file, onSuccess, onError }) => {
     try {
       const prepared = await prepareLogoUploadFile(file as File, maxEdge);
+      // 裁剪/压缩后的文件才是真正要上传的，按它校验大小与格式
+      const invalid = validateFileUpload(prepared, storageLimits);
+      if (invalid) {
+        message.error(invalid);
+        onError?.(new Error(invalid));
+        return;
+      }
       revokeBlob();
       const localUrl = URL.createObjectURL(prepared);
       blobUrlRef.current = localUrl;
@@ -121,6 +131,11 @@ const StorageImageUpload: React.FC<StorageImageUploadProps> = ({
       message.error('只能上传图片文件');
       return Upload.LIST_IGNORE;
     }
+    const format = imageFormatOfFile(file);
+    if (format && !storageLimits.imageFormats.includes(format)) {
+      message.error(`图片格式不支持，仅允许 ${formatImageFormatList(storageLimits)}`);
+      return Upload.LIST_IGNORE;
+    }
     return true;
   };
 
@@ -157,15 +172,18 @@ const StorageImageUpload: React.FC<StorageImageUploadProps> = ({
     </ImgCrop>
   );
 
-  if (!hint) {
-    return uploadNode;
-  }
+  const limitText = `支持 ${formatImageFormatList(storageLimits)}，不超过 ${storageLimits.imageMaxMb} MB`;
 
   return (
     <Space direction="vertical" style={{ width: '100%' }}>
       {uploadNode}
+      {hint ? (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {hint}
+        </Text>
+      ) : null}
       <Text type="secondary" style={{ fontSize: 12 }}>
-        {hint}
+        {limitText}
       </Text>
     </Space>
   );

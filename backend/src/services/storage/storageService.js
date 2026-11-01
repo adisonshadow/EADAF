@@ -13,6 +13,7 @@ const { isSystemBucket, isSystemBucketCode } = require('./systemBucketService');
 const imgCropService = require('./imgCropService');
 const { resolveStorageRoot } = require('./storageRoot');
 const objectStore = require('./objectStore');
+const fileStorageSettings = require('./fileStorageSettings');
 const logger = require('../../utils/logger');
 
 function getStorageRoot() {
@@ -335,23 +336,48 @@ async function uploadObject({ bucketCode, file, authContext, applicationId }) {
   const resolvedAppId = resolveUploadApplicationId(authContext, applicationId);
   const createdBy = resolveUploadUserId(authContext);
 
-  const objectId = uuidv4();
-  const safeName = sanitizeStorageFilename(file.originalFilename || 'file');
-  const relativePath = buildObjectRelativePath(bucketRow.code, objectId, file.originalFilename || 'file');
+  // 写入 MinIO 之前按当前文件存储设置校验类别/大小/图片格式，
+  // 并按需把 JPEG/PNG 转成 WebP；不合格的文件不会进对象存储。
+  let prepared;
+  try {
+    prepared = await fileStorageSettings.buildStoredUpload({
+      filePath: file.filepath,
+      size: file.size,
+      mimeType: file.mimetype,
+      filename: file.originalFilename,
+    });
+  } catch (error) {
+    // 校验失败也要清掉 formidable 的临时文件，避免被拒的上传占满磁盘
+    try {
+      if (file.filepath && fs.existsSync(file.filepath)) fs.unlinkSync(file.filepath);
+    } catch { /* ignore temp cleanup */ }
+    throw error;
+  }
 
-  const stored = await objectStore.putFile(relativePath, file.filepath, {
-    'Content-Type': file.mimetype || 'application/octet-stream',
-  });
-  if (file.filepath && fs.existsSync(file.filepath)) {
-    try { fs.unlinkSync(file.filepath); } catch { /* ignore temp cleanup */ }
+  const objectId = uuidv4();
+  const safeName = sanitizeStorageFilename(prepared.filename || 'file');
+  const relativePath = buildObjectRelativePath(bucketRow.code, objectId, safeName);
+
+  let stored;
+  try {
+    stored = await objectStore.putFile(relativePath, prepared.path, {
+      'Content-Type': prepared.mimeType || 'application/octet-stream',
+    });
+  } finally {
+    const tempPaths = new Set([file.filepath, ...(prepared.tempPaths || [])].filter(Boolean));
+    for (const tempPath of tempPaths) {
+      if (fs.existsSync(tempPath)) {
+        try { fs.unlinkSync(tempPath); } catch { /* ignore temp cleanup */ }
+      }
+    }
   }
 
   const row = await StorageObject.create({
     object_id: objectId,
     bucket_id: bucketRow.bucket_id,
     name: safeName,
-    mime_type: file.mimetype || 'application/octet-stream',
-    size: file.size || stored.size,
+    mime_type: prepared.mimeType || 'application/octet-stream',
+    size: prepared.size || file.size || stored.size,
     relative_path: relativePath,
     application_id: resolvedAppId,
     created_by: createdBy,

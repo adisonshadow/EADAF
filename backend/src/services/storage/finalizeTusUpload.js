@@ -21,6 +21,7 @@ const {
   getObjectById,
 } = require('./storageService');
 const objectStore = require('./objectStore');
+const fileStorageSettings = require('./fileStorageSettings');
 
 const WORKER_PATH = path.join(__dirname, 'finalizeTusUploadWorker.js');
 
@@ -167,6 +168,25 @@ async function processFinalize(uploadId) {
       status: 'duplicate',
       contentMd5,
       objectId: dup.objectId,
+    });
+    return;
+  }
+
+  // 建会话之后管理员可能改过上限，写 MinIO 前按当前设置再校验一次；
+  // 图片还要按真实文件头确认格式（不信任客户端上报的 Content-Type）。
+  try {
+    await fileStorageSettings.assertStoredFile({
+      filePath: sourcePath,
+      size,
+      mimeType: session.mimeType,
+      filename: session.filename,
+    });
+  } catch (error) {
+    await fsp.unlink(sourcePath).catch(() => {});
+    await updateSession(uploadId, {
+      status: 'failed',
+      contentMd5,
+      errorMessage: error.message,
     });
     return;
   }
