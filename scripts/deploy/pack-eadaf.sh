@@ -21,6 +21,7 @@ VERSION=""
 OUT_DIR=""
 NONINT=0
 ASSUME_YES=0
+IGNORE_DIAGNOSTICS=0
 
 usage() {
   cat <<'EOF'
@@ -39,6 +40,7 @@ usage() {
   --out DIR                     默认 <仓库>/deploy-artifacts/EADAF
   --non-interactive             缺参即失败，不再提问
   --yes                         跳过确认
+  --ignore-diagnostics          前端跳过 tsc，类型错误和警告不中断打包
 EOF
 }
 
@@ -57,6 +59,7 @@ while [[ $# -gt 0 ]]; do
     --out) OUT_DIR="${2:-}"; shift 2 ;;
     --non-interactive) NONINT=1; shift ;;
     --yes) ASSUME_YES=1; shift ;;
+    --ignore-diagnostics) IGNORE_DIAGNOSTICS=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "未知参数: $1（见 --help）" ;;
   esac
@@ -267,6 +270,11 @@ if [[ "$KIND" == "install" ]]; then
   echo "  端口: web=${WEB_PORT} api=${API_PORT}（只改宿主机映射）"
 fi
 echo "  版本: $VERSION（来源: ${VERSION_SOURCE:-未识别}）"
+if [[ "$IGNORE_DIAGNOSTICS" == "1" ]]; then
+  echo "  语法检查: 忽略（前端跳过 tsc，只执行 vite build）"
+else
+  echo "  语法检查: 开启（tsc 失败则中断打包）"
+fi
 echo "  输出: $OUT_DIR/$ARCHIVE"
 confirm_or_die "$ASSUME_YES"
 

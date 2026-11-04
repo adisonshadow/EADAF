@@ -138,13 +138,23 @@ export async function postPlatformTransferImport(file: File, strategy: string) {
 export async function postAppTransferImport(
   file: File,
   strategy: string,
-  options: { safeMode?: boolean; forceTargetSchema?: string } = {},
+  options: {
+    safeMode?: boolean;
+    includeEntityData?: boolean;
+    forceTargetSchema?: string;
+  } = {},
 ) {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('strategy', strategy);
   if (typeof options.safeMode === 'boolean') {
     formData.append('safeMode', options.safeMode ? 'true' : 'false');
+  }
+  if (typeof options.includeEntityData === 'boolean') {
+    formData.append(
+      'includeEntityData',
+      options.includeEntityData ? 'true' : 'false',
+    );
   }
   if (options.forceTargetSchema) {
     formData.append('forceTargetSchema', options.forceTargetSchema);

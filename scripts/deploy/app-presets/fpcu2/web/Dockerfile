@@ -33,7 +33,14 @@ COPY fpcu2/packages/shared ./packages/shared
 COPY fpcu2/frontend ./frontend
 COPY fpcu2/docs ./docs
 
-RUN pnpm --filter @fpcu2/frontend build
+# 1 = 跳过 tsc，只跑 vite build。由发布页「是否忽略语法错误/警告」传入。
+ARG IGNORE_DIAGNOSTICS=0
+RUN if [ "$IGNORE_DIAGNOSTICS" = "1" ]; then \
+      echo "已忽略语法错误/警告：跳过 tsc，只执行 vite build"; \
+      pnpm --filter @fpcu2/frontend exec vite build; \
+    else \
+      pnpm --filter @fpcu2/frontend build; \
+    fi
 
 FROM nginx:1.25-alpine
 

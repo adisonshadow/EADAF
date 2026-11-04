@@ -248,7 +248,12 @@ build_eadaf_web() {
     (cd "$REPO_ROOT" && pnpm install)
   fi
   (cd "$REPO_ROOT" && pnpm --filter ./package/ai-base build)
-  (cd "$REPO_ROOT" && pnpm --filter ./frontend build)
+  if [[ "${IGNORE_DIAGNOSTICS:-0}" == "1" ]]; then
+    log "已忽略语法错误/警告：前端跳过 tsc，只执行 vite build"
+    (cd "$REPO_ROOT" && pnpm --filter ./frontend exec vite build)
+  else
+    (cd "$REPO_ROOT" && pnpm --filter ./frontend build)
+  fi
   [[ -d "$REPO_ROOT/frontend/dist" ]] || die "前端 dist 未生成"
   rm -rf "$dest/frontend/dist"
   mkdir -p "$dest/frontend"
@@ -271,7 +276,11 @@ build_eadaf_api() {
     fi
   }
   trap cleanup_dockerignore EXIT
-  docker build --platform "$platform" -f "$PACK_LIB_DIR/build/Dockerfile.api" -t "$image" "$REPO_ROOT"
+  local registry="" reg_args=()
+  registry="$(resolve_npm_registry || true)"
+  [[ -n "$registry" ]] && reg_args=(--build-arg "NPM_REGISTRY=$registry")
+  docker build --platform "$platform" -f "$PACK_LIB_DIR/build/Dockerfile.api" -t "$image" \
+    ${reg_args[@]+"${reg_args[@]}"} "$REPO_ROOT"
   cleanup_dockerignore
   trap - EXIT
 }

@@ -250,7 +250,12 @@ const MemberFormPage: React.FC<MemberFormPageProps> = ({ mode }) => {
             : undefined,
         ...(threeOn && canGovern
           ? {
-              three_member_role: (value.three_member_role as string | undefined) || '',
+              three_member_role:
+                value.three_member_role === 'system_admin' ||
+                value.three_member_role === 'security_admin' ||
+                value.three_member_role === 'auditor'
+                  ? value.three_member_role
+                  : '',
             }
           : {}),
       };

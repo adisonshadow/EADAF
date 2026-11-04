@@ -62,6 +62,7 @@ router.post('/app/inspect', authWithBuiltinApiGuard, AppDeploymentController.ins
  *               apiPort: { type: integer, default: 9526 }
  *               version: { type: string, description: '默认取仓库根 package.json version' }
  *               outDir: { type: string, description: '默认 <仓库>/deploy-artifacts/EADAF' }
+ *               ignoreDiagnostics: { type: boolean, default: true, description: '是否忽略语法错误/警告。默认 true：前端跳过 tsc，只执行 vite build，类型错误不中断打包。false 时 tsc 失败则打包失败' }
  *     responses:
  *       200:
  *         description: 返回 job（用 /jobs/{id}/stream 订阅实时日志）
@@ -104,6 +105,7 @@ router.post(
  *               apiPort: { type: integer }
  *               version: { type: string, description: '默认取应用 package.json version' }
  *               outDir: { type: string, description: '默认 <仓库>/deploy-artifacts/APP' }
+ *               ignoreDiagnostics: { type: boolean, default: true, description: '是否忽略语法错误/警告。默认 true：前端镜像构建跳过 tsc，只执行 vite build。false 时按应用原构建命令，tsc 失败则打包失败' }
  *     responses:
  *       200:
  *         description: 返回 job（用 /jobs/{id}/stream 订阅实时日志）

@@ -44,6 +44,9 @@ lerna-debug.log*
 dist/
 dist-ssr/
 build/
+# 平台打包用的 API 镜像定义，不是构建产物
+!scripts/deploy/build/
+!scripts/deploy/build/**
 out/
 /deploy-artifacts/*
 !/deploy-artifacts/EADAF/

@@ -89,6 +89,11 @@ class AppTransferController {
       const raw = body.safeMode;
       importOptions.safeMode = raw === true || raw === 'true' || raw === '1';
     }
+    // 与 safeMode 相同:显式传入才覆盖包内值;字符串 "false" 必须算关闭
+    if (Object.prototype.hasOwnProperty.call(body, 'includeEntityData')) {
+      const raw = body.includeEntityData;
+      importOptions.includeEntityData = raw === true || raw === 'true' || raw === '1';
+    }
     if (body.forceTargetSchema != null && String(body.forceTargetSchema).trim() !== '') {
       try {
         importOptions.forceTargetSchema = assertForceTargetSchema(body.forceTargetSchema);

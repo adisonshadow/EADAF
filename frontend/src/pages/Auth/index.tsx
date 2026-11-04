@@ -1,5 +1,5 @@
 import { getHealth } from '@/services/EADAF/api/health';
-import { getAuthCheck, postAuthLogin } from '@/services/EADAF/api/auth';
+import { getAuthCheck, postAuthLogin, postAuthSsoExchange } from '@/services/EADAF/api/auth';
 import { getApplicationsSsoId } from '@/services/EADAF/api/applicationsSso';
 import { getCaptcha } from '@/services/EADAF/api/captcha';
 import { history } from '@/utils/navigation';
@@ -448,8 +448,11 @@ const LoginPage: React.FC = () => {
         : '您已登录，正在打开应用……',
     );
 
-    ssoRedirectStartedRef.current = true;
+    // 标记放进定时器里：effect 被重跑时会清掉上一次定时器，若提前把标记设上，
+    // 下一次会直接 return，页面就停在「正在打开」。
     const timer = setTimeout(async () => {
+      if (ssoRedirectStartedRef.current) return;
+      ssoRedirectStartedRef.current = true;
       try {
         // SSO JWT 按应用密钥签发，check 必须带 app
         const userData = parseAuthUser(
@@ -458,6 +461,11 @@ const LoginPage: React.FC = () => {
         if (!userData) {
           message.error('获取用户信息失败');
           ssoRedirectStartedRef.current = false;
+          return;
+        }
+        if (userData.must_change_password) {
+          message.info('首次登录请先修改默认密码');
+          history.replace('/account/center');
           return;
         }
         const userInfo: UserInfo = {
@@ -471,12 +479,22 @@ const LoginPage: React.FC = () => {
           status: userData.status,
           department_id: userData.department_id,
         };
-        // 必须用该应用的 token：平台 token 的签名与 app 不同，交给业务侧会被拒
-        const { token, refreshToken } = getSsoAuth(appId);
+        // 管理台会话是平台密钥签发的，不能直接交给 IPS。没有该应用令牌时用当前会话另签一份。
+        let { token, refreshToken } = getSsoAuth(appId);
         if (!token) {
-          // 没有该应用的 token 就不要拿着平台 token 去跳转（业务侧必然 401）
-          ssoRedirectStartedRef.current = false;
-          return;
+          const exchanged = await postAuthSsoExchange(
+            { application_id: appId },
+            { skipErrorHandler: true },
+          );
+          token = exchanged?.data?.token || '';
+          refreshToken = exchanged?.data?.refresh_token || '';
+          if (!token) {
+            setSsoError({ message: getApiErrorMessage(exchanged, '无法为该应用签发登录凭证') });
+            ssoRedirectStartedRef.current = false;
+            return;
+          }
+          saveSsoAuth(appId, token, refreshToken);
+          if (exchanged?.data?.sid) saveSsoSid(exchanged.data.sid);
         }
         await performSsoRedirect(appId, userInfo, token, refreshToken);
       } catch (error) {

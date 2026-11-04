@@ -43,6 +43,7 @@ const uploadMiddleware = koaBody({
  *               dataMode: { type: string, enum: [structure_and_data, data_only], default: structure_and_data, description: 'data_only 时导入端不落结构,仅对目标已有同版本实体写数' }
  *               includeEadaf: { type: boolean, default: false, description: '是否携带用户/部门/授权等 EADAF 数据(不勾选仅携带被引用的角色与权限,含存储桶 access_restrictions.role_ids)' }
  *               includeFiles: { type: boolean, default: false, description: '是否携带存储对象文件(该应用桶内对象 + 归属本应用的对象,以及这些对象引用的共享桶如 fpcu;不勾选仅桶元数据)' }
+ *               includeEntityData: { type: boolean, default: true, description: '是否携带业务行数据。默认 true。关闭时导出包不含行(实体仍保留表名/schema/列摘要并标记 rowsOmitted),导入未另传时沿用该值且不覆盖目标业务表。打开且导入策略为 overwrite 时清空目标表后重写' }
  *               safeMode: { type: boolean, default: false, description: '安全模式,写入导出包。导入未另传 safeMode 时沿用该值。开启:覆盖导入把已发布 API、采集管道、出站 Webhook 退回未发布。关闭:保持源端发布状态' }
  *     responses:
  *       200:
@@ -110,10 +111,11 @@ router.post('/preview', authWithBuiltinApiGuard, operationAudit({
  *               file: { type: string, format: binary, description: 'eadaf-app-export .zip 包(仍接受旧版单 .json)' }
  *               strategy: { type: string, enum: [overwrite, skip, abort], default: overwrite, description: '冲突策略:覆盖更新 / 跳过已存在 / 有冲突即中止(不写任何数据)' }
  *               safeMode: { type: boolean, description: '安全模式,与导出包是同一设置。未传时沿用包内 options.safeMode。开启:覆盖导入把已发布 API、采集管道、出站 Webhook 退回未发布。关闭:保持源端发布状态' }
+ *               includeEntityData: { type: boolean, description: '是否写入业务行数据,与导出包是同一设置。未传时沿用包内 options.includeEntityData;旧包缺省为 true。false:跳过行数据节,不 DELETE/INSERT,目标业务表保持不变。true 且 strategy=overwrite:清空目标表后重写。true 但包内行已省略:只记说明并跳过,不改目标表' }
  *               forceTargetSchema: { type: string, description: '用户确认后的本地 schema。包内物理表 schema 与本地连接不一致时传入;物化、行数据，以及 API/采集管道里指向这些表的 schema 限定名都改到该 schema。须为预览 schemaRelocation.localSchemas 中的名称' }
  *     responses:
  *       200:
- *         description: 导入结果(分节计数/errors/notes)。新建应用保持源 application_id;仅 overwrite 且目标同 code 但 ID 不同时才对齐为源 ID,skip 沿用目标 ID。安全模式与导出包是同一设置,未传 safeMode 时沿用包内值;开启且覆盖导入时把已发布 API/管道/Webhook 退回未发布。传入 forceTargetSchema 时,物化、行数据，以及 API/采集管道 SQL 中指向包内表的 schema 限定名都写入该本地 schema(用户已在预览中确认)。行数据 json/jsonb 列会先序列化再写入。钩子 action_config.apiServiceId / event_filter.apiServiceIds 与存储桶 access_restrictions.role_ids 按 idMap 改写(未映射完时不落空过滤/空角色以免放宽访问)。物化与行数据失败不终止后续 API 等元数据节;源行含空值时会放开目标列 NOT NULL 再写入,避免整表回滚;对象引用的桶在目标不存在时会按 code 自动创建(public)。未勾选 includeEadaf / includeFiles 写入 notes 而非 errors。不含平台 AI 目录/全局 Skill
+ *         description: 导入结果(分节计数/errors/notes)。新建应用保持源 application_id;仅 overwrite 且目标同 code 但 ID 不同时才对齐为源 ID,skip 沿用目标 ID。安全模式与导出包是同一设置,未传 safeMode 时沿用包内值;开启且覆盖导入时把已发布 API/管道/Webhook 退回未发布。includeEntityData 同样未传时沿用包内值(旧包缺省 true);为 false 时跳过行数据节且不改目标业务表,为 true 且 strategy=overwrite 时清空目标表后重写。传入 forceTargetSchema 时,物化、行数据，以及 API/采集管道 SQL 中指向包内表的 schema 限定名都写入该本地 schema(用户已在预览中确认)。行数据 json/jsonb 列会先序列化再写入。钩子 action_config.apiServiceId / event_filter.apiServiceIds 与存储桶 access_restrictions.role_ids 按 idMap 改写(未映射完时不落空过滤/空角色以免放宽访问)。物化与行数据失败不终止后续 API 等元数据节;源行含空值时会放开目标列 NOT NULL 再写入,避免整表回滚;对象引用的桶在目标不存在时会按 code 自动创建(public)。未勾选 includeEadaf / includeFiles / includeEntityData 写入 notes 而非 errors。不含平台 AI 目录/全局 Skill
  *         content:
  *           application/json:
  *             schema:

@@ -10,6 +10,8 @@
  * - 导出 databaseConnections 元数据(含 host/port/databaseName/username 供预览),
  *   **不导出** password_enc;导入端优先匹配,失败则用目标同类型连接凭证创建本地连接。
  * - physicalTables 为 entityData 的库表摘要,便于预览一眼看到物化表清单。
+ * - includeEntityData 默认 true。关闭时仍保留表名 / schema / 列摘要,但行标记
+ *   rowsOmitted 且不流式拉取;导入未另传时沿用该值,不覆盖目标业务表。
  */
 const { Op } = require('sequelize');
 const { Client: PgClient } = require('pg');
@@ -37,6 +39,14 @@ const transferCompat = require('./transferCompat');
 const SYSTEM_APPLICATION_CODE = 'EADAF';
 const LARGE_ROW_THRESHOLD = 100000;
 const ROW_PAGE_SIZE = 500;
+/** 故意不导出业务行时的说明,导入端据此只记说明、不当成失败 */
+const ENTITY_DATA_OMIT_REASON = '未勾选「携带业务行数据」,导出包不含行';
+
+function readIncludeEntityData(raw) {
+  if (!raw || !Object.prototype.hasOwnProperty.call(raw, 'includeEntityData')) return true;
+  const value = raw.includeEntityData;
+  return value === true || value === 'true' || value === '1';
+}
 
 function assertExportableApplication(applicationId) {
   if (!applicationId) {
@@ -70,6 +80,8 @@ function normalizeOptions(raw = {}) {
     dataMode,
     includeEadaf: transferCompat.readIncludeEadaf(raw),
     includeFiles: raw.includeFiles === true,
+    // 默认携带:与旧包行为一致。关闭后不拉行,导入默认也不覆盖目标业务表
+    includeEntityData: readIncludeEntityData(raw),
     // 默认关闭:导入保持源发布状态。开启后覆盖导入才把已发布 API/管道/Webhook 退回未发布
     safeMode: raw.safeMode === true,
   };
@@ -80,6 +92,7 @@ function buildFileOptions(options, sourceApplicationId) {
     dataMode: options.dataMode,
     includeEadaf: options.includeEadaf,
     includeFiles: options.includeFiles,
+    includeEntityData: options.includeEntityData !== false,
     safeMode: options.safeMode === true,
     secretsInPlaintext: true,
     exportedAt: new Date().toISOString(),
@@ -630,6 +643,12 @@ async function buildExportContext(app, options) {
       entityDataItems.push(item);
       continue;
     }
+    if (options.includeEntityData === false) {
+      item.rowsOmitted = true;
+      item.omitReason = ENTITY_DATA_OMIT_REASON;
+      entityDataItems.push(item);
+      continue;
+    }
     item.rows = []; // 占位,流式阶段填充
     entityDataItems.push({
       ...item,
@@ -724,17 +743,23 @@ async function buildExportContext(app, options) {
   };
 }
 
+function isIntentionalEntityDataOmit(item) {
+  return String(item?.omitReason || '').includes('未勾选「携带业务行数据」');
+}
+
 function buildExportSummary(ctx, options) {
   const count = (arr) => (Array.isArray(arr) ? arr.length : 0);
-  const largeEntities = ctx.entityDataItems
+  const exportedEntityData = ctx.entityDataItems.filter((item) => !item.rowsOmitted);
+  const largeEntities = exportedEntityData
     .filter((item) => Number(item.rowCount) > LARGE_ROW_THRESHOLD)
     .map((item) => ({ entityCode: item.entityCode, rowCount: item.rowCount }));
-  const totalRows = ctx.entityDataItems.reduce((sum, item) => sum + (Number(item.rowCount) || 0), 0);
+  const totalRows = exportedEntityData.reduce((sum, item) => sum + (Number(item.rowCount) || 0), 0);
   const summary = {
     applicationCode: ctx.application.code,
     dataMode: options.dataMode,
     includeEadaf: options.includeEadaf,
     includeFiles: options.includeFiles,
+    includeEntityData: options.includeEntityData !== false,
     safeMode: options.safeMode === true,
     counts: {
       entities: count(ctx.entitiesSection.items),
@@ -779,8 +804,13 @@ function buildExportSummary(ctx, options) {
   }
   // 行数据被跳过的实体必须显式告警:导入端只会拿到结构,目标表/数据为空,
   // 以前只写进 entityDataSkipped,前端不显眼,导致「导出成功但目标没数据」。
-  const rowsSkipped = ctx.entityDataItems.filter((item) => item.rowsOmitted);
-  if (rowsSkipped.length) {
+  if (options.includeEntityData === false) {
+    summary.warnings.push('未勾选携带业务行数据:导出包不含业务行,导入时默认不覆盖目标已有业务表');
+  }
+  const rowsSkipped = ctx.entityDataItems.filter(
+    (item) => item.rowsOmitted && !isIntentionalEntityDataOmit(item),
+  );
+  if (options.includeEntityData !== false && rowsSkipped.length) {
     summary.warnings.push(
       `有 ${rowsSkipped.length} 个实体的行数据未导出(详见 entityDataSkipped):`
       + `导入后这些实体在目标端只有结构、没有数据。${rowsSkipped[0].omitReason || ''}`,

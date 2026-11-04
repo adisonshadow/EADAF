@@ -16,6 +16,8 @@ export type ExportSelectionState = {
   dataMode: ExportDataMode;
   includeEadaf: boolean;
   includeFiles: boolean;
+  /** 关闭时导出包不含业务行，导入默认也不覆盖目标表 */
+  includeEntityData: boolean;
 };
 
 export type ExportContentItemSpec = {
@@ -130,7 +132,8 @@ export const EXPORT_CONTENT_GROUPS: ExportContentGroupSpec[] = [
         key: 'entityData',
         label: '行数据',
         desc: '仅 PostgreSQL / MySQL 物化表,保留原主键',
-        included: always,
+        included: (state) => state.includeEntityData,
+        excludedHint: '未勾选「携带业务行数据」',
       },
       {
         key: 'storageBuckets',
