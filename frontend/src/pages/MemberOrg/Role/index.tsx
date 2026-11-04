@@ -227,16 +227,17 @@ const Page: React.FC = () => {
     const valueEnum = Object.fromEntries(
       permissionOptions.map((item) => [item.value, { text: item.label }]),
     );
-    const withOptions = <T extends { dataIndex?: string; fieldProps?: Record<string, unknown> }>(
+    const withOptions = <T extends { dataIndex?: unknown; fieldProps?: object }>(
       fields: T[],
     ) =>
       fields.map((field) => {
         if (field.dataIndex !== 'permissions') return field;
+        const fieldProps = (field.fieldProps || {}) as Record<string, unknown>;
         return {
           ...field,
           valueEnum,
           fieldProps: {
-            ...(field.fieldProps || {}),
+            ...fieldProps,
             mode: 'multiple',
             showSearch: true,
             options: permissionOptions,

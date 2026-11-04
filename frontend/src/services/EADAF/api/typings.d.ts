@@ -1317,6 +1317,8 @@ declare namespace API {
     dataMode?: 'structure_and_data' | 'data_only';
     includeEadaf?: boolean;
     includeFiles?: boolean;
+    /** 是否携带业务行。默认 true;关闭后导入默认不覆盖目标业务表 */
+    includeEntityData?: boolean;
     /** 安全模式,写入导出包。导入默认沿用;导入请求可覆盖 */
     safeMode?: boolean;
   };
@@ -1436,6 +1438,8 @@ declare namespace API {
     dataMode?: string;
     includeEadaf?: boolean;
     includeFiles?: boolean;
+    /** 实际是否写入业务行;false 时目标业务表保持不变 */
+    includeEntityData?: boolean;
     safeMode?: boolean;
     /** 用户确认后实际写入的本地 schema */
     forceTargetSchema?: string | null;

@@ -30,6 +30,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Radio,
   Row,
   Select,
   Space,
@@ -178,6 +179,7 @@ const PublishAppPage: React.FC = () => {
         patch: ['web', 'api'],
         version: '',
         outDir,
+        ignoreDiagnostics: true,
       });
 
       const applicationsResponse = await getApplications({ page: 1, size: -1 });
@@ -278,6 +280,7 @@ const PublishAppPage: React.FC = () => {
         apiPort: values.apiPort as number,
         version: String(values.version || verified.appVersion),
         outDir: String(values.outDir || ''),
+        ignoreDiagnostics: values.ignoreDiagnostics !== false,
       });
       if (!isApiSuccess(response)) {
         message.error(response?.message || '启动打包失败');
@@ -369,6 +372,7 @@ const PublishAppPage: React.FC = () => {
                   form={form}
                   layout="vertical"
                   disabled={!devMode}
+                  initialValues={{ ignoreDiagnostics: true }}
                   onValuesChange={(changed) => {
                     if (
                       Object.prototype.hasOwnProperty.call(changed, 'appDir')
@@ -419,6 +423,18 @@ const PublishAppPage: React.FC = () => {
                           enterButton="校验"
                           loading={inspecting}
                           onSearch={() => void inspectDir()}
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        name="ignoreDiagnostics"
+                        label="是否忽略语法错误/警告"
+                        extra="选「是」时前端跳过 tsc，类型错误和警告不会中断打包，只执行 vite build。"
+                      >
+                        <Radio.Group
+                          options={[
+                            { label: '是', value: true },
+                            { label: '否', value: false },
+                          ]}
                         />
                       </Form.Item>
 

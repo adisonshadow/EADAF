@@ -17,6 +17,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Radio,
   Row,
   Select,
   Space,
@@ -107,6 +108,7 @@ const PublishPlatformPage: React.FC = () => {
         apiPort: data.platform?.defaultApiPort ?? 9526,
         version: data.platform?.version || '',
         outDir,
+        ignoreDiagnostics: true,
       });
       if (data.runningJob) {
         // 只在有任务「正在跑」时接管控制台（这是当前任务，不是上次的记录）
@@ -147,6 +149,7 @@ const PublishPlatformPage: React.FC = () => {
         apiPort: values.apiPort as number,
         version: String(values.version || ''),
         outDir: String(values.outDir || ''),
+        ignoreDiagnostics: values.ignoreDiagnostics !== false,
       });
       if (!isApiSuccess(response)) {
         message.error(response?.message || '启动打包失败');
@@ -239,7 +242,12 @@ const PublishPlatformPage: React.FC = () => {
                     }
                   />
                 )}
-                <Form form={form} layout="vertical" disabled={!devMode}>
+                <Form
+                  form={form}
+                  layout="vertical"
+                  disabled={!devMode}
+                  initialValues={{ ignoreDiagnostics: true }}
+                >
                   <Row gutter={12}>
                     <Col span={12}>
                       <Form.Item
@@ -359,6 +367,18 @@ const PublishPlatformPage: React.FC = () => {
                       </Form.Item>
                     </Col>
                   </Row>
+                  <Form.Item
+                    name="ignoreDiagnostics"
+                    label="是否忽略语法错误/警告"
+                    extra="选「是」时前端跳过 tsc，类型错误和警告不会中断打包，只执行 vite build。"
+                  >
+                    <Radio.Group
+                      options={[
+                        { label: '是', value: true },
+                        { label: '否', value: false },
+                      ]}
+                    />
+                  </Form.Item>
                   <Space>
                     <Button
                       type="primary"

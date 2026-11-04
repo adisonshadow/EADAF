@@ -2,7 +2,7 @@
  * 应用数据导出「内容清单」回归验证
  * （node --import tsx src/pages/AppDeployment/AppDataTransfer/exportContent.verify.ts）
  *
- * 覆盖：默认选项下哪些项被判为「不包含」、两个开关逐项恢复、
+ * 覆盖：默认选项下哪些项被判为「不包含」、附带开关逐项恢复、
  * 「仅数据」不改包含关系只加指纹说明，以及清单键唯一/文案非空。
  */
 import assert from 'node:assert/strict';
@@ -17,6 +17,7 @@ const base: ExportSelectionState = {
   dataMode: 'structure_and_data',
   includeEadaf: false,
   includeFiles: false,
+  includeEntityData: true,
 };
 
 function itemsOf(state: ExportSelectionState) {
@@ -66,6 +67,21 @@ const withFiles = itemsOf({ ...base, includeFiles: true });
 assert.equal(withFiles.get('storageObjects')?.included, true);
 assert.equal(withFiles.get('storageObjects')?.excludedHint, null);
 assert.equal(withFiles.get('eadafUsers')?.included, false);
+
+// 3.1 关闭「携带业务行数据」：只有行数据变为不包含，API 等配置仍在包内
+const withoutRows = itemsOf({ ...base, includeEntityData: false });
+assert.equal(withoutRows.get('entityData')?.included, false);
+assert.equal(
+  withoutRows.get('entityData')?.excludedHint,
+  '未勾选「携带业务行数据」',
+);
+assert.equal(withoutRows.get('apiServices')?.included, true);
+assert.equal(withoutRows.get('entities')?.included, true);
+const withoutRowsResolved = resolveExportContent({
+  ...base,
+  includeEntityData: false,
+});
+assert.equal(withoutRowsResolved.excludedCount, defaults.excludedCount + 1);
 
 // 4. 两项都勾选：清单里没有任何删除线
 const all = resolveExportContent({

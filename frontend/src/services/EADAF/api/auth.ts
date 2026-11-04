@@ -14,6 +14,27 @@ export async function getAuthCaptcha(options?: { [key: string]: any }) {
   });
 }
 
+/** 用当前平台会话为应用签发 SSO 用户 JWT。请求不要带 app，避免用平台令牌去验应用密钥。 POST /api/v1/auth/sso/exchange */
+export async function postAuthSsoExchange(
+  body: { application_id: string },
+  options?: { [key: string]: any },
+) {
+  return request<{
+    code?: number;
+    message?: string;
+    data?: {
+      token?: string;
+      refresh_token?: string;
+      sid?: string;
+      must_change_password?: boolean;
+    };
+  }>('/api/v1/auth/sso/exchange', {
+    method: 'POST',
+    data: body,
+    ...(options || {}),
+  });
+}
+
 /** 检查用户登录状态 [需要认证] 检查当前用户的登录状态，支持两种使用方式：
 
 1. **标准模式**：不传任何参数，使用默认JWT密钥验证token

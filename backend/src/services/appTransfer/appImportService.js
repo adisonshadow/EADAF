@@ -24,6 +24,9 @@
  * - 安全模式:与导出是同一设置,写入包内 options.safeMode。
  *   导入请求显式传入时以请求为准;未传时沿用包内值(缺省为关闭,保持源端发布状态)。
  *   开启且策略为 overwrite 时,把已发布 API/管道/Webhook 退回 draft。
+ * - includeEntityData:与导出是同一设置。请求显式传入时以请求为准;未传时沿用包内值。
+ *   旧包没有该字段时视为 true。关闭时跳过行数据节,不 DELETE / INSERT,目标业务表保持不变。
+ *   打开且策略为 overwrite 时清空目标表后重写;包内行已省略时只记说明并跳过。
  * - 包内物理表 schema 与本地连接不一致时,请求可带 forceTargetSchema(用户从本地 schema 确认)。
  *   物化与行数据都改写到该 schema;API / 采集管道里指向这些表的 schema 限定名一并改写。
  *   未传时仍按包内 schema 写数,SQL 保持原样。
@@ -355,6 +358,21 @@ function resolveImportSafeMode(file, options = {}) {
   return file?.options?.safeMode === true;
 }
 
+/**
+ * 业务行数据与导出包是同一设置。
+ * 请求显式传入 includeEntityData 时以请求为准;未传时沿用包内值。
+ * 旧包没有该字段时视为 true,保持「覆盖更新会重写行」的原行为。
+ */
+function resolveIncludeEntityData(file, options = {}) {
+  if (Object.prototype.hasOwnProperty.call(options, 'includeEntityData')) {
+    return options.includeEntityData === true;
+  }
+  if (file?.options && Object.prototype.hasOwnProperty.call(file.options, 'includeEntityData')) {
+    return file.options.includeEntityData === true;
+  }
+  return true;
+}
+
 class ImportContext {
   constructor(file, strategy, options = {}) {
     this.file = file;
@@ -363,6 +381,7 @@ class ImportContext {
     this.dataMode = file.options?.dataMode === 'data_only' ? 'data_only' : 'structure_and_data';
     this.includeEadaf = transferCompat.readIncludeEadaf(file.options);
     this.includeFiles = file.options?.includeFiles === true;
+    this.includeEntityData = resolveIncludeEntityData(file, options);
     this.safeMode = resolveImportSafeMode(file, options);
     this.forceTargetSchema = assertForceTargetSchema(options.forceTargetSchema);
     this.packageSchemas = collectPackageSchemas(file);
@@ -1155,9 +1174,15 @@ class ImportContext {
    */
   async importEntityData() {
     const section = this.beginSection('entityData');
+    if (!this.includeEntityData) {
+      return this.skipSection(section, '未携带业务行数据,目标表保持不变');
+    }
     const entityData = Array.isArray(this.file.entityData) ? this.file.entityData : [];
     if (!entityData.length) {
       return this.skipSection(section, '文件不含行数据');
+    }
+    if (entityData.every((item) => item.rowsOmitted)) {
+      return this.skipSection(section, '导出包未携带业务行数据,目标表保持不变');
     }
     if (this.forceTargetSchema) {
       section.notes.push(`行数据写入 schema「${this.forceTargetSchema}」（已确认强制建表）`);
@@ -2020,9 +2045,11 @@ async function writeEntityRows(runtime, schemaName, tableName, cols, rows, strat
  * 导入主入口。
  * @param {string} filePath 上传临时文件
  * @param {string} strategy overwrite | skip | abort
- * @param {{ createdBy?: string, safeMode?: boolean }} [options]
+ * @param {{ createdBy?: string, safeMode?: boolean, includeEntityData?: boolean }} [options]
  *   createdBy 须为操作者 UUID,否则物化 run 记空;
  *   safeMode 显式传入时覆盖包内设置;未传时沿用包内 options.safeMode;
+ *   includeEntityData 显式传入时覆盖包内设置;未传时沿用包内值,旧包缺省为 true。
+ *   为 false 时跳过行数据节,不改目标业务表;
  *   forceTargetSchema 为用户确认后的本地 schema,物化与行数据都写入该 schema
  */
 async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
@@ -2088,11 +2115,17 @@ async function importAppFile(filePath, strategy = 'overwrite', options = {}) {
 
   result.includeEadaf = ctx.includeEadaf;
   result.includeFiles = ctx.includeFiles;
+  result.includeEntityData = ctx.includeEntityData;
   result.safeMode = ctx.safeMode;
   result.forceTargetSchema = ctx.forceTargetSchema;
   result.dataMode = ctx.dataMode;
   if (ctx.forceTargetSchema) {
     result.warnings.push(`已按确认把物理表建在 schema「${ctx.forceTargetSchema}」，行数据写入该 schema，API 与采集管道中的表限定名也改到该 schema`);
+  }
+  if (ctx.includeEntityData) {
+    result.warnings.push('已携带业务行数据:冲突策略为覆盖更新时会清空目标表后重写');
+  } else {
+    result.warnings.push('未携带业务行数据:目标业务表保持不变');
   }
   if (ctx.safeMode) {
     result.warnings.push('安全模式已开启:覆盖导入时，把已发布的 API、采集管道、出站 Webhook 退回未发布');
@@ -2117,5 +2150,6 @@ module.exports = {
   columnsWithNulls,
   columnsFromRows,
   resolveImportSafeMode,
+  resolveIncludeEntityData,
   remapHookApiServiceIds,
 };

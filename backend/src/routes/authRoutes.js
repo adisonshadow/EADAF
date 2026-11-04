@@ -815,6 +815,39 @@ router.get('/captcha', authController.getCaptcha);
  *                   type: null
  *                   example: null
  */
+/**
+ * @swagger
+ * /api/v1/auth/sso/exchange:
+ *   post:
+ *     tags: [Auth]
+ *     summary: 用当前登录会话为应用签发 SSO 用户 JWT [需要认证]
+ *     description: |
+ *       管理台已经登录、再打开带 app 的 SSO 登录页时使用。
+ *       平台会话 JWT 不能交给业务侧用应用密钥验签，这里按应用统一密钥另签一份用户 JWT。
+ *       请求不要带 query app，否则会把平台令牌当成应用令牌去验。
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [application_id]
+ *             properties:
+ *               application_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: 要打开的应用 ID
+ *     responses:
+ *       200:
+ *         description: 签发成功，data 含 token / refresh_token / sso.redirect_uri
+ *       400:
+ *         description: 应用不存在、未启用 SSO 或未配置签名密钥
+ *       401:
+ *         description: 没有用户登录会话
+ */
+router.post('/sso/exchange', auth, authController.exchangeSso);
+
 router.get('/check', auth, authController.checkAuth);
 
 module.exports = router; 

@@ -121,6 +121,8 @@ export interface PlatformPackInput {
   apiPort?: number;
   version?: string;
   outDir?: string;
+  /** 是否忽略语法错误/警告。默认 true：前端跳过 tsc */
+  ignoreDiagnostics?: boolean;
 }
 
 export interface AppPackInput {
@@ -132,6 +134,8 @@ export interface AppPackInput {
   apiPort?: number;
   version?: string;
   outDir?: string;
+  /** 是否忽略语法错误/警告。默认 true：前端跳过 tsc */
+  ignoreDiagnostics?: boolean;
 }
 
 const TIMEOUT = 60 * 1000;

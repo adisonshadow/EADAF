@@ -899,6 +899,126 @@ class AuthController {
     }
   }
 
+  /**
+   * 已有平台会话时，为指定应用签发 SSO 用户 JWT。
+   * 登录页「您已登录，正在打开应用」走这里：平台 token 不能直接交给业务侧验签。
+   */
+  static async exchangeSso(ctx) {
+    try {
+      const applicationId = String(ctx.request.body?.application_id || '').trim();
+      const sessionUser = ctx.state.user;
+      if (!applicationId) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: '缺少 application_id', data: null };
+        return;
+      }
+      if (ctx.state.isApplicationToken || !sessionUser?.user_id) {
+        ctx.status = 401;
+        ctx.body = { code: 401, message: '需要用户登录会话', data: null };
+        return;
+      }
+
+      const application = await Application.findOne({
+        where: {
+          application_id: applicationId,
+          status: 'ACTIVE',
+          sso_enabled: true,
+        },
+      });
+      if (!application) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: '应用不存在或未启用 SSO', data: null };
+        return;
+      }
+      const signingSecret = resolveSsoSigningSecret(application);
+      if (!signingSecret) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: '应用未配置 SSO 签名密钥', data: null };
+        return;
+      }
+
+      const user = await User.findByPk(sessionUser.user_id, {
+        attributes: ['user_id', 'username', 'status', 'must_change_password'],
+      });
+      if (!user || user.status !== 'ACTIVE') {
+        ctx.status = 401;
+        ctx.body = { code: 401, message: '用户不存在或已被禁用', data: null };
+        return;
+      }
+
+      const sid = await ssoSession.reuseOrCreateSession({
+        requestedSid: sessionUser.sid,
+        userId: user.user_id,
+        applicationId: application.application_id,
+        platform: false,
+        req: ctx,
+      });
+      const token = jwt.sign(
+        {
+          user_id: user.user_id,
+          username: user.username,
+          application_id: application.application_id,
+          ...(sid ? { sid } : {}),
+        },
+        signingSecret,
+        { expiresIn: config.api.sso.accessTokenTtl },
+      );
+      const refreshToken = ssoSession.newRefreshToken();
+      await RefreshToken.create({
+        user_id: user.user_id,
+        token: refreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        status: 'ACTIVE',
+      });
+      await ssoSession.bindRefreshToken(refreshToken, {
+        sid,
+        userId: user.user_id,
+        applicationId: application.application_id,
+      });
+
+      const redirectMode = application.sso_config?.redirect_mode !== undefined
+        ? application.sso_config.redirect_mode
+        : config.api.sso.redirectMode.default;
+      const resolvedRedirectUri = resolveSsoRedirectUri(
+        application.sso_config,
+        requestHostInfo(ctx),
+        { isDevMode: isPlatformDevMode() },
+      );
+
+      ctx.status = 200;
+      ctx.body = {
+        code: 200,
+        message: 'success',
+        data: {
+          token,
+          refresh_token: refreshToken,
+          expires_in: ssoSession.parseDurationToSeconds(config.api.sso.accessTokenTtl, 900),
+          must_change_password: !!user.must_change_password,
+          ...(sid ? { sid } : {}),
+          sso: {
+            application_id: application.application_id,
+            application_name: application.name,
+            application_code: application.code,
+            sso_config: {
+              protocol: application.sso_config?.protocol || 'OIDC',
+              redirect_mode: redirectMode,
+              redirect_uri: resolvedRedirectUri,
+            },
+          },
+        },
+      };
+    } catch (error) {
+      logger.error('Error exchanging SSO token', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        user: ctx.state.user,
+      });
+      ctx.status = 500;
+      ctx.body = { code: 500, message: '服务器内部错误', data: null };
+    }
+  }
+
 }
 
 module.exports = AuthController; 

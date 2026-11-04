@@ -102,3 +102,11 @@ gh pr merge <n> --merge
 ```
 
 给定 GitHub URL 时，用 `gh` 拉取 Issue / PR / check 信息，不要只靠页面猜测。
+
+## Shell 换行：只用 LF
+
+本项目部署在 Linux 上。Shell 只认 `LF`（`\n`）。Windows 的 `CRLF`（`\r\n`）会让 bash 把 `\r` 当成命令的一部分，出现 `$'\r': command not found` 或 `set: pipefail` 这类错误。
+
+- 所有 `*.sh`、`*.bash` 以及容器入口脚本必须保存为 **LF**，不要出现 **CRLF**。
+- 仓库已在 [`.gitattributes`](.gitattributes) 里写了 `*.sh text eol=lf`。编辑、生成或改写这些文件时保持 LF，不要按 Windows 默认换行另存。
+- 改完 shell 后确认文件里没有 `CR`（字节 `0x0D`）。有则改回 LF 再提交。

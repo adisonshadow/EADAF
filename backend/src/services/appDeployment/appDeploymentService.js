@@ -55,6 +55,15 @@ function bad(message) {
   return Object.assign(new Error(message), { status: 400 });
 }
 
+/** 发布页「是否忽略语法错误/警告」。缺省为是。 */
+function readIgnoreDiagnostics(input) {
+  const raw = input?.ignoreDiagnostics;
+  if (raw === undefined || raw === null || raw === '') return true;
+  if (raw === false || raw === 0) return false;
+  const text = String(raw).trim().toLowerCase();
+  return text !== 'false' && text !== '0' && text !== 'no' && text !== '否';
+}
+
 function pickEnum(value, allowed, field, fallback) {
   const raw = value === undefined || value === null || value === '' ? fallback : String(value).trim().toLowerCase();
   if (!allowed.includes(raw)) {
@@ -220,6 +229,7 @@ function startPlatformPack(input = {}) {
   if (patchParts.length) scriptArgs.push('--patch', patchParts.join(','));
   if (kind === 'install') scriptArgs.push('--web-port', String(webPort), '--api-port', String(apiPort));
   scriptArgs.push('--version', version, '--out', outDir, '--non-interactive', '--yes');
+  if (readIgnoreDiagnostics(input)) scriptArgs.push('--ignore-diagnostics');
 
   return packJobService.startJob({
     kind: 'platform',
@@ -256,6 +266,7 @@ async function startAppPack(input = {}) {
   if (patchParts.length) scriptArgs.push('--patch', patchParts.join(','));
   if (kind === 'install') scriptArgs.push('--web-port', String(webPort), '--api-port', String(apiPort));
   scriptArgs.push('--version', version, '--out', outDir, '--non-interactive', '--yes');
+  if (readIgnoreDiagnostics(input)) scriptArgs.push('--ignore-diagnostics');
 
   return packJobService.startJob({
     kind: 'app',

@@ -212,7 +212,7 @@ const STRATEGY_OPTIONS = [
   {
     value: 'overwrite',
     label: '覆盖更新(默认)',
-    desc: '同业务键的记录按文件内容覆盖;行数据清空后重写',
+    desc: '同业务键的记录按文件内容覆盖;业务行仅在勾选携带时清空后重写',
   },
   {
     value: 'skip',
@@ -253,13 +253,20 @@ const AppTransferPanel: React.FC = () => {
     useState<ExportDataMode>('structure_and_data');
   const [includeEadaf, setIncludeEadaf] = useState(false);
   const [includeFiles, setIncludeFiles] = useState(false);
+  const [includeEntityData, setIncludeEntityData] = useState(true);
   const [safeMode, setSafeMode] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   /** 清单随选项联动:不包含的项保留展示,用删除线标注,不做显示/隐藏 */
   const exportContent = useMemo(
-    () => resolveExportContent({ dataMode, includeEadaf, includeFiles }),
-    [dataMode, includeEadaf, includeFiles],
+    () =>
+      resolveExportContent({
+        dataMode,
+        includeEadaf,
+        includeFiles,
+        includeEntityData,
+      }),
+    [dataMode, includeEadaf, includeFiles, includeEntityData],
   );
 
   const loadApplications = useCallback(async () => {
@@ -297,6 +304,7 @@ const AppTransferPanel: React.FC = () => {
         dataMode,
         includeEadaf,
         includeFiles,
+        includeEntityData,
         safeMode,
       });
       // 导出文件本身是 JSON;正常情况下后端以 octet-stream 附件返回。
@@ -342,6 +350,8 @@ const AppTransferPanel: React.FC = () => {
   const [strategy, setStrategy] = useState('overwrite');
   /** 导入安全模式:预览后沿用导出包里的设置,可在导入前改 */
   const [importSafeMode, setImportSafeMode] = useState(false);
+  /** 是否写入业务行:预览后沿用导出包,旧包缺省为携带 */
+  const [importIncludeEntityData, setImportIncludeEntityData] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] =
     useState<API.AppTransferImportResult | null>(null);
@@ -353,6 +363,7 @@ const AppTransferPanel: React.FC = () => {
     setPreview(null);
     setStrategy('overwrite');
     setImportSafeMode(false);
+    setImportIncludeEntityData(true);
     setImportResult(null);
     setForceSchema(undefined);
     setForceSchemaConfirmed(false);
@@ -370,6 +381,7 @@ const AppTransferPanel: React.FC = () => {
         const data = getApiData<API.AppTransferPreviewResult>(res) || null;
         setPreview(data);
         setImportSafeMode(data?.options?.safeMode === true);
+        setImportIncludeEntityData(data?.options?.includeEntityData !== false);
         if (data?.schemaRelocation?.needed) {
           setForceSchema(preferredForceSchema(data.schemaRelocation));
         }
@@ -396,7 +408,8 @@ const AppTransferPanel: React.FC = () => {
   const conflictCount =
     (preview?.conflicts?.length || 0) + (preview?.hookMultiMatch?.length || 0);
   const unwritableCount = (preview?.entityData || []).filter(
-    (e) => e.writable === false,
+    (e) =>
+      e.writable === false && preview?.options?.includeEntityData !== false,
   ).length;
   const relocation = preview?.schemaRelocation;
   const mustConfirmSchema = Boolean(
@@ -421,15 +434,22 @@ const AppTransferPanel: React.FC = () => {
     const safeModeDesc = importSafeMode
       ? '开启安全模式(覆盖导入时把已发布的 API、采集管道、出站 Webhook 退回未发布)'
       : '关闭安全模式(保持源端发布状态)';
+    const entityDataDesc = importIncludeEntityData
+      ? strategy === 'overwrite'
+        ? '将清空并重写目标业务行。'
+        : '将按当前冲突策略写入业务行。'
+      : '不写入业务行，目标已有业务表保持不变。';
     const schemaDesc =
       mustConfirmSchema && forceSchema
-        ? `物理表、行数据，以及 API / 采集管道里的表 schema 都写入「${forceSchema}」。`
+        ? importIncludeEntityData
+          ? `物理表、行数据，以及 API / 采集管道里的表 schema 都写入「${forceSchema}」。`
+          : `物理表以及 API / 采集管道里的表 schema 都写入「${forceSchema}」，业务行不写入。`
         : '';
     modal.confirm({
       title: '确认导入应用数据?',
       content: `将按「${strategyDesc}」策略、${safeModeDesc}把「${
         preview.application?.code || ''
-      }」导入当前实例。${schemaDesc}导入不会自动撤销,请确认。`,
+      }」导入当前实例。${entityDataDesc}${schemaDesc}导入不会自动撤销,请确认。`,
       okText: '开始导入',
       okButtonProps: { danger: strategy === 'overwrite' },
       cancelText: '取消',
@@ -438,6 +458,7 @@ const AppTransferPanel: React.FC = () => {
         try {
           const res = await postAppTransferImport(importFile, strategy, {
             safeMode: importSafeMode,
+            includeEntityData: importIncludeEntityData,
             ...(mustConfirmSchema && forceSchema
               ? { forceTargetSchema: forceSchema }
               : {}),
@@ -513,8 +534,12 @@ const AppTransferPanel: React.FC = () => {
                 style={{ display: 'block', marginTop: 4 }}
               >
                 {dataMode === 'data_only'
-                  ? '导入时不落结构:目标无同 code 实体或版本不符的实体将跳过写数。'
-                  : '实体结构(含字段 / 枚举 / 关系)与行数据一起迁移。'}
+                  ? includeEntityData
+                    ? '导入时不落结构:目标无同 code 实体或版本不符的实体将跳过写数。'
+                    : '仅数据模式且未携带业务行:导入不落结构,也不写行。'
+                  : includeEntityData
+                    ? '实体结构(含字段 / 枚举 / 关系)与行数据一起迁移。'
+                    : '实体结构(含字段 / 枚举 / 关系)仍随包迁移,业务行不携带。'}
               </Typography.Text>
             </Form.Item>
             <Form.Item label="附带内容" style={{ marginBottom: 8 }}>
@@ -539,6 +564,16 @@ const AppTransferPanel: React.FC = () => {
                   <span>
                     携带存储文件(该应用桶内对象 +
                     归属本应用的对象;不勾选仅桶元数据)
+                  </span>
+                </Space>
+                <Space align="start">
+                  <Switch
+                    size="small"
+                    checked={includeEntityData}
+                    onChange={setIncludeEntityData}
+                  />
+                  <span>
+                    携带业务行数据。关闭后导出包不含业务行，导入时默认不覆盖目标已有业务表。打开且导入策略为覆盖更新时，会清空目标表后重写。
                   </span>
                 </Space>
                 <Space align="start">
@@ -722,6 +757,14 @@ const AppTransferPanel: React.FC = () => {
                       preview.options?.dataMode === 'data_only'
                         ? '仅数据'
                         : '结构和数据',
+                  },
+                  {
+                    key: 'entityData',
+                    label: '业务行数据',
+                    children:
+                      preview.options?.includeEntityData === false
+                        ? '未携带。导入已沿用该设置，可在下方修改'
+                        : '携带。导入已沿用该设置，可在下方修改',
                   },
                   {
                     key: 'safeMode',
@@ -1031,6 +1074,18 @@ const AppTransferPanel: React.FC = () => {
                       ))}
                     </Space>
                   </Radio.Group>
+                </Form.Item>
+                <Form.Item label="业务行数据" style={{ marginBottom: 8 }}>
+                  <Space align="start">
+                    <Switch
+                      size="small"
+                      checked={importIncludeEntityData}
+                      onChange={setImportIncludeEntityData}
+                    />
+                    <span>
+                      携带并写入业务行数据。关闭后不覆盖目标已有业务表。默认沿用导出包中的设置，可在此修改。打开且冲突策略为覆盖更新时，会清空目标表后重写。
+                    </span>
+                  </Space>
                 </Form.Item>
                 <Form.Item label="安全模式" style={{ marginBottom: 8 }}>
                   <Space align="start">

@@ -1,0 +1,36 @@
+# EADAF API — build context: 仓库根目录
+# 运行时布局须与 eadaf-runtime/docker-compose.yml 一致：
+# 代码在 /app/backend，宿主机 .env 挂到 /app/backend/.env.production。
+FROM node:22-bookworm
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
+
+# 容器内拉包走哪个 registry：两个变量合起来才能覆盖全部拉包动作
+#   COREPACK_NPM_REGISTRY —— corepack prepare pnpm 自己下载 pnpm 时用（它不读 .npmrc）
+#   NPM_CONFIG_REGISTRY   —— 之后 pnpm install 用
+ARG NPM_REGISTRY
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
+ENV NPM_CONFIG_REGISTRY=${NPM_REGISTRY}
+
+WORKDIR /app
+
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY .npmrc* ./
+COPY backend/package.json ./backend/package.json
+COPY frontend/package.json ./frontend/package.json
+COPY package/ai-base/package.json ./package/ai-base/package.json
+COPY app_example/package.json ./app_example/package.json
+
+RUN pnpm install --frozen-lockfile --filter eadaf-api... --prod
+
+COPY backend ./backend
+
+WORKDIR /app/backend
+ENV NODE_ENV=production
+EXPOSE 9526
+
+CMD ["node", "src/app.js"]

@@ -16,6 +16,7 @@ VERSION=""
 OUT_DIR=""
 NONINT=0
 ASSUME_YES=0
+IGNORE_DIAGNOSTICS=0
 
 usage() {
   cat <<'EOF'
@@ -30,6 +31,7 @@ usage() {
   --version VER
   --out DIR                     默认 <仓库>/deploy-artifacts/APP
   --non-interactive --yes
+  --ignore-diagnostics          前端跳过 tsc，类型错误和警告不中断打包
 EOF
 }
 
@@ -45,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --out) OUT_DIR="${2:-}"; shift 2 ;;
     --non-interactive) NONINT=1; shift ;;
     --yes) ASSUME_YES=1; shift ;;
+    --ignore-diagnostics) IGNORE_DIAGNOSTICS=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "未知参数: $1" ;;
   esac
@@ -217,6 +220,11 @@ echo "  应用: $APP_NAME ($APP_CODE) preset=${PRESET:-无}"
 echo "  种类: $KIND ${PATCH_SLUG:+($PATCH_SLUG)}"
 echo "  架构: $ARCH"
 echo "  版本: $VERSION（来源: ${VERSION_SOURCE:-未识别}）"
+if [[ "$IGNORE_DIAGNOSTICS" == "1" ]]; then
+  echo "  语法检查: 忽略（前端跳过 tsc，只执行 vite build）"
+else
+  echo "  语法检查: 开启（tsc 失败则中断打包）"
+fi
 if [[ "$KIND" == "install" ]]; then
   echo "  端口: web=$WEB_PORT api=$API_PORT"
 fi
@@ -279,8 +287,13 @@ build_fpcu2() {
   if [[ "$NEED_WEB" == "1" ]]; then
     pull_platform_image "node:22-bookworm" "$PLATFORM" "$ARCH"
     pull_platform_image "nginx:1.25-alpine" "$PLATFORM" "$ARCH"
+    local diag_args=()
+    if [[ "${IGNORE_DIAGNOSTICS:-0}" == "1" ]]; then
+      diag_args=(--build-arg IGNORE_DIAGNOSTICS=1)
+      log "已忽略语法错误/警告：应用前端跳过 tsc，只执行 vite build"
+    fi
     docker build --platform "$PLATFORM" -f "$staging/docker/fpcu2-web/Dockerfile" -t "$web_image" \
-      ${reg_args[@]+"${reg_args[@]}"} "$staging"
+      ${reg_args[@]+"${reg_args[@]}"} ${diag_args[@]+"${diag_args[@]}"} "$staging"
     save_image "$web_image" "$DEST/docker-images" "$ARCH"
   fi
   rm -rf "$staging"
@@ -311,6 +324,10 @@ build_generic() {
     prepare_container_registry "$ctx"
     local reg_args=()
     [[ -n "$CONTAINER_NPM_REGISTRY" ]] && reg_args=(--build-arg "NPM_REGISTRY=$CONTAINER_NPM_REGISTRY")
+    if [[ "${IGNORE_DIAGNOSTICS:-0}" == "1" && "$role" == "web" ]]; then
+      reg_args+=(--build-arg IGNORE_DIAGNOSTICS=1)
+      log "已忽略语法错误/警告：向 Web 镜像传入 IGNORE_DIAGNOSTICS=1（Dockerfile 需声明该 ARG，并在为 1 时跳过 tsc）"
+    fi
     docker build --platform "$PLATFORM" -f "$APP_DIR/$dockerfile" -t "$image" \
       ${reg_args[@]+"${reg_args[@]}"} "$ctx"
     save_image "$image" "$DEST/docker-images" "$ARCH"

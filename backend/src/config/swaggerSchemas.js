@@ -992,7 +992,7 @@ Object.assign(schemas, {
     obj('应用导出文件预览摘要', {
       format: str('文件格式标识', 'eadaf-app-export'),
       formatVersion: int('文件版本', 1),
-      options: obj('导出选项(dataMode / includeEadaf / includeFiles / safeMode;safeMode 写入导出包,导入未另传时沿用)'),
+      options: obj('导出选项(dataMode / includeEadaf / includeFiles / includeEntityData / safeMode;safeMode 与 includeEntityData 写入导出包,导入未另传时沿用。includeEntityData 缺省 true,关闭时包不含业务行)'),
       application: obj('应用信息', { code: str('应用编码', 'CRM'), name: str('应用名称') }),
       targetApplicationExists: bool('目标实例是否已存在同 code 应用'),
       sections: obj('各节条数统计'),
@@ -1025,6 +1025,7 @@ Object.assign(schemas, {
       dataMode: str('数据模式', 'structure_and_data'),
       includeEadaf: bool('是否导入了用户数据', false),
       includeFiles: bool('是否导入了存储对象文件', false),
+      includeEntityData: bool('实际是否写入业务行(请求可覆盖包内标记;未传时沿用包内值,旧包缺省 true)。false 时目标业务表保持不变', true),
       sections: obj('各节执行结果 { status, counts, errors, notes }。含 databaseConnections(matched/created/failed);notes 为预期跳过说明,不算失败'),
       chainStoppedAt: str('硬依赖链终止节(eadaf/application/entities);连接创建/物化与行数据失败不写入此项', 'entities'),
       chainError: str('硬依赖链终止原因'),
