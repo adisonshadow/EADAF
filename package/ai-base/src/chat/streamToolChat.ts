@@ -3,6 +3,7 @@ import { extractAiChatErrorMessage, readChatErrorMessage } from '../utils/format
 import { withEadafAppParamForToken } from '../utils/eadafAppParam';
 import { sleep } from '../utils/sleep';
 import type { EADAFChatMessage } from './EADAFChatProvider';
+import { browserProviderApiKeyHeader, BROWSER_PROVIDER_API_KEY_HEADER } from './browserProviderApiKey';
 
 export interface StreamUpdate {
   content: string;
@@ -171,6 +172,7 @@ export async function streamChatRound(
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (params.turnId) headers['X-AIBase-TurnId'] = params.turnId;
+  const providerApiKey = browserProviderApiKeyHeader(params.slug)[BROWSER_PROVIDER_API_KEY_HEADER];
 
   // 发请求 + 校验响应头（不含流式读取）封装为可重试单元。
   // 仅在拿到流之前的失败（突发/限流 429）做指数退避重试；
@@ -188,6 +190,7 @@ export async function streamChatRound(
         stream: true,
         tools: params.tools?.length ? params.tools : undefined,
         enable_thinking: enableThinking,
+        ...(providerApiKey ? { providerApiKey } : {}),
       }),
     });
 

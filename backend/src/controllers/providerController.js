@@ -4,19 +4,41 @@ const { encryptApiKey } = require('../utils/encryption');
 const { isValidSlug, resolveUniqueSlug } = require('../constants/aiCapabilities');
 const logger = require('../utils/logger');
 
+function storageOf(value) {
+  return value === 'browser' ? 'browser' : 'database';
+}
+
 function formatProvider(provider) {
   const data = provider.toJSON ? provider.toJSON() : provider;
+  const apiKeyStorage = storageOf(data.api_key_storage);
   return {
     id: data.id,
     name: data.name,
     slug: data.slug,
     baseUrl: data.base_url,
-    apiKeySet: Boolean(data.api_key_encrypted),
+    apiKeySet: apiKeyStorage === 'browser' ? false : Boolean(data.api_key_encrypted),
+    apiKeyStorage,
     adapterType: data.adapter_type,
     isActive: data.is_active,
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
+}
+
+function parseApiKeyStorage(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (value === 'browser' || value === 'database') return value;
+  return null;
+}
+
+async function assertBrowserStorageAllowed() {
+  const { getSystemFeatures } = require('../services/system/systemService');
+  const features = await getSystemFeatures();
+  if (!features.allowBrowserApiKey) {
+    const error = new Error('未允许把 API Key 只保存在浏览器');
+    error.status = 400;
+    throw error;
+  }
 }
 
 class ProviderController {
@@ -56,10 +78,16 @@ class ProviderController {
 
   static async create(ctx) {
     const { name, slug, baseUrl, apiKey, adapterType = 'openai_compatible' } = ctx.request.body;
+    const apiKeyStorage = parseApiKeyStorage(ctx.request.body.apiKeyStorage);
 
     if (!name || !baseUrl) {
       ctx.status = 400;
       ctx.body = { code: 400, message: 'name、baseUrl 为必填项', data: null };
+      return;
+    }
+    if (apiKeyStorage === null) {
+      ctx.status = 400;
+      ctx.body = { code: 400, message: 'apiKeyStorage 只能是 database 或 browser', data: null };
       return;
     }
 
@@ -81,12 +109,18 @@ class ProviderController {
         }
       }
 
+      const storage = apiKeyStorage || 'database';
+      if (storage === 'browser') {
+        await assertBrowserStorageAllowed();
+      }
+
       const provider = await Provider.create({
         id: uuidv4(),
         name,
         slug: finalSlug,
         base_url: baseUrl,
-        api_key_encrypted: apiKey ? encryptApiKey(apiKey) : null,
+        api_key_encrypted: storage === 'browser' ? null : (apiKey ? encryptApiKey(apiKey) : null),
+        api_key_storage: storage,
         adapter_type: adapterType,
         is_active: true
       });
@@ -98,6 +132,11 @@ class ProviderController {
         data: formatProvider(provider)
       };
     } catch (error) {
+      if (error.status === 400) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: error.message, data: null };
+        return;
+      }
       logger.error('创建服务商失败', { error: error.message });
       ctx.status = 500;
       ctx.body = { code: 500, message: '创建服务商失败', data: null };
@@ -127,12 +166,18 @@ class ProviderController {
 
   static async update(ctx) {
     const { name, slug, baseUrl, apiKey, adapterType, isActive } = ctx.request.body;
+    const apiKeyStorage = parseApiKeyStorage(ctx.request.body.apiKeyStorage);
 
     try {
       const provider = await Provider.findByPk(ctx.params.id);
       if (!provider) {
         ctx.status = 404;
         ctx.body = { code: 404, message: '服务商不存在', data: null };
+        return;
+      }
+      if (apiKeyStorage === null) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: 'apiKeyStorage 只能是 database 或 browser', data: null };
         return;
       }
 
@@ -150,13 +195,29 @@ class ProviderController {
         }
       }
 
+      const currentStorage = storageOf(provider.api_key_storage);
+      const nextStorage = apiKeyStorage || currentStorage;
+      if (nextStorage === 'browser' && currentStorage !== 'browser') {
+        await assertBrowserStorageAllowed();
+      }
+      const keyPatch = {};
+      if (nextStorage === 'browser') {
+        keyPatch.api_key_storage = 'browser';
+        keyPatch.api_key_encrypted = null;
+      } else if (apiKeyStorage === 'database' || apiKey !== undefined) {
+        keyPatch.api_key_storage = 'database';
+        if (apiKey !== undefined) {
+          keyPatch.api_key_encrypted = apiKey ? encryptApiKey(apiKey) : null;
+        }
+      }
+
       await provider.update({
         ...(name !== undefined && { name }),
         ...(slug !== undefined && { slug }),
         ...(baseUrl !== undefined && { base_url: baseUrl }),
         ...(adapterType !== undefined && { adapter_type: adapterType }),
         ...(isActive !== undefined && { is_active: isActive }),
-        ...(apiKey !== undefined && { api_key_encrypted: apiKey ? encryptApiKey(apiKey) : null })
+        ...keyPatch,
       });
 
       ctx.body = {
@@ -165,6 +226,11 @@ class ProviderController {
         data: formatProvider(provider)
       };
     } catch (error) {
+      if (error.status === 400) {
+        ctx.status = 400;
+        ctx.body = { code: 400, message: error.message, data: null };
+        return;
+      }
       logger.error('更新服务商失败', { error: error.message });
       ctx.status = 500;
       ctx.body = { code: 500, message: '更新服务商失败', data: null };

@@ -25,6 +25,8 @@ declare namespace API {
     slug?: string;
     baseUrl?: string;
     apiKeySet?: boolean;
+    /** database=密钥在数据库；browser=只存在浏览器 */
+    apiKeyStorage?: 'database' | 'browser';
     adapterType?: string;
     isActive?: boolean;
   };
@@ -1291,6 +1293,18 @@ declare namespace API {
     fileStorageReset?: boolean;
     /** 是否启用三员管理 */
     threeMemberEnabled?: boolean;
+    /** 当前生效的登录访问令牌有效期（设置页有值时高于环境变量） */
+    jwtExpiresIn?: string;
+    /** 当前生效的登录刷新令牌有效期 */
+    jwtRefreshExpiresIn?: string;
+    jwtExpiresInIsCustom?: boolean;
+    jwtRefreshExpiresInIsCustom?: boolean;
+    defaultJwtExpiresIn?: string;
+    defaultJwtRefreshExpiresIn?: string;
+    /** 传 true 时清掉设置页的登录有效期 */
+    jwtExpiresInReset?: boolean;
+    /** 是否允许 AI 服务商把 API Key 只保存在浏览器 */
+    allowBrowserApiKey?: boolean;
     /** 开启三员时一次性指定三类用户 */
     threeMemberAssignments?: {
       system_admin?: string;

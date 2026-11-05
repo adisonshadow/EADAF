@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS aibase.providers (
     slug VARCHAR(100) NOT NULL UNIQUE,
     base_url VARCHAR(500) NOT NULL,
     api_key_encrypted TEXT,
+    api_key_storage VARCHAR(20) NOT NULL DEFAULT 'database',
     adapter_type VARCHAR(50) NOT NULL DEFAULT 'openai_compatible',
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,

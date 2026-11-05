@@ -2,7 +2,7 @@ const { AiModel, Provider, ModelCapability, ModelIoTag } = require('../../models
 const { decryptApiKey } = require('../../utils/encryption');
 const { AIBaseError } = require('../../utils/aiErrors');
 
-async function resolveModel({ slug, modelId, traceId }) {
+async function resolveModel({ slug, modelId, traceId, clientApiKey }) {
   const hasSlug = Boolean(slug);
   const hasModelId = Boolean(modelId);
 
@@ -49,8 +49,12 @@ async function resolveModel({ slug, modelId, traceId }) {
   }
 
   const provider = model.provider;
+  const apiKeyStorage = provider.api_key_storage === 'browser' ? 'browser' : 'database';
   let apiKey = null;
-  if (provider.api_key_encrypted) {
+  if (apiKeyStorage === 'browser') {
+    const fromClient = typeof clientApiKey === 'string' ? clientApiKey.trim() : '';
+    apiKey = fromClient || null;
+  } else if (provider.api_key_encrypted) {
     apiKey = decryptApiKey(provider.api_key_encrypted);
   }
 
@@ -67,6 +71,8 @@ async function resolveModel({ slug, modelId, traceId }) {
     upstreamModelId: model.model_id,
     baseUrl: provider.base_url.replace(/\/$/, ''),
     apiKey,
+    apiKeyStorage,
+    providerId: provider.id,
     adapterType: provider.adapter_type,
     defaultParams: model.default_params || {},
     rateLimit: model.rate_limit || null,

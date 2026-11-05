@@ -145,6 +145,11 @@ async function execute(row) {
     await systemService.updateSystemFeatures(payload.features, { skipApproval: true });
     return;
   }
+  if (row.action_type === 'auth_token_ttl' || row.action_type === 'allow_browser_api_key') {
+    const systemService = require('./systemService');
+    await systemService.updateSystemFeatures(payload.features || {}, { skipApproval: true });
+    return;
+  }
   if (row.action_type === 'file_storage') {
     const systemService = require('./systemService');
     await systemService.updateSystemFeatures(

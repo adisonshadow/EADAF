@@ -5,7 +5,7 @@ import {
 } from '@ant-design/icons';
 import { ActionType, PageContainer } from '@ant-design/pro-components';
 import { UrlSyncedProTable } from '@/components/UrlSyncedProTable';
-import { Button } from 'antd';
+import { Button, Tag } from 'antd';
 import { message, modal } from '@/utils/antdAppApis';
 import React, { useRef, useMemo } from 'react';
 import { useAIChatPrompts, useChatReference } from '@eadaf/ai-base';
@@ -20,10 +20,13 @@ import { useProTableSearchCollapse } from '@/hooks/useProTableSearchCollapse';
 import { augmentColumnsWithChatReference } from '@/utils/augmentColumnsWithChatReference';
 import { buildAIProviderReference } from '@/ai/chatReferenceBuilders';
 import { providerTableColumns } from './schema';
+import { useInitialState } from '@/providers/InitialStateProvider';
 
 const ProvidersPage: React.FC = () => {
   const actionRef = useRef<ActionType | undefined>(undefined);
   const navigate = useNavigate();
+  const { initialState } = useInitialState();
+  const allowBrowserApiKey = Boolean(initialState?.systemFeatures?.allowBrowserApiKey);
   const { references } = useChatReference();
   const chatPrompts = useMemo(() => buildAIProviderPrompts(references), [references]);
   useAIChatPrompts(chatPrompts);
@@ -57,6 +60,19 @@ const ProvidersPage: React.FC = () => {
         headerTitle="AI 服务商列表"
         columns={[
           ...augmentColumnsWithChatReference(providerTableColumns, 'name', buildAIProviderReference),
+          ...(allowBrowserApiKey
+            ? [{
+              title: '只存储API Key在浏览器',
+              dataIndex: 'apiKeyStorage',
+              width: 180,
+              search: false,
+              render: (_: unknown, record: API.AdminProvider) => (
+                <Tag color={record.apiKeyStorage === 'browser' ? 'processing' : 'default'}>
+                  {record.apiKeyStorage === 'browser' ? '是' : '否'}
+                </Tag>
+              ),
+            }]
+            : []),
           {
             ...TABLE_ACTION_COLUMN_BASE,
             width: 70,

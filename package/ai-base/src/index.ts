@@ -40,6 +40,15 @@ export {
   withEadafAppParam,
   withEadafAppParamForToken,
 } from './utils/eadafAppParam';
+export {
+  rememberModelApiKeyRoutes,
+  readBrowserProviderApiKey,
+  writeBrowserProviderApiKey,
+  clearBrowserProviderApiKey,
+  browserProviderApiKeyHeader,
+  slugFromChatBody,
+  withBrowserProviderApiKeyBody,
+} from './chat/browserProviderApiKey';
 export { extractAiChatErrorMessage, readChatErrorMessage } from './utils/formatAiChatError';
 export { setToolInvokeLogger, logToolInvoke, withToolInvokeLog, formatToolInvokeError, subscribeToolInvoke } from './utils/toolInvokeLogger';
 export type { ToolInvokeLogEntry, ToolInvokeLogger, ToolInvokeSide, ToolInvokeListener } from './utils/toolInvokeLogger';

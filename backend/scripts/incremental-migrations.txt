@@ -32,3 +32,4 @@ migrate-platform-transfer-permissions.sql
 migrate-app-deployment-permissions.sql
 migrate-three-member.sql
 migrate-three-member-approval.sql
+migrate-provider-api-key-storage.sql

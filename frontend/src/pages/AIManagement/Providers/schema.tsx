@@ -1,5 +1,6 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { Tag } from 'antd';
+import { readBrowserProviderApiKey } from '@eadaf/ai-base';
 
 export const providerTableColumns: ProColumns<API.AdminProvider>[] = [
   {
@@ -28,11 +29,17 @@ export const providerTableColumns: ProColumns<API.AdminProvider>[] = [
     title: 'API Key',
     dataIndex: 'apiKeySet',
     width: 100,
-    render: (_, record) => (
-      <Tag color={record.apiKeySet ? 'success' : 'default'}>
-        {record.apiKeySet ? '已配置' : '未配置'}
-      </Tag>
-    ),
+    render: (_, record) => {
+      if (record.apiKeyStorage === 'browser') {
+        const saved = Boolean(readBrowserProviderApiKey(record.id));
+        return <Tag color={saved ? 'processing' : 'warning'}>{saved ? '仅浏览器' : '浏览器未保存'}</Tag>;
+      }
+      return (
+        <Tag color={record.apiKeySet ? 'success' : 'default'}>
+          {record.apiKeySet ? '已配置' : '未配置'}
+        </Tag>
+      );
+    },
   },
   {
     title: '状态',

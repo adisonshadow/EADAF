@@ -7,6 +7,8 @@ export interface AiServiceModelInfo {
   inputTags?: string[];
   outputTags?: string[];
   defaultParams?: Record<string, unknown>;
+  providerId?: string;
+  apiKeyStorage?: 'database' | 'browser';
 }
 
 export async function getAiServiceModels(options?: { [key: string]: unknown }) {

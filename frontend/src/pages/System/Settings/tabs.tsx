@@ -48,6 +48,18 @@ const LOG_SIZE_UNITS = [
   { label: 'GB', value: 'g' },
 ];
 
+const LOGIN_TTL_UNITS = [
+  { label: '分钟', value: 'm' },
+  { label: '小时', value: 'h' },
+  { label: '天', value: 'd' },
+];
+
+function splitDuration(value: string | undefined, fallback: { amount: number; unit: 'm' | 'h' | 'd' }) {
+  const match = String(value || '').trim().toLowerCase().match(/^(\d+)([mhd])$/);
+  if (!match) return fallback;
+  return { amount: Number(match[1]), unit: match[2] as 'm' | 'h' | 'd' };
+}
+
 function splitLogSize(value?: string) {
   const match = String(value || '20m').trim().toLowerCase().match(/^(\d+(?:\.\d+)?)([mg])$/);
   if (!match) return { amount: 20, unit: 'm' as const };
@@ -108,6 +120,22 @@ export const GeneralSettingsTab: React.FC = () => {
   const [threeMemberEnabled, setThreeMemberEnabled] = useState(
     Boolean(initialState?.systemFeatures?.threeMemberEnabled),
   );
+  const initialAccessTtl = splitDuration(initialState?.systemFeatures?.jwtExpiresIn, { amount: 24, unit: 'h' });
+  const initialRefreshTtl = splitDuration(initialState?.systemFeatures?.jwtRefreshExpiresIn, { amount: 7, unit: 'd' });
+  const [accessAmount, setAccessAmount] = useState(initialAccessTtl.amount);
+  const [accessUnit, setAccessUnit] = useState<'m' | 'h' | 'd'>(initialAccessTtl.unit);
+  const [refreshAmount, setRefreshAmount] = useState(initialRefreshTtl.amount);
+  const [refreshUnit, setRefreshUnit] = useState<'m' | 'h' | 'd'>(initialRefreshTtl.unit);
+  const [jwtExpiresInIsCustom, setJwtExpiresInIsCustom] = useState(
+    Boolean(initialState?.systemFeatures?.jwtExpiresInIsCustom),
+  );
+  const [jwtRefreshExpiresInIsCustom, setJwtRefreshExpiresInIsCustom] = useState(
+    Boolean(initialState?.systemFeatures?.jwtRefreshExpiresInIsCustom),
+  );
+  const [authTokenSaving, setAuthTokenSaving] = useState(false);
+  const [allowBrowserApiKey, setAllowBrowserApiKey] = useState(
+    Boolean(initialState?.systemFeatures?.allowBrowserApiKey),
+  );
   const [assignOpen, setAssignOpen] = useState(false);
   const [userOptions, setUserOptions] = useState<{ label: string; value: string }[]>([]);
   const [assignments, setAssignments] = useState<Record<ThreeMemberRole, string>>({
@@ -129,6 +157,18 @@ export const GeneralSettingsTab: React.FC = () => {
     setLogRotationIsCustom(Boolean(data?.logRotationIsCustom));
   };
 
+  const applyAuthTokenFields = (data?: API.SystemFeatures) => {
+    const access = splitDuration(data?.jwtExpiresIn, { amount: 24, unit: 'h' });
+    const refresh = splitDuration(data?.jwtRefreshExpiresIn, { amount: 7, unit: 'd' });
+    setAccessAmount(access.amount);
+    setAccessUnit(access.unit);
+    setRefreshAmount(refresh.amount);
+    setRefreshUnit(refresh.unit);
+    setJwtExpiresInIsCustom(Boolean(data?.jwtExpiresInIsCustom));
+    setJwtRefreshExpiresInIsCustom(Boolean(data?.jwtRefreshExpiresInIsCustom));
+    setAllowBrowserApiKey(Boolean(data?.allowBrowserApiKey));
+  };
+
   const applyFileStorageFields = (data?: API.FileStorageFeature) => {
     const settings: FileStorageSettings = resolveFileStorageSettings(data);
     setFileStorageImageMaxMb(settings.imageMaxMb);
@@ -148,6 +188,7 @@ export const GeneralSettingsTab: React.FC = () => {
         setVersion(data?.version || '');
         setMetadataEnabled(Boolean(data?.metadataEnabled));
         setThreeMemberEnabled(Boolean(data?.threeMemberEnabled));
+        applyAuthTokenFields(data);
         applyLogFields(data);
         applyFileStorageFields(data?.fileStorage);
         setInitialState((prev) =>
@@ -264,6 +305,66 @@ export const GeneralSettingsTab: React.FC = () => {
     }
   };
 
+  const saveAuthToken = async (reset = false) => {
+    setAuthTokenSaving(true);
+    try {
+      const res = await putSystemFeatures(reset
+        ? { jwtExpiresInReset: true }
+        : {
+          jwtExpiresIn: `${accessAmount}${accessUnit}`,
+          jwtRefreshExpiresIn: `${refreshAmount}${refreshUnit}`,
+        });
+      if (res.code === 202) {
+        message.info(res.message || '已提交审批');
+        return;
+      }
+      if (isApiSuccess(res)) {
+        const data = getApiData<API.SystemFeatures>(res);
+        applyAuthTokenFields(data);
+        setInitialState((prev) =>
+          prev ? { ...prev, systemFeatures: { ...prev.systemFeatures, ...data } } : prev,
+        );
+        message.success(reset ? '已恢复环境变量中的登录有效期' : '登录有效期已保存');
+      } else {
+        message.error(res.message || '保存失败');
+      }
+    } finally {
+      setAuthTokenSaving(false);
+    }
+  };
+
+  const handleBrowserApiKeyChange = async (checked: boolean) => {
+    setSaving(true);
+    try {
+      const res = await putSystemFeatures({ allowBrowserApiKey: checked });
+      if (res.code === 202) {
+        message.info(res.message || '已提交审批');
+        return;
+      }
+      if (isApiSuccess(res)) {
+        const data = getApiData<API.SystemFeatures>(res);
+        setAllowBrowserApiKey(Boolean(data?.allowBrowserApiKey));
+        setInitialState((prev) =>
+          prev
+            ? {
+                ...prev,
+                systemFeatures: {
+                  ...prev.systemFeatures,
+                  ...data,
+                  allowBrowserApiKey: Boolean(data?.allowBrowserApiKey),
+                },
+              }
+            : prev,
+        );
+        message.success('已保存');
+      } else {
+        message.error(res.message || '保存失败');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleMetadataChange = async (checked: boolean) => {
     setSaving(true);
     try {
@@ -325,6 +426,109 @@ export const GeneralSettingsTab: React.FC = () => {
             }}
           />
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: token.margin }}>
+          <div>
+            <Typography.Text strong>是否启用元数据</Typography.Text>
+            <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+              开启后，业务数据菜单将显示「数据标准」与「元数据」，并可在模型/指标/枚举中编辑元数据
+            </div>
+          </div>
+          <Switch
+            checked={metadataEnabled}
+            loading={saving || loading}
+            onChange={(checked) => void handleMetadataChange(checked)}
+          />
+        </div>
+        <div style={{ marginTop: token.margin }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>用户登录的过期时间</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                {jwtExpiresInIsCustom || jwtRefreshExpiresInIsCustom
+                  ? '当前使用这里保存的有效期，高于环境变量，只作用于之后新签发的登录令牌。'
+                  : '当前使用环境变量。访问令牌优先 SSO_ACCESS_TOKEN_TTL，否则 JWT_EXPIRES_IN；刷新令牌为 JWT_REFRESH_EXPIRES_IN。保存后高于这些环境变量。'}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin, marginTop: token.marginSM }}>
+            <div>
+              <Typography.Text>访问令牌</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                对应 JWT_EXPIRES_IN
+              </div>
+            </div>
+            <Space.Compact>
+              <InputNumber
+                min={1}
+                max={3650}
+                value={accessAmount}
+                disabled={!canMaintain}
+                onChange={(value) => setAccessAmount(typeof value === 'number' ? value : 1)}
+              />
+              <Select
+                value={accessUnit}
+                options={LOGIN_TTL_UNITS}
+                disabled={!canMaintain}
+                onChange={(value) => setAccessUnit(value)}
+                style={{ width: 88 }}
+              />
+            </Space.Compact>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin, marginTop: token.marginSM }}>
+            <div>
+              <Typography.Text>刷新令牌</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                对应 JWT_REFRESH_EXPIRES_IN
+              </div>
+            </div>
+            <Space.Compact>
+              <InputNumber
+                min={1}
+                max={3650}
+                value={refreshAmount}
+                disabled={!canMaintain}
+                onChange={(value) => setRefreshAmount(typeof value === 'number' ? value : 1)}
+              />
+              <Select
+                value={refreshUnit}
+                options={LOGIN_TTL_UNITS}
+                disabled={!canMaintain}
+                onChange={(value) => setRefreshUnit(value)}
+                style={{ width: 88 }}
+              />
+            </Space.Compact>
+          </div>
+          <Space style={{ marginTop: token.marginSM }}>
+            <Button
+              type="primary"
+              loading={authTokenSaving}
+              disabled={!canMaintain}
+              onClick={() => void saveAuthToken(false)}
+            >
+              保存
+            </Button>
+            <Button
+              disabled={!canMaintain || (!jwtExpiresInIsCustom && !jwtRefreshExpiresInIsCustom) || authTokenSaving}
+              onClick={() => void saveAuthToken(true)}
+            >
+              恢复默认
+            </Button>
+          </Space>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: token.margin }}>
+          <div>
+            <Typography.Text strong>允许保存API Key到浏览器</Typography.Text>
+            <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+              开启后，添加、列表和编辑 AI 服务商时可以选「只存储API Key在浏览器」。选中的密钥只留在本机，不写入数据库
+            </div>
+          </div>
+          <Switch
+            checked={allowBrowserApiKey}
+            loading={saving || loading}
+            disabled={!canMaintain}
+            onChange={(checked) => void handleBrowserApiKeyChange(checked)}
+          />
+        </div>
         <Modal
           title="指定三类三员"
           open={assignOpen}
@@ -383,21 +587,6 @@ export const GeneralSettingsTab: React.FC = () => {
             />
           </div>
         </Space>
-      </Card>
-      <Card title="元数据">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <Typography.Text strong>应用元数据</Typography.Text>
-            <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-              开启后，业务数据菜单将显示「数据标准」与「元数据」，并可在模型/指标/枚举中编辑元数据
-            </div>
-          </div>
-          <Switch
-            checked={metadataEnabled}
-            loading={saving || loading}
-            onChange={(checked) => void handleMetadataChange(checked)}
-          />
-        </div>
       </Card>
       <Card title="文件存储">
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>

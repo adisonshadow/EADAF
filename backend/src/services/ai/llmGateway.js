@@ -16,6 +16,7 @@ function buildUpstreamBody(resolvedModel, body) {
   const {
     slug: _slug,
     modelId: _modelId,
+    providerApiKey: _providerApiKey,
     messages,
     stream = false,
     enable_thinking: enableThinking,
@@ -52,7 +53,9 @@ async function forwardChat(resolvedModel, body, traceId) {
   if (!resolvedModel.apiKey) {
     throw new AIBaseError(
       'UPSTREAM_ERROR',
-      'Provider API Key 未配置',
+      resolvedModel.apiKeyStorage === 'browser'
+        ? '该服务商的 API Key 只保存在浏览器，当前请求没有带上本机保存的密钥'
+        : 'Provider API Key 未配置',
       traceId
     );
   }

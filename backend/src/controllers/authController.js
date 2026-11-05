@@ -5,6 +5,7 @@ const config = require('../config');
 const { resolveSsoSigningSecret, hasSsoSigningSecret } = require('../utils/ssoSecret');
 const { resolveSsoRedirectUri, requestHostInfo, isPlatformDevMode, isAllowedPostLogoutRedirect } = require('../utils/ssoRedirectUri');
 const ssoSession = require('../utils/ssoSession');
+const authTokenSettings = require('../services/system/authTokenSettings');
 const refreshRotation = require('../services/sso/refreshRotation');
 const sessionRevocation = require('../services/sso/sessionRevocation');
 const { issuerFromContext } = require('../utils/ssoIssuer');
@@ -280,7 +281,7 @@ class AuthController {
           ...(sid ? { sid } : {}),
         },
         jwtSecret,
-        { expiresIn: config.api.sso.accessTokenTtl }
+        { expiresIn: authTokenSettings.resolveLoginAccessExpiresIn() }
       );
       
       // 生成刷新令牌（不透明随机串：JWT 同秒会签出同一串，且带声明会超 255 列宽；
@@ -291,7 +292,7 @@ class AuthController {
       await RefreshToken.create({
         user_id: user.user_id,
         token: refreshToken,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天后过期
+        expires_at: new Date(Date.now() + authTokenSettings.durationToMs(authTokenSettings.resolveRefreshExpiresIn(), 7 * 24 * 60 * 60 * 1000)),
         status: 'ACTIVE'
       });
 
@@ -311,7 +312,7 @@ class AuthController {
         token: token,
         refresh_token: refreshToken,
         // expires_in 按 OAuth 约定给秒数（不是 '15m' 这种人类可读串）
-        expires_in: ssoSession.parseDurationToSeconds(config.api.sso.accessTokenTtl, 900),
+        expires_in: authTokenSettings.durationToSeconds(authTokenSettings.resolveLoginAccessExpiresIn(), 900),
         user_id: user.user_id,
         must_change_password: !!fullUser?.must_change_password,
         // 会话 ID：调用方（管理台前端）保存下来，下次登录/登出带上，实现"同设备共用一个会话"
@@ -491,7 +492,7 @@ class AuthController {
           ...(sessionId ? { sid: sessionId } : {}),
         },
         jwtSecret,
-        { expiresIn: config.api.sso.accessTokenTtl }
+        { expiresIn: authTokenSettings.resolveLoginAccessExpiresIn() }
       );
 
       ctx.status = 200;
@@ -502,7 +503,7 @@ class AuthController {
           token,
           refresh_token: newRefreshToken,
           // expires_in 按 OAuth 约定给秒数（不是 '15m' 这种人类可读串）
-          expires_in: ssoSession.parseDurationToSeconds(config.api.sso.accessTokenTtl, 900),
+          expires_in: authTokenSettings.durationToSeconds(authTokenSettings.resolveLoginAccessExpiresIn(), 900),
           ...(sessionId ? { sid: sessionId } : {}),
         }
       };
@@ -961,13 +962,13 @@ class AuthController {
           ...(sid ? { sid } : {}),
         },
         signingSecret,
-        { expiresIn: config.api.sso.accessTokenTtl },
+        { expiresIn: authTokenSettings.resolveLoginAccessExpiresIn() },
       );
       const refreshToken = ssoSession.newRefreshToken();
       await RefreshToken.create({
         user_id: user.user_id,
         token: refreshToken,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expires_at: new Date(Date.now() + authTokenSettings.durationToMs(authTokenSettings.resolveRefreshExpiresIn(), 7 * 24 * 60 * 60 * 1000)),
         status: 'ACTIVE',
       });
       await ssoSession.bindRefreshToken(refreshToken, {
@@ -992,7 +993,7 @@ class AuthController {
         data: {
           token,
           refresh_token: refreshToken,
-          expires_in: ssoSession.parseDurationToSeconds(config.api.sso.accessTokenTtl, 900),
+          expires_in: authTokenSettings.durationToSeconds(authTokenSettings.resolveLoginAccessExpiresIn(), 900),
           must_change_password: !!user.must_change_password,
           ...(sid ? { sid } : {}),
           sso: {

@@ -65,6 +65,33 @@ class SystemController {
         });
         if (queued) return;
       }
+      const authTokenTouched = body.jwtExpiresIn !== undefined || body.jwtRefreshExpiresIn !== undefined;
+      if (authTokenTouched && body.jwtExpiresInReset !== true) {
+        const { normalizeDuration } = require('../services/system/authTokenSettings');
+        if (body.jwtExpiresIn !== undefined) normalizeDuration(body.jwtExpiresIn, '访问令牌有效期');
+        if (body.jwtRefreshExpiresIn !== undefined) normalizeDuration(body.jwtRefreshExpiresIn, '刷新令牌有效期');
+        const { queueSystemAdminAction } = require('../services/system/threeMemberApprovalService');
+        const queued = await queueSystemAdminAction(ctx, {
+          actionType: 'auth_token_ttl',
+          summary: '修改用户登录有效期',
+          payload: {
+            features: {
+              jwtExpiresIn: body.jwtExpiresIn,
+              jwtRefreshExpiresIn: body.jwtRefreshExpiresIn,
+            },
+          },
+        });
+        if (queued) return;
+      }
+      if (body.allowBrowserApiKey !== undefined) {
+        const { queueSystemAdminAction } = require('../services/system/threeMemberApprovalService');
+        const queued = await queueSystemAdminAction(ctx, {
+          actionType: 'allow_browser_api_key',
+          summary: body.allowBrowserApiKey ? '允许把 API Key 只保存在浏览器' : '关闭浏览器保存 API Key',
+          payload: { features: { allowBrowserApiKey: body.allowBrowserApiKey } },
+        });
+        if (queued) return;
+      }
       const fileStorageTouched = body.fileStorageReset === true
         || body.fileStorage !== undefined;
       if (fileStorageTouched && body.fileStorageReset !== true) {

@@ -65,6 +65,10 @@ const restoreUploadMiddleware = koaBody({
  *               logZippedArchive: { type: boolean, description: '滚动后的旧日志是否 gzip 压缩' }
  *               logRotationReset: { type: boolean, description: '传 true 时清掉设置页的日志滚动配置，恢复环境变量默认值' }
  *               threeMemberEnabled: { type: boolean, description: '是否启用三员管理。开启时须已有三类三员各一名在职用户，或同时提交 threeMemberAssignments' }
+ *               jwtExpiresIn: { type: string, description: '用户登录访问令牌有效期，如 15m、24h。有值时高于环境变量 JWT_EXPIRES_IN / SSO_ACCESS_TOKEN_TTL，只影响之后新签发的登录令牌。传空串恢复环境变量', example: "24h" }
+ *               jwtRefreshExpiresIn: { type: string, description: '用户登录刷新令牌有效期，如 7d。有值时高于环境变量 JWT_REFRESH_EXPIRES_IN。传空串恢复环境变量', example: "7d" }
+ *               jwtExpiresInReset: { type: boolean, description: '传 true 时清掉设置页的登录有效期，访问令牌和刷新令牌都恢复环境变量' }
+ *               allowBrowserApiKey: { type: boolean, description: '是否允许 AI 服务商把 API Key 只保存在浏览器，不写入数据库' }
  *               threeMemberAssignments:
  *                 type: object
  *                 description: 开启三员时一次性指定三类用户 id

@@ -12,6 +12,7 @@ const {
   toWinstonRotation,
 } = require('./logRotationSettings');
 const fileStorageSettings = require('../storage/fileStorageSettings');
+const authTokenSettings = require('./authTokenSettings');
 
 const execFileAsync = promisify(execFile);
 
@@ -57,6 +58,9 @@ function formatStoredFeatures(value = {}) {
     logRotation: readStoredLogRotation(value.logRotation),
     fileStorage: fileStorageSettings.readStoredFileStorage(value.fileStorage),
     threeMemberEnabled: Boolean(value.threeMemberEnabled),
+    jwtExpiresIn: authTokenSettings.readStoredDuration(value.jwtExpiresIn),
+    jwtRefreshExpiresIn: authTokenSettings.readStoredDuration(value.jwtRefreshExpiresIn),
+    allowBrowserApiKey: Boolean(value.allowBrowserApiKey),
   };
 }
 
@@ -120,6 +124,7 @@ function readPlatformVersion() {
 
 async function getSystemFeatures() {
   const stored = formatStoredFeatures(await readStoredFeatures());
+  authTokenSettings.applyAuthTokenSettings(stored);
   return {
     version: readPlatformVersion(),
     metadataEnabled: stored.metadataEnabled,
@@ -137,6 +142,9 @@ async function getSystemFeatures() {
     /** 文件存储上传限制（图片 / 文档 / 视频）；info 为只读的存储后端信息 */
     fileStorage: publicFileStorage(stored.fileStorage),
     threeMemberEnabled: stored.threeMemberEnabled,
+    ...authTokenSettings.publicSettings(),
+    /** 允许在 AI 服务商上选择「只存储 API Key 在浏览器」 */
+    allowBrowserApiKey: stored.allowBrowserApiKey,
   };
 }
 
@@ -181,6 +189,12 @@ async function applyStoredFileStorageSettings() {
   fileStorageSettings.applyFileStorageSettings(stored.fileStorage);
 }
 
+/** 启动后把设置页保存的登录有效期套到当前进程；库不可用时保持环境变量。 */
+async function applyStoredAuthTokenSettings() {
+  const stored = formatStoredFeatures(await readStoredFeatures());
+  authTokenSettings.applyAuthTokenSettings(stored);
+}
+
 async function updateSystemFeatures(payload, options = {}) {
   const stored = formatStoredFeatures(await readStoredFeatures());
   const next = { ...stored };
@@ -222,6 +236,26 @@ async function updateSystemFeatures(payload, options = {}) {
     }
     next.threeMemberEnabled = enabling;
   }
+  if (payload.allowBrowserApiKey !== undefined) {
+    next.allowBrowserApiKey = Boolean(payload.allowBrowserApiKey);
+  }
+  const authTokenTouched = payload.jwtExpiresInReset === true
+    || payload.jwtExpiresIn !== undefined
+    || payload.jwtRefreshExpiresIn !== undefined;
+  if (payload.jwtExpiresInReset === true) {
+    next.jwtExpiresIn = null;
+    next.jwtRefreshExpiresIn = null;
+  } else if (payload.jwtExpiresIn !== undefined || payload.jwtRefreshExpiresIn !== undefined) {
+    if (payload.jwtExpiresIn !== undefined) {
+      next.jwtExpiresIn = authTokenSettings.normalizeDuration(payload.jwtExpiresIn, '访问令牌有效期');
+    }
+    if (payload.jwtRefreshExpiresIn !== undefined) {
+      next.jwtRefreshExpiresIn = authTokenSettings.normalizeDuration(
+        payload.jwtRefreshExpiresIn,
+        '刷新令牌有效期',
+      );
+    }
+  }
   if (payload.logRotationReset === true) {
     next.logRotation = null;
   } else if (
@@ -260,6 +294,8 @@ async function updateSystemFeatures(payload, options = {}) {
   if (!value.backupDir) delete value.backupDir; // 保持 JSON 干净，恢复默认时不留空键
   if (!value.logRotation) delete value.logRotation;
   if (!value.fileStorage) delete value.fileStorage;
+  if (!value.jwtExpiresIn) delete value.jwtExpiresIn;
+  if (!value.jwtRefreshExpiresIn) delete value.jwtRefreshExpiresIn;
 
   const [setting] = await BizdataSetting.findOrCreate({
     where: { key: SYSTEM_FEATURES_KEY },
@@ -275,6 +311,7 @@ async function updateSystemFeatures(payload, options = {}) {
   applyAutoBackupSchedule(next);
   if (logRotationTouched) applyEffectiveLogRotation(next.logRotation);
   if (fileStorageTouched) fileStorageSettings.applyFileStorageSettings(next.fileStorage);
+  if (authTokenTouched) authTokenSettings.applyAuthTokenSettings(next);
 
   return getSystemFeatures();
 }
@@ -422,6 +459,7 @@ module.exports = {
   getSystemFeatures,
   applyStoredLogRotation,
   applyStoredFileStorageSettings,
+  applyStoredAuthTokenSettings,
   updateSystemFeatures,
   listBackups,
   runBackup,
