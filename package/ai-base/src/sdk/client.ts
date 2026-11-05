@@ -8,6 +8,7 @@ import type {
 } from '../types';
 import { extractAiChatErrorMessage } from '../utils/formatAiChatError';
 import { withEadafAppParamForToken } from '../utils/eadafAppParam';
+import { rememberModelApiKeyRoutes } from '../chat/browserProviderApiKey';
 import { getActiveTurnId } from '../observability/turnTrace';
 
 function resolveBaseUrl(baseUrl?: string) {
@@ -57,7 +58,9 @@ export class AIBaseClient {
 
   async listModels(): Promise<AIBaseModelInfo[]> {
     const res = await this.request<{ data: AIBaseModelInfo[] }>('/v1/ai/models');
-    return res.data || [];
+    const models = res.data || [];
+    rememberModelApiKeyRoutes(models);
+    return models;
   }
 
   async getCapabilities(options?: { scopeSlug?: string; applicationId?: string }) {

@@ -30,6 +30,12 @@ const router = new Router({
  *         apiKeySet:
  *           type: boolean
  *           example: true
+ *           description: 数据库中是否已配置 API Key（browser 模式恒为 false）
+ *         apiKeyStorage:
+ *           type: string
+ *           enum: [database, browser]
+ *           example: database
+ *           description: API Key 存放位置。browser 时密钥不写入数据库
  *         adapterType:
  *           type: string
  *           example: openai_compatible
@@ -95,6 +101,11 @@ const router = new Router({
  *                 type: string
  *               apiKey:
  *                 type: string
+ *                 description: apiKeyStorage=browser 时忽略，不会入库
+ *               apiKeyStorage:
+ *                 type: string
+ *                 enum: [database, browser]
+ *                 description: browser 表示只由浏览器保存 API Key，服务端不落库。需系统设置允许
  *               adapterType:
  *                 type: string
  *                 example: openai_compatible
@@ -165,6 +176,11 @@ router.post('/', authWithBuiltinApiGuard, operationAudit({
  *                 type: string
  *               apiKey:
  *                 type: string
+ *                 description: apiKeyStorage=browser 时忽略，不会入库
+ *               apiKeyStorage:
+ *                 type: string
+ *                 enum: [database, browser]
+ *                 description: 改为 browser 时清空库中的密钥；改回 database 时用本次 apiKey 写入
  *               adapterType:
  *                 type: string
  *               isActive:

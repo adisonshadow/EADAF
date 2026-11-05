@@ -1,4 +1,4 @@
-import { registerFunctionCall, unregisterFunctionCall } from '@eadaf/ai-base';
+import { registerFunctionCall, unregisterFunctionCall, writeBrowserProviderApiKey, clearBrowserProviderApiKey } from '@eadaf/ai-base';
 import { createMutatingHandler } from '@/ai/toolMutation';
 import {
   deleteAdminModelsId,
@@ -97,6 +97,11 @@ export function registerProviderModelTools() {
             '上游 API 根地址；由 Skill 内置对照表按服务商名称自动填写，不要向用户询问',
         },
         apiKey: { type: 'string' },
+        apiKeyStorage: {
+          type: 'string',
+          enum: ['database', 'browser'],
+          description: 'browser=只把 API Key 存在本浏览器，不写入数据库。需系统设置已允许',
+        },
         adapterType: { type: 'string', description: '默认 openai_compatible' },
       },
       required: ['name', 'baseUrl'],
@@ -107,15 +112,20 @@ export function registerProviderModelTools() {
       scope: 'aibase.providers.list',
       buildResourceId: (_args, data) => (data as { id?: string })?.id,
       handler: async (args) => {
+        const browserOnly = args.apiKeyStorage === 'browser';
         const res = await postAdminProviders({
           name: String(args.name),
           slug: args.slug ? String(args.slug).trim() : '',
           baseUrl: String(args.baseUrl),
-          apiKey: args.apiKey ? String(args.apiKey) : undefined,
+          apiKey: browserOnly || !args.apiKey ? undefined : String(args.apiKey),
+          apiKeyStorage: browserOnly ? 'browser' : 'database',
           adapterType: args.adapterType ? String(args.adapterType) : undefined,
         });
-        const data = getApiData(res);
+        const data = getApiData<{ id?: string }>(res);
         if (!data) throw new Error('创建服务商失败');
+        if (browserOnly && data.id && args.apiKey) {
+          writeBrowserProviderApiKey(data.id, String(args.apiKey));
+        }
         return data;
       },
     }),
@@ -132,6 +142,7 @@ export function registerProviderModelTools() {
         slug: { type: 'string' },
         baseUrl: { type: 'string' },
         apiKey: { type: 'string' },
+        apiKeyStorage: { type: 'string', enum: ['database', 'browser'] },
         adapterType: { type: 'string' },
         isActive: { type: 'boolean' },
       },
@@ -149,13 +160,22 @@ export function registerProviderModelTools() {
             name: args.name as string | undefined,
             slug: args.slug as string | undefined,
             baseUrl: args.baseUrl as string | undefined,
-            apiKey: args.apiKey as string | undefined,
+            apiKey: args.apiKeyStorage === 'browser' ? undefined : (args.apiKey as string | undefined),
+            apiKeyStorage: args.apiKeyStorage === 'browser' || args.apiKeyStorage === 'database'
+              ? args.apiKeyStorage
+              : undefined,
             adapterType: args.adapterType as string | undefined,
             isActive: args.isActive as boolean | undefined,
           }),
         );
         const data = getApiData(res);
         if (!data) throw new Error('更新服务商失败');
+        const providerId = String(args.providerId);
+        if (args.apiKeyStorage === 'browser' && args.apiKey) {
+          writeBrowserProviderApiKey(providerId, String(args.apiKey));
+        } else if (args.apiKeyStorage === 'database') {
+          clearBrowserProviderApiKey(providerId);
+        }
         return data;
       },
     }),

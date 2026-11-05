@@ -18,7 +18,11 @@ const User = require('../../models/user');
 /** 同一次轮换的并发重复提交宽限（毫秒） */
 const REUSE_GRACE_MS = 60 * 1000;
 
-const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7d
+/** 刷新令牌落库有效期。设置页有值时高于 JWT_REFRESH_EXPIRES_IN。 */
+function refreshTtlMs() {
+  const { resolveRefreshExpiresIn, durationToMs } = require('../system/authTokenSettings');
+  return durationToMs(resolveRefreshExpiresIn(), 7 * 24 * 60 * 60 * 1000);
+}
 
 /**
  * @param {{ presentedToken: string, applicationIdHint?: string|null, issuer?: string|null }} params
@@ -86,7 +90,7 @@ async function rotateRefreshToken({ presentedToken, applicationIdHint = null, is
   await RefreshToken.create({
     user_id: user.user_id,
     token: newRefreshToken,
-    expires_at: new Date(Date.now() + REFRESH_TTL_MS),
+    expires_at: new Date(Date.now() + refreshTtlMs()),
     status: 'ACTIVE',
   });
 
@@ -101,4 +105,8 @@ async function rotateRefreshToken({ presentedToken, applicationIdHint = null, is
   return { ok: true, user, sid, applicationId, newRefreshToken };
 }
 
-module.exports = { rotateRefreshToken, REUSE_GRACE_MS, REFRESH_TTL_MS };
+module.exports = {
+  rotateRefreshToken,
+  REUSE_GRACE_MS,
+  get REFRESH_TTL_MS() { return refreshTtlMs(); },
+};

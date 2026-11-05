@@ -7,7 +7,7 @@ import { message } from '@/utils/antdAppApis';
 import React, { useEffect, useMemo, useState } from 'react';
 import { getAiServiceModels, type AiServiceModelInfo } from '@/services/EADAF/api/aiService';
 import { createEADAFChatProvider, type EADAFChatMessage } from './EADAFChatProvider';
-import { extractAiChatErrorMessage } from '@eadaf/ai-base';
+import { extractAiChatErrorMessage, rememberModelApiKeyRoutes } from '@eadaf/ai-base';
 import AssistantMarkdown from './AssistantMarkdown';
 
 const renderAssistantContent = (
@@ -81,6 +81,7 @@ const ChatDemoPage: React.FC = () => {
       try {
         const response = await getAiServiceModels();
         const models = response?.data || [];
+        rememberModelApiKeyRoutes(models);
         setModelOptions(
           models.map((item: AiServiceModelInfo) => ({
             label: `${item.displayName} (${item.slug})`,

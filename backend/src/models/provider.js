@@ -24,6 +24,12 @@ const Provider = sequelize.define('Provider', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  /** database=密钥加密进库；browser=不入库，由浏览器在调用时附带 */
+  api_key_storage: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: 'database'
+  },
   adapter_type: {
     type: DataTypes.STRING(50),
     allowNull: false,

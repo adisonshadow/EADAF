@@ -20,7 +20,9 @@ function formatPublicModel(model) {
     outputTags: (data.ioTags || [])
       .filter((item) => item.direction === 'output')
       .map((item) => item.modality),
-    defaultParams: data.default_params || {}
+    defaultParams: data.default_params || {},
+    providerId: data.provider?.id || null,
+    apiKeyStorage: data.provider?.api_key_storage === 'browser' ? 'browser' : 'database',
   };
 }
 
@@ -99,7 +101,7 @@ class AiServiceController {
             as: 'provider',
             where: { is_active: true },
             required: true,
-            attributes: []
+            attributes: ['id', 'api_key_storage']
           },
           {
             model: ModelCapability,
@@ -144,10 +146,15 @@ class AiServiceController {
     };
 
     try {
+      const clientApiKey = typeof body.providerApiKey === 'string'
+        ? body.providerApiKey
+        : ctx.get('x-eadaf-provider-api-key');
+      delete body.providerApiKey;
       const resolved = await resolveModel({
         slug: body.slug,
         modelId: body.modelId,
-        traceId
+        traceId,
+        clientApiKey,
       });
 
       validateRequest(resolved, body, traceId);

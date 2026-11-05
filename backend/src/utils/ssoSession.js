@@ -19,7 +19,6 @@
  * 「登出立即失效」的强度依赖 Redis；Redis 挂时退化为「等 access 过期」。
  */
 const crypto = require('crypto');
-const config = require('../config');
 const logger = require('./logger');
 const { withRedis, isRedisAvailable } = require('./redisOps');
 
@@ -53,15 +52,19 @@ function parseDurationToSeconds(value, fallbackSeconds) {
   }
 }
 
-/** access / refresh 的有效期（秒），用于给 Redis 键设 TTL */
-const ACCESS_TTL_SECONDS = parseDurationToSeconds(
-  config.api?.sso?.accessTokenTtl || config.api?.security?.jwtExpiresIn,
-  24 * 3600,
-);
-const REFRESH_TTL_SECONDS = parseDurationToSeconds(
-  config.jwt?.refreshExpiresIn || config.api?.security?.jwtRefreshExpiresIn,
-  7 * 24 * 3600,
-);
+/**
+ * access / refresh 的有效期（秒），用于给 Redis 键设 TTL。
+ * 每次读取：设置页保存的登录有效期高于环境变量，改完不用重启。
+ */
+function accessTtlSeconds() {
+  const { resolveLoginAccessExpiresIn, durationToSeconds } = require('../services/system/authTokenSettings');
+  return durationToSeconds(resolveLoginAccessExpiresIn(), 24 * 3600);
+}
+
+function refreshTtlSeconds() {
+  const { resolveRefreshExpiresIn, durationToSeconds } = require('../services/system/authTokenSettings');
+  return durationToSeconds(resolveRefreshExpiresIn(), 7 * 24 * 3600);
+}
 
 const userSidsKey = (userId) => `${USER_SIDS_PREFIX}${userId}${USER_SIDS_SUFFIX}`;
 const sessionAppsKey = (sid) => `${SESSION_PREFIX}${sid}${SESSION_APPS_SUFFIX}`;
@@ -104,11 +107,11 @@ async function createSession({ userId, applicationId = null, platform = false, r
       created_at: now,
       last_seen_at: now,
     });
-    await client.expire(key, REFRESH_TTL_SECONDS);
+    await client.expire(key, refreshTtlSeconds());
     if (userId) {
       const setKey = userSidsKey(userId);
       await client.sAdd(setKey, sid);
-      await client.expire(setKey, REFRESH_TTL_SECONDS);
+      await client.expire(setKey, refreshTtlSeconds());
     }
   });
 
@@ -155,12 +158,12 @@ async function bindRefreshToken(token, { sid, userId, applicationId = null } = {
     const stored = await client.set(
       REFRESH_PREFIX + token,
       JSON.stringify({ sid, user_id: userId || '', application_id: applicationId || '' }),
-      { EX: REFRESH_TTL_SECONDS },
+      { EX: refreshTtlSeconds() },
     );
     if (applicationId) {
       const appsKey = sessionAppsKey(sid);
       await client.sAdd(appsKey, applicationId);
-      await client.expire(appsKey, REFRESH_TTL_SECONDS);
+      await client.expire(appsKey, refreshTtlSeconds());
     }
     return stored;
   });
@@ -192,7 +195,7 @@ async function markRefreshTokenRotated(token, { rotatedTo, sid } = {}) {
   if (!token) return null;
   return withRedis('markRefreshTokenRotated', async (client) => {
     const payload = { sid: sid || '', rotated_to: rotatedTo || '', rotated_at: new Date().toISOString() };
-    await client.set(REFRESH_PREFIX + token, JSON.stringify(payload), { EX: REFRESH_TTL_SECONDS });
+    await client.set(REFRESH_PREFIX + token, JSON.stringify(payload), { EX: refreshTtlSeconds() });
     return true;
   });
 }
@@ -207,7 +210,7 @@ async function revokeSession(sid, reason = 'logout') {
   if (!sid) return false;
   const done = await withRedis('revokeSession', async (client) => {
     await client.set(REVOKED_PREFIX + sid, reason, {
-      EX: Math.max(ACCESS_TTL_SECONDS, REFRESH_TTL_SECONDS),
+      EX: Math.max(accessTtlSeconds(), refreshTtlSeconds()),
     });
     const info = await client.hGetAll(SESSION_PREFIX + sid);
     await client.del(SESSION_PREFIX + sid);
@@ -259,8 +262,8 @@ async function isSessionStoreAvailable() {
 }
 
 module.exports = {
-  ACCESS_TTL_SECONDS,
-  REFRESH_TTL_SECONDS,
+  get ACCESS_TTL_SECONDS() { return accessTtlSeconds(); },
+  get REFRESH_TTL_SECONDS() { return refreshTtlSeconds(); },
   parseDurationToSeconds,
   newSessionId,
   newRefreshToken,

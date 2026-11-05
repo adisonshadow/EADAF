@@ -24,6 +24,7 @@ export async function postAdminProviders(
     slug: string;
     baseUrl: string;
     apiKey?: string;
+    apiKeyStorage?: 'database' | 'browser';
     adapterType?: string;
   },
   options?: { [key: string]: any },
@@ -75,6 +76,7 @@ export async function patchAdminProvidersId(
     slug?: string;
     baseUrl?: string;
     apiKey?: string;
+    apiKeyStorage?: 'database' | 'browser';
     adapterType?: string;
     isActive?: boolean;
   },

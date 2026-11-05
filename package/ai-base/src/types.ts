@@ -365,6 +365,10 @@ export interface AIBaseModelInfo {
   /** 输入模态：text / image / audio / video / file（附件门控用） */
   inputTags?: string[];
   outputTags?: string[];
+  /** 所属服务商。浏览器保存 API Key 时用来取出本机密钥 */
+  providerId?: string;
+  /** browser 表示密钥不在数据库 */
+  apiKeyStorage?: 'database' | 'browser';
 }
 
 export interface AIBaseClientOptions {

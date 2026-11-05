@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { validate: isUuid } = require('uuid');
 const { UniqueConstraintError, Op } = require('sequelize');
 const config = require('../config');
+const authTokenSettings = require('../services/system/authTokenSettings');
 const logger = require('../utils/logger');
 const { User, LoginAttempt, RefreshToken, Department: _Department, Role: _Role, Captcha, PasswordReset } = require('../models');
 const { sequelize: _sequelize } = require('../models');
@@ -656,21 +657,21 @@ class UserController {
       const token = jwt.sign(
         { user_id: user.user_id, username: user.username },
         config.jwt.secret,
-        { expiresIn: config.jwt.expiresIn }
+        { expiresIn: authTokenSettings.resolveJwtExpiresIn() }
       );
       
       // 生成刷新令牌
       const refreshToken = jwt.sign(
         { user_id: user.user_id },
         config.jwt.refreshSecret || config.jwt.secret,
-        { expiresIn: config.jwt.refreshExpiresIn || '7d' }
+        { expiresIn: authTokenSettings.resolveRefreshExpiresIn() }
       );
 
       // 保存刷新令牌到数据库
       await RefreshToken.create({
         user_id: user.user_id,
         token: refreshToken,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天后过期
+        expires_at: new Date(Date.now() + authTokenSettings.durationToMs(authTokenSettings.resolveRefreshExpiresIn(), 7 * 24 * 60 * 60 * 1000)),
         status: 'ACTIVE'
       });
 
@@ -682,7 +683,7 @@ class UserController {
         data: {
           token: token,
           refresh_token: refreshToken,
-          expires_in: config.jwt.expiresIn,
+          expires_in: authTokenSettings.resolveJwtExpiresIn(),
           user_id: user.user_id
         }
       };
@@ -760,20 +761,20 @@ class UserController {
       const token = jwt.sign(
         { user_id: user.user_id, username: user.username },
         config.jwt.secret,
-        { expiresIn: config.jwt.expiresIn }
+        { expiresIn: authTokenSettings.resolveJwtExpiresIn() }
       );
 
       // 生成新的刷新令牌
       const newRefreshToken = jwt.sign(
         { user_id: user.user_id },
         config.jwt.refreshSecret || config.jwt.secret,
-        { expiresIn: config.jwt.refreshExpiresIn || '7d' }
+        { expiresIn: authTokenSettings.resolveRefreshExpiresIn() }
       );
 
       // 更新刷新令牌记录
       await tokenRecord.update({
         token: newRefreshToken,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天后过期
+        expires_at: new Date(Date.now() + authTokenSettings.durationToMs(authTokenSettings.resolveRefreshExpiresIn(), 7 * 24 * 60 * 60 * 1000)),
         status: 'ACTIVE'
       });
 
@@ -784,7 +785,7 @@ class UserController {
         data: {
           token,
           refresh_token: newRefreshToken,
-          expires_in: config.jwt.expiresIn
+          expires_in: authTokenSettings.resolveJwtExpiresIn()
         }
       };
     } catch (error) {

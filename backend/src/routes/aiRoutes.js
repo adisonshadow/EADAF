@@ -36,6 +36,14 @@ const router = new Router({
  *             type: string
  *         defaultParams:
  *           type: object
+ *         providerId:
+ *           type: string
+ *           format: uuid
+ *           description: 所属服务商。浏览器保存 API Key 时，前端用它在本机取出密钥
+ *         apiKeyStorage:
+ *           type: string
+ *           enum: [database, browser]
+ *           description: browser 表示该服务商的 API Key 不在数据库，调用时由 body.providerApiKey 带上
  *     AIBaseErrorResponse:
  *       type: object
  *       properties:
@@ -81,6 +89,12 @@ router.get('/models', authWithBuiltinApiGuard, AiServiceController.listModels);
  *     description: 通过 slug 或 modelId 路由到已注册模型，支持流式 SSE
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: header
+ *         name: X-Eadaf-Provider-Api-Key
+ *         schema:
+ *           type: string
+ *         description: 可选。与 body.providerApiKey 二选一，仅 apiKeyStorage=browser 时生效，服务端不落库
  *     requestBody:
  *       required: true
  *       content:
@@ -110,6 +124,9 @@ router.get('/models', authWithBuiltinApiGuard, AiServiceController.listModels);
  *                 type: array
  *                 items:
  *                   type: object
+ *               providerApiKey:
+ *                 type: string
+ *                 description: 仅当模型所属服务商 apiKeyStorage=browser 时使用。密钥只存在调用方浏览器，服务端不落库、不写给上游；database 模式忽略
  *     responses:
  *       200:
  *         description: 对话成功（非流式返回 OpenAI JSON，流式返回 text/event-stream）

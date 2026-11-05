@@ -68,7 +68,8 @@ async function consumeAuthorizationCode(code) {
 }
 
 function accessTokenTtlSeconds() {
-  return parseDurationToSeconds(config.api?.sso?.accessTokenTtl, 900);
+  const { resolveLoginAccessExpiresIn, durationToSeconds } = require('../system/authTokenSettings');
+  return durationToSeconds(resolveLoginAccessExpiresIn(), parseDurationToSeconds(config.api?.sso?.accessTokenTtl, 900));
 }
 
 /**

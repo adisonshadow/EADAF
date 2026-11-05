@@ -266,7 +266,10 @@ class ImportContext {
           const payload = pickModelFields(models.Provider, provider);
           delete payload.id;
           delete payload.api_key_encrypted;
-          payload.api_key_encrypted = provider.api_key ? encryptApiKey(provider.api_key) : null;
+          payload.api_key_encrypted = provider.api_key && payload.api_key_storage !== 'browser'
+            ? encryptApiKey(provider.api_key)
+            : null;
+          if (payload.api_key_storage === 'browser') payload.api_key_encrypted = null;
           delete payload.api_key;
           await this.upsertMetaRaw(models.Provider, provider, 'slug', this.idMap.providers, payload, section, { transaction });
         }

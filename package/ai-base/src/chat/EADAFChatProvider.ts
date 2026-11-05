@@ -6,6 +6,7 @@ import {
 } from '@ant-design/x-sdk';
 import { extractAiChatErrorMessage } from '../utils/formatAiChatError';
 import { withEadafAppParamForToken } from '../utils/eadafAppParam';
+import { withBrowserProviderApiKeyBody } from './browserProviderApiKey';
 import type { AssistantSegment } from './chatToolSteps';
 
 type SseChunk = { data?: string };
@@ -141,11 +142,12 @@ export function createEADAFChatProvider(
             ...(init.headers as Record<string, string>),
           };
           if (token) headers.Authorization = `Bearer ${token}`;
+          const body = withBrowserProviderApiKeyBody(typeof init.body === 'string' ? init.body : undefined);
           // 按令牌自述的 application_id 补 ?app=（老令牌用 ssoApplicationId 兜底）
           const requestUrl = typeof url === 'string' ? url : String(url);
           return [
             withEadafAppParamForToken(requestUrl, token, ssoApplicationId),
-            { ...init, headers },
+            { ...init, headers, ...(body !== undefined ? { body } : {}) },
           ] as [string, typeof init];
         },
       },

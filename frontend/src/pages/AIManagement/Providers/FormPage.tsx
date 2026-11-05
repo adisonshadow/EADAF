@@ -7,6 +7,11 @@ import {
   ProFormText,
 } from '@ant-design/pro-components';
 import { Button, Form, Space, Spin } from 'antd';
+import {
+  clearBrowserProviderApiKey,
+  readBrowserProviderApiKey,
+  writeBrowserProviderApiKey,
+} from '@eadaf/ai-base';
 import { message } from '@/utils/antdAppApis';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -19,6 +24,7 @@ import {
 } from '@/services/EADAF/api/adminProviders';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import { ADAPTER_TYPE_OPTIONS, SLUG_PATTERN } from '../constants';
+import { useInitialState } from '@/providers/InitialStateProvider';
 
 export type ProviderPageMode = 'create' | 'view' | 'edit';
 
@@ -38,6 +44,11 @@ const ProviderFormPage: React.FC<ProviderFormPageProps> = ({ mode }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(mode !== 'create');
   const [saving, setSaving] = useState(false);
+  const [storedInBrowser, setStoredInBrowser] = useState(false);
+  const { initialState } = useInitialState();
+  const allowBrowserApiKey = Boolean(initialState?.systemFeatures?.allowBrowserApiKey);
+  const apiKeyBrowserOnly = Form.useWatch('apiKeyBrowserOnly', form);
+  const showBrowserOption = allowBrowserApiKey || storedInBrowser || Boolean(apiKeyBrowserOnly);
 
   const readOnly = mode === 'view';
   const listPath = '/ai_management/providers';
@@ -59,7 +70,13 @@ const ProviderFormPage: React.FC<ProviderFormPageProps> = ({ mode }) => {
         navigate(listPath, { replace: true });
         return;
       }
-      form.setFieldsValue({ ...data, apiKey: undefined });
+      const browserOnly = data.apiKeyStorage === 'browser';
+      setStoredInBrowser(browserOnly);
+      form.setFieldsValue({
+        ...data,
+        apiKey: browserOnly ? (readBrowserProviderApiKey(data.id) || undefined) : undefined,
+        apiKeyBrowserOnly: browserOnly,
+      });
     } catch {
       message.error('获取服务商详情失败');
       navigate(listPath, { replace: true });
@@ -78,7 +95,8 @@ const ProviderFormPage: React.FC<ProviderFormPageProps> = ({ mode }) => {
   useEffect(() => {
     if (mode === 'create') {
       form.resetFields();
-      form.setFieldsValue({ adapterType: 'openai_compatible', isActive: true });
+      form.setFieldsValue({ adapterType: 'openai_compatible', isActive: true, apiKeyBrowserOnly: false });
+      setStoredInBrowser(false);
       setLoading(false);
       return;
     }
@@ -95,20 +113,26 @@ const ProviderFormPage: React.FC<ProviderFormPageProps> = ({ mode }) => {
     try {
       const values = await form.validateFields();
       setSaving(true);
+      const browserOnly = Boolean(values.apiKeyBrowserOnly);
 
       if (mode === 'create') {
         const response = await postAdminProviders({
           name: values.name,
           slug: values.slug?.trim() || undefined,
           baseUrl: values.baseUrl,
-          apiKey: values.apiKey,
+          apiKey: browserOnly ? undefined : values.apiKey,
+          apiKeyStorage: browserOnly ? 'browser' : 'database',
           adapterType: values.adapterType,
         });
         if (!isApiSuccess(response)) {
           message.error(response.message || '创建失败');
           return;
         }
-        message.success('创建成功');
+        const created = getApiData<API.AdminProvider>(response);
+        if (browserOnly && created?.id && values.apiKey) {
+          writeBrowserProviderApiKey(created.id, values.apiKey);
+        }
+        message.success(browserOnly ? '创建成功，API Key 只保存在本浏览器' : '创建成功');
       } else if (id) {
         const payload: Record<string, unknown> = {
           name: values.name,
@@ -116,8 +140,9 @@ const ProviderFormPage: React.FC<ProviderFormPageProps> = ({ mode }) => {
           baseUrl: values.baseUrl,
           adapterType: values.adapterType,
           isActive: values.isActive,
+          apiKeyStorage: browserOnly ? 'browser' : 'database',
         };
-        if (values.apiKey) {
+        if (!browserOnly && values.apiKey) {
           payload.apiKey = values.apiKey;
         }
         const response = await patchAdminProvidersId({ id }, payload);
@@ -125,7 +150,12 @@ const ProviderFormPage: React.FC<ProviderFormPageProps> = ({ mode }) => {
           message.error(response.message || '更新失败');
           return;
         }
-        message.success('更新成功');
+        if (browserOnly) {
+          if (values.apiKey) writeBrowserProviderApiKey(id, values.apiKey);
+        } else {
+          clearBrowserProviderApiKey(id);
+        }
+        message.success(browserOnly ? '已更新，API Key 只保存在本浏览器' : '更新成功');
       }
       navigate(listPath);
     } catch (error: unknown) {
@@ -184,12 +214,43 @@ const ProviderFormPage: React.FC<ProviderFormPageProps> = ({ mode }) => {
             label="Base URL"
             rules={[{ required: true, message: '请输入 Base URL' }]}
           />
+          {showBrowserOption ? (
+            <ProFormSwitch
+              name="apiKeyBrowserOnly"
+              label="只存储API Key在浏览器"
+              extra="开启后密钥只留在本浏览器，不写入数据库。换浏览器或清除站点数据后需要重新填写"
+            />
+          ) : null}
           <ProFormText.Password
             name="apiKey"
             label="API Key"
-            rules={mode === 'create' ? [{ required: true, message: '请输入 API Key' }] : []}
+            rules={[
+              {
+                validator: (_, value) => {
+                  const browserOnly = Boolean(form.getFieldValue('apiKeyBrowserOnly'));
+                  if (mode === 'create' && !value) {
+                    return Promise.reject(new Error('请输入 API Key'));
+                  }
+                  if (mode === 'edit' && browserOnly && !storedInBrowser && !value) {
+                    return Promise.reject(new Error('改为只存在浏览器时需要重新输入 API Key'));
+                  }
+                  if (mode === 'edit' && !browserOnly && storedInBrowser && !value) {
+                    return Promise.reject(new Error('改为保存到数据库时需要输入 API Key'));
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
             fieldProps={{ visibilityToggle: !readOnly }}
-            extra={mode === 'edit' ? '留空表示不修改' : undefined}
+            extra={
+              apiKeyBrowserOnly
+                ? (mode === 'edit'
+                  ? '留空表示不修改本机保存的密钥；不会写入数据库'
+                  : '不会提交到服务器，只写入本浏览器')
+                : mode === 'edit'
+                  ? '留空表示不修改'
+                  : undefined
+            }
           />
           <ProFormSelect
             name="adapterType"

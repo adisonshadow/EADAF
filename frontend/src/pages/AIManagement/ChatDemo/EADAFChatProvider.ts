@@ -5,7 +5,7 @@ import {
   type XRequestOptions,
 } from '@ant-design/x-sdk';
 import { resolveStreamApiUrl } from '@/constants/env';
-import { extractAiChatErrorMessage } from '@eadaf/ai-base';
+import { extractAiChatErrorMessage, withBrowserProviderApiKeyBody } from '@eadaf/ai-base';
 
 /** XRequest SSE 流式单元：每个 data 行被包裹为 { data: string } */
 type SseChunk = { data?: string };
@@ -141,11 +141,12 @@ export function createEADAFChatProvider() {
             if (token) {
               headers.set('Authorization', `Bearer ${token}`);
             }
+            const body = withBrowserProviderApiKeyBody(typeof init.body === 'string' ? init.body : undefined);
             const headerRecord: Record<string, string> = {};
             headers.forEach((value, key) => {
               headerRecord[key] = value;
             });
-            return [url, { ...init, headers: headerRecord }];
+            return [url, { ...init, headers: headerRecord, ...(body !== undefined ? { body } : {}) }];
           },
         },
         params: {
