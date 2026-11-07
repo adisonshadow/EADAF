@@ -303,6 +303,8 @@ if [[ "$KIND" == "install" || "$KIND" == "upgrade" ]]; then
   copy_runtime_skeleton "$DEST"
   if [[ "$KIND" == "install" ]]; then
     write_install_env "$DEST" "$WEB_PORT" "$API_PORT"
+    need_cmd node
+    node "$REPO_ROOT/scripts/deploy/export-default-db-connection.cjs" --env "$DEST/.env"
     cat >"$DEST/.deploy-mode" <<EOF
 DEPLOY_NETWORK=${NETWORK}
 DEPLOY_RUNTIME=${RUNTIME}

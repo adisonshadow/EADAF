@@ -166,22 +166,42 @@ SQL
 
 load_sql_manifest
 
-# 物化连接种子是 localhost:35432（本机开发）；Docker/K8s 内 API 必须连服务名 postgres:5432
+# 物化连接种子来自开发库「本地 PostgreSQL（应用库）」。
+# 本机地址在容器内不可用，API 起来后由 fix-db-connection.js 改成 BIZDATA_CONN_*（打包时写入）。
 fix_bizdata_db_connection() {
+  local required="${1:-0}"
   if [[ "${DEPLOY_RUNTIME:-}" == "k8s" ]]; then
     echo "K8s 模式请在 API Pod 内执行 init/fix-db-connection.js（如需）"
+    if [[ "$required" == "1" ]]; then
+      exit 1
+    fi
     return 0
   fi
   if ! docker ps --format '{{.Names}}' | grep -qx 'EADAF-api'; then
+    if [[ "$required" == "1" ]]; then
+      echo "EADAF-api 未运行，无法把默认业务库连接改成安装包里的配置"
+      exit 1
+    fi
     echo "EADAF-api 未运行，跳过物化连接修正（启动 API 后可执行: docker exec -w /app/backend EADAF-api node /data/fix-db-connection.js）"
     return 0
   fi
   local script="$ROOT/init/fix-db-connection.js"
-  [[ -f "$script" ]] || { echo "缺少 $script，跳过物化连接修正"; return 0; }
-  echo "修正 bizdata 默认连接 → 容器内 ${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432} ..."
+  if [[ ! -f "$script" ]]; then
+    echo "缺少 $script，无法修正默认业务库连接"
+    if [[ "$required" == "1" ]]; then
+      exit 1
+    fi
+    return 0
+  fi
+  echo "修正默认业务库连接 → ${BIZDATA_CONN_HOST:-${POSTGRES_HOST:-postgres}}:${BIZDATA_CONN_PORT:-${POSTGRES_PORT:-5432}}/${BIZDATA_CONN_DATABASE:-${POSTGRES_DATABASE:-eadaf_db}} schema=${BIZDATA_CONN_SCHEMA:-bizdata_mat} ..."
   docker cp "$script" EADAF-api:/tmp/fix-db-connection.js
   docker exec -w /app/backend EADAF-api node /tmp/fix-db-connection.js
 }
+
+if [[ "${1:-}" == "--fix-connection-only" ]]; then
+  fix_bizdata_db_connection 1
+  exit 0
+fi
 
 if [[ "$SKIP_FULL_INIT" -eq 1 ]]; then
   ensure_superadmin

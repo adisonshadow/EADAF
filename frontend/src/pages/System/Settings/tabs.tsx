@@ -324,7 +324,7 @@ export const GeneralSettingsTab: React.FC = () => {
         setInitialState((prev) =>
           prev ? { ...prev, systemFeatures: { ...prev.systemFeatures, ...data } } : prev,
         );
-        message.success(reset ? '已恢复环境变量中的登录有效期' : '登录有效期已保存');
+        message.success(reset ? '已恢复系统默认的登录有效期' : '登录有效期已保存');
       } else {
         message.error(res.message || '保存失败');
       }
@@ -439,82 +439,6 @@ export const GeneralSettingsTab: React.FC = () => {
             onChange={(checked) => void handleMetadataChange(checked)}
           />
         </div>
-        <div style={{ marginTop: token.margin }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: token.margin }}>
-            <div>
-              <Typography.Text strong>用户登录的过期时间</Typography.Text>
-              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
-                {jwtExpiresInIsCustom || jwtRefreshExpiresInIsCustom
-                  ? '当前使用这里保存的有效期，高于环境变量，只作用于之后新签发的登录令牌。'
-                  : '当前使用环境变量。访问令牌优先 SSO_ACCESS_TOKEN_TTL，否则 JWT_EXPIRES_IN；刷新令牌为 JWT_REFRESH_EXPIRES_IN。保存后高于这些环境变量。'}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin, marginTop: token.marginSM }}>
-            <div>
-              <Typography.Text>访问令牌</Typography.Text>
-              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
-                对应 JWT_EXPIRES_IN
-              </div>
-            </div>
-            <Space.Compact>
-              <InputNumber
-                min={1}
-                max={3650}
-                value={accessAmount}
-                disabled={!canMaintain}
-                onChange={(value) => setAccessAmount(typeof value === 'number' ? value : 1)}
-              />
-              <Select
-                value={accessUnit}
-                options={LOGIN_TTL_UNITS}
-                disabled={!canMaintain}
-                onChange={(value) => setAccessUnit(value)}
-                style={{ width: 88 }}
-              />
-            </Space.Compact>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin, marginTop: token.marginSM }}>
-            <div>
-              <Typography.Text>刷新令牌</Typography.Text>
-              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
-                对应 JWT_REFRESH_EXPIRES_IN
-              </div>
-            </div>
-            <Space.Compact>
-              <InputNumber
-                min={1}
-                max={3650}
-                value={refreshAmount}
-                disabled={!canMaintain}
-                onChange={(value) => setRefreshAmount(typeof value === 'number' ? value : 1)}
-              />
-              <Select
-                value={refreshUnit}
-                options={LOGIN_TTL_UNITS}
-                disabled={!canMaintain}
-                onChange={(value) => setRefreshUnit(value)}
-                style={{ width: 88 }}
-              />
-            </Space.Compact>
-          </div>
-          <Space style={{ marginTop: token.marginSM }}>
-            <Button
-              type="primary"
-              loading={authTokenSaving}
-              disabled={!canMaintain}
-              onClick={() => void saveAuthToken(false)}
-            >
-              保存
-            </Button>
-            <Button
-              disabled={!canMaintain || (!jwtExpiresInIsCustom && !jwtRefreshExpiresInIsCustom) || authTokenSaving}
-              onClick={() => void saveAuthToken(true)}
-            >
-              恢复默认
-            </Button>
-          </Space>
-        </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: token.margin }}>
           <div>
             <Typography.Text strong>允许保存API Key到浏览器</Typography.Text>
@@ -557,6 +481,79 @@ export const GeneralSettingsTab: React.FC = () => {
             ))}
           </Space>
         </Modal>
+      </Card>
+      <Card title="登录有效期">
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+            {jwtExpiresInIsCustom || jwtRefreshExpiresInIsCustom
+              ? '当前使用这里保存的时间，只影响之后新的登录。已经登录的用户要重新登录后才按新时间计算。'
+              : '当前使用系统默认时间。在这里保存后，以填写的时间为准，只影响之后新的登录。'}
+          </Typography.Text>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>访问令牌</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                这次登录保持多久。到期后如果还能续期，会自动换新，不用重新输入密码
+              </div>
+            </div>
+            <Space.Compact>
+              <InputNumber
+                min={1}
+                max={3650}
+                value={accessAmount}
+                disabled={!canMaintain}
+                onChange={(value) => setAccessAmount(typeof value === 'number' ? value : 1)}
+              />
+              <Select
+                value={accessUnit}
+                options={LOGIN_TTL_UNITS}
+                disabled={!canMaintain}
+                onChange={(value) => setAccessUnit(value)}
+                style={{ width: 88 }}
+              />
+            </Space.Compact>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>
+            <div>
+              <Typography.Text strong>刷新令牌</Typography.Text>
+              <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
+                多久之内不用重新输入密码。过了这个时间必须重新登录。
+              </div>
+            </div>
+            <Space.Compact>
+              <InputNumber
+                min={1}
+                max={3650}
+                value={refreshAmount}
+                disabled={!canMaintain}
+                onChange={(value) => setRefreshAmount(typeof value === 'number' ? value : 1)}
+              />
+              <Select
+                value={refreshUnit}
+                options={LOGIN_TTL_UNITS}
+                disabled={!canMaintain}
+                onChange={(value) => setRefreshUnit(value)}
+                style={{ width: 88 }}
+              />
+            </Space.Compact>
+          </div>
+          <Space>
+            <Button
+              type="primary"
+              loading={authTokenSaving}
+              disabled={!canMaintain}
+              onClick={() => void saveAuthToken(false)}
+            >
+              保存
+            </Button>
+            <Button
+              disabled={!canMaintain || (!jwtExpiresInIsCustom && !jwtRefreshExpiresInIsCustom) || authTokenSaving}
+              onClick={() => void saveAuthToken(true)}
+            >
+              恢复默认
+            </Button>
+          </Space>
+        </Space>
       </Card>
       <Card title="样式">
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>

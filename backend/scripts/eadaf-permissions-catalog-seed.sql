@@ -38,7 +38,7 @@ VALUES
   ('660e8400-e29b-41d4-a716-446655440081', 'business_data:metadata:manage', '管理元数据', 'BUTTON', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('660e8400-e29b-41d4-a716-446655440082', 'business_data:collection_pipeline:read', '查看采集管道', 'BUTTON', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('660e8400-e29b-41d4-a716-446655440083', 'business_data:collection_pipeline:manage', '管理采集管道', 'BUTTON', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('660e8400-e29b-41d4-a716-446655440082', 'system:settings:manage', '系统设置', 'BUTTON', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('660e8400-e29b-41d4-a716-446655440084', 'system:settings:manage', '系统设置', 'BUTTON', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   -- BUTTON：API 服务
   ('660e8400-e29b-41d4-a716-44665544004f', 'apiservice:create', '创建 API 服务', 'BUTTON', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('660e8400-e29b-41d4-a716-446655440050', 'apiservice:edit', '编辑 API 服务', 'BUTTON', '["read"]', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
