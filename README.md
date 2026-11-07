@@ -4,23 +4,17 @@
 
 ## 1. 仓库组成
 
-
-| 目录                          | 说明                                      |
-| --------------------------- | --------------------------------------- |
-| `backend`                   | Koa + Sequelize REST API                |
-| `frontend`                  | React + Vite 管理端                        |
-| `app_example`               | 业务应用示例：雨伞品牌独立站销售管理（前端极简，账号/数据/AI 全部复用平台） |
-| `package/ai-base`           | `@eadaf/ai-base` 源码包（AI 助手前端组件，workspace 引用） |
-| `eadaf-runtime`            | 平台运行时骨架（在线 / 离线 × Compose / K8s，不含业务应用） |
-| `scripts/deploy`            | 开发机打包脚本（平台包、应用包）                        |
-| `deploy-artifacts/EADAF`、`deploy-artifacts/APP` | 打包产物目录（不入库）                             |
-
-
-
+| 目录                                              | 说明                                           |
+| ----------------------------------------------- | -------------------------------------------- |
+| `backend`                                       | Koa + Sequelize REST API                     |
+| `frontend`                                      | React + Vite 管理端                             |
+| `app_example`                                   | 业务应用示例：雨伞品牌独立站销售管理（前端极简，账号/数据/AI 全部复用平台）     |
+| `package/ai-base`                               | `@eadaf/ai-base` 源码包（AI 助手前端组件，workspace 引用） |
+| `eadaf-runtime`                                 | 平台运行时骨架（在线 / 离线 × Compose / K8s，不含业务应用）      |
+| `scripts/deploy`                                | 开发机打包脚本（平台包、应用包）                             |
+| `deploy-artifacts/EADAF`、`deploy-artifacts/APP` | 打包产物目录（不入Git库）                               |
 
 ## 2. 能力概览
-
-
 
 ### 2.1 身份与访问管理（IAM）
 
@@ -32,15 +26,11 @@
 - **三员**：可选的职责分离。关闭时与原来一致；开启后系统管理员的高风险操作需安全保密管理员审批，安全审计员只核查这两类人的日志并可导出报告。用法见 [docs/三员审批与审计.md](./docs/三员审批与审计.md)
 - **认证**：登录验证码、JWT / Refresh Token、会话校验
 
-
-
 ### 2.2 应用与单点登录（SSO）
 
 - **应用**：三方应用注册、密钥与回调配置
 - **SSO**：统一认证入口，按应用配置对接（如 OAuth 2.0、SAML）
 - **API 接入**：应用侧 API 连通与数据范围配置
-
-
 
 ### 2.3 业务数据（BizData）
 
@@ -50,8 +40,6 @@
 - **物化历史**：执行记录、版本 stale 状态、按连接筛选
 - **AI 联动**：通过 AISurface / Tool 与对话侧联动刷新页面状态
 
-
-
 ### 2.4 AI 管理（AIBase）
 
 - **服务商与模型**：Provider、Model、能力标签管理
@@ -60,11 +48,7 @@
 - **请求日志**：AI 调用审计与排查
 - **前端 AI Chat**：基于 `@eadaf/ai-base` 的嵌入式对话与 Tool 步骤展示
 
-
-
-## 3. 本地开发配置
-
-
+## 3. 本地开发
 
 ### 3.1 环境要求
 
@@ -73,8 +57,6 @@
 - PostgreSQL 14+（开发默认 `localhost:25432`）
 - Redis（开发默认 `localhost:26379`，可选）
 
-
-
 ### 3.2 安装依赖
 
 在仓库根目录执行一次即可，不要再进 `backend` 单独 `npm install`。
@@ -82,8 +64,6 @@
 ```bash
 pnpm install
 ```
-
-
 
 ### 3.3 初始化数据库
 
@@ -114,8 +94,6 @@ pnpm export-eadaf-ai-skills    # 从本地库导出 upsert SQL，然后提交
 # 目标库上执行
 pnpm migrate-eadaf-ai-skills
 ```
-
-
 
 ### 3.5 启动服务
 
@@ -156,9 +134,7 @@ cd backend && docker compose --env-file .env.compose up -d minio
 - API 文档：[http://localhost:29526/swagger](http://localhost:29526/swagger)
 - 健康检查：`curl http://localhost:29526/api/v1/health`
 
-
-
-### 3.5.1 启动自检（Docker 忘了起时不再刷屏）
+### 3.5.1 启动自检
 
 这张表由 backend 进程在监听端口之前打出。根目录 `pnpm dev` 会把 backend 的输出先写到临时日志，再把其中最近一次「启动自检」贴回当前终端。`pnpm dev:check` 不打这张表。
 
@@ -191,73 +167,6 @@ cd backend && docker compose --env-file .env.compose up -d minio
 
 
 
-### 3.5.2 跨平台运行方式（Windows 不用装 WSL 也能 `pnpm dev`）
-
-`pnpm dev` 的入口是 **Node**（[scripts/dev.cjs](./scripts/dev.cjs)），不是 shell 脚本，所以 cmd / PowerShell / Git Bash / WSL 里表现一致。它会先探环境、再选 runner：
-
-```bash
-pnpm dev:check    # 只打印判别矩阵（平台、可用 shell、换行符、.env、端口），不启动服务
-```
-
-这和上面的「启动自检」不是同一张表：这里不探 PostgreSQL / MinIO / Redis，也不会把服务拉起来。
-
-| 平台 | runner | 说明 |
-| --- | --- | --- |
-| Windows | `native` | 纯 Node 引擎。不依赖 bash / lsof / nc / curl / netstat |
-| macOS / Linux | `native` | 同一份引擎，行为与原 `dev.sh` 一致 |
-| Windows（需要时） | `git-bash` / `wsl` | `DEV_RUNNER=git-bash` 走 `scripts/dev.sh`；`DEV_RUNNER=wsl` 走 `wsl.exe` |
-
-实现拆成三层，互不重复：
-
-| 文件 | 作用 |
-| --- | --- |
-| [scripts/lib/dev-core.cjs](./scripts/lib/dev-core.cjs) | 跨平台引擎：进程树、端口/健康检查、`API Server started` 日志判定、Ctrl+C 清理 |
-| [scripts/dev.cjs](./scripts/dev.cjs) / [scripts/preview.cjs](./scripts/preview.cjs) | 环境判别 + runner 选择（`--check` 打印判别矩阵） |
-| [scripts/dev.cmd](./scripts/dev.cmd) / [scripts/killdev.cmd](./scripts/killdev.cmd) | Windows 双击 / cmd 入口，只是转调上面的 Node 脚本 |
-
-`pnpm killdev` 同样是 Node 实现（[scripts/killdev.cjs](./scripts/killdev.cjs)）：先找 dev 入口进程（`node scripts/dev.cjs`、`pnpm --filter ./backend dev`），再做**进程树闭包**，最后用 `taskkill /T /F` 结束。根进程判定是锚定匹配，不会误伤 IDE / 别的项目的 `node.exe`；改动用 `node scripts/test-killdev-matcher.cjs` 自测（29 项）。
-
-### 3.5.3 编辑代码不会再把 dev 服务弄崩（Windows 原子写盘）
-
-Windows 上如果 `scripts/dev.sh` 报这个错，是**换行符**问题而不是命令写错：
-
-```
-scripts/dev.sh: line 13: $'\r': command not found
-: invalid option name14: set: pipefail
-```
-
-因为 `core.autocrlf=true` 会把 LF 检出成 CRLF，bash 把 `\r` 当成命令的一部分。仓库根的 [.gitattributes](./.gitattributes) 已把 `*.sh` 固定为 `eol=lf`；旧工作区刷新一次即可：
-
-```powershell
-git config core.autocrlf true
-git ls-files '*.sh' | ForEach-Object { Remove-Item $_; git checkout -- $_ }
-# 或整体重规范化（会改动索引）
-git add --renormalize .
-```
-
-其它仍是 Unix-only 的脚本（`offline-deploy.sh`、`pack-*.sh`、`initdb.sh` 等）通过 [scripts/run-sh.cjs](./scripts/run-sh.cjs) 调用：有 Git Bash 就用 Git Bash；没有就明确报错并给出选项，**不会静默走 WSL 转发器**。需要走 WSL 时设 `ALLOW_WSL=1`。
-
-
-
-### 3.5.3 编辑代码不会再把 dev 服务弄崩（Windows 原子写盘）
-
-Windows 上「原子写盘」（编辑器保存、代码生成、AI 改代码）会先把内容写进
-`.<文件名>.<pid>.<随机>.tmpdir/<文件名>.tmp`，再原子替换目标文件、删掉暂存目录。这段窗口里
-`fs.watch` 会抛 `EBUSY`，chokidar 把它 emit 成 `error` 事件，而 Vite 没挂监听者 →
-Node 直接以未捕获异常退出，`pnpm recursive run` 随之失败，`dev-core` 会把 backend 一起收掉
-（现象就是「一改代码整个 dev 栈都没了」）。
-
-[frontend/vite.config.ts](./frontend/vite.config.ts) 里已经两层兜住，**不要删**：
-
-| 措施 | 作用 |
-| --- | --- |
-| `server.watch.ignored` 里的 `/\.tmpdir([\\/]\|$)/`、`/\.tmp$/` | 根本不监听暂存目录/临时文件 → 从源头消掉 EBUSY |
-| 插件 `watchErrorGuard`（给 watcher 挂 `error` 监听） | 万一还有别的瞬时锁冲突，只打一条告警，绝不退出 |
-
-排查同类问题时可以用 `usePolling: true` 彻底绕开 `fs.watch`（代价是 CPU 占用更高），但不建议长期开。
-
-
-
 ### 3.6 默认账号
 
 `init-db` 创建超级管理员 **admin / 123456**（见 `backend/scripts/superadmin.sql`）。初始化完成后尽快修改密码。
@@ -280,10 +189,7 @@ pnpm --filter ./backend pm2dev
 pnpm --filter ./frontend pm2prod
 ```
 
-
-
 ### 4.2 进程对照
-
 
 | 命令                 | pm2 进程名         | 说明                                                                                                |
 | ------------------ | --------------- | ------------------------------------------------------------------------------------------------- |
@@ -292,18 +198,7 @@ pnpm --filter ./frontend pm2prod
 | `frontend pm2dev`  | `eadaf-web-dev` | Vite 开发服务（29527，自带 HMR）                                                                           |
 | `frontend pm2prod` | `eadaf-web`     | `vite preview` 托管已构建的 `dist`。需要先 `pnpm --filter ./frontend build`。`/api/v1` 代理到 `localhost:29526` |
 
-
 配置文件：`backend/ecosystem.config.cjs`、`frontend/ecosystem.config.cjs`。每个文件里有 dev / prod 两个进程，脚本用 `--only` 选择。
-
-### 4.3 常用操作
-
-```bash
-pm2 list                       # 查看进程
-pm2 logs eadaf-api --lines 200   # 查看日志
-pm2 stop eadaf-api-dev           # 停止（保留进程项）
-pm2 delete eadaf-api eadaf-web   # 移除进程项
-pm2 kill                       # 关闭 pm2 守护进程
-```
 
 
 
@@ -320,18 +215,18 @@ pnpm pack:app      # 业务应用包 → deploy-artifacts/APP/
 
 上传的文件放在 **MinIO** 独立卷 `eadaf_minio_data`，不在 API 容器磁盘里。安装包和升级包带 MinIO 镜像；升级会先启动 MinIO，再重建 API。只打前端补丁不动 MinIO。已经写在旧容器磁盘里的文件不会自动搬进 MinIO。
 
-完整说明（网络与运行方式、包内容、导入步骤）见 [docs/pack-and-deploy.md](./docs/pack-and-deploy.md)。服务器上用 Node 直接跑开发环境见 [docs/dev-server-deploy.md](./docs/dev-server-deploy.md)。
+完整说明（网络与运行方式、包内容、导入步骤）见 [docs/pack-and-deploy.md](./docs/pack-and-deploy.md)。
+
+服务器上用 Node 直接跑开发环境见 [docs/dev-server-deploy.md](./docs/dev-server-deploy.md)。
 
 ## 6. 数据包导出 / 导入（应用部署）
 
 两套**已运行**的 EADAF 之间同步配置与业务数据，只用管理端。升级包不含用户、组织、权限目录、应用、Skill/Tool；要更新这些，用下面两个菜单，不要打进升级包。安装包只在首次部署时写入最小种子。
 
-
 | 菜单项               | 文件名示例                           | 迁什么                               |
 | ----------------- | ------------------------------- | --------------------------------- |
 | **EADAF数据导出/导入** | `eadaf-platform-export-*.zip`   | 平台 Skill、AI 目录、数据标准、系统开关、权限码等 |
 | **应用数据导出/导入**   | `eadaf-app-export-<应用编码>-*.zip` | 单个业务应用的配置、模型、API、可选行数据、文件 |
-
 
 路径：管理端导航 → **应用部署** → 对应菜单项（这两项已从「系统设置」迁出，设置页不再展示）。内置应用 `EADAF` 不可走「应用数据导出/导入」（平台能力用平台菜单项）。导出可能含明文密钥，请妥善保管。
 
@@ -340,8 +235,6 @@ pnpm pack:app      # 业务应用包 → deploy-artifacts/APP/
 选项、冲突策略与和运行时包的区别见 [docs/data-transfer.md](./docs/data-transfer.md)；控制台与 Windows 打包说明见 [docs/pack-and-deploy.md](./docs/pack-and-deploy.md)。
 
 ## 7. 注意事项
-
-
 
 ### 7.1 不要对已有数据的库执行 init-db
 
