@@ -53,6 +53,8 @@ compose up -d minio
 wait_container_healthy EADAF-minio 120
 compose up -d eadaf-api
 wait_container_healthy EADAF-api 240
+log_step "修正默认业务库连接（本地 PostgreSQL（应用库））"
+bash "$ROOT/init-db.sh" --fix-connection-only
 compose up -d eadaf-web
 wait_container_healthy EADAF-web 90
 

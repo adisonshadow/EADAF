@@ -12,11 +12,13 @@ require('dotenv').config({ path: path.join(backendRoot, '.env.production') });
 const { encryptApiKey } = require(path.join(backendRoot, 'src/utils/encryption'));
 
 async function main() {
-  const host = process.env.POSTGRES_HOST || 'postgres';
-  const port = Number(process.env.POSTGRES_PORT || 5432);
-  const database = process.env.POSTGRES_DATABASE || 'eadaf_db';
-  const user = process.env.POSTGRES_USER || 'my_name';
-  const password = process.env.POSTGRES_PASSWORD || '123456';
+  // 打包时从「本地 PostgreSQL（应用库）」写入。没有这组变量时才退回平台库自己的地址。
+  const host = process.env.BIZDATA_CONN_HOST || process.env.POSTGRES_HOST || 'postgres';
+  const port = Number(process.env.BIZDATA_CONN_PORT || process.env.POSTGRES_PORT || 5432);
+  const database = process.env.BIZDATA_CONN_DATABASE || process.env.POSTGRES_DATABASE || 'eadaf_db';
+  const user = process.env.BIZDATA_CONN_USER || process.env.POSTGRES_USER || 'my_name';
+  const password = process.env.BIZDATA_CONN_PASSWORD || process.env.POSTGRES_PASSWORD || '123456';
+  const targetSchema = process.env.BIZDATA_CONN_SCHEMA || 'bizdata_mat';
   const connectionId = process.env.FPCU2_DB_CONNECTION_ID || 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
   const client = new Client({ host, port, database, user, password });
@@ -31,14 +33,14 @@ async function main() {
          username = $3,
          password_enc = $4,
          database_name = $5,
-         target_schema = 'bizdata_mat',
+         target_schema = $6,
          updated_at = CURRENT_TIMESTAMP
-     WHERE id = $6`,
-    [host, port, user, passwordEnc, database, connectionId],
+     WHERE id = $7`,
+    [host, port, user, passwordEnc, database, targetSchema, connectionId],
   );
 
   await client.end();
-  console.log('[init] 物化连接已指向', `${host}:${port}/${database}`);
+  console.log('[init] 默认业务库连接已指向', `${host}:${port}/${database} schema=${targetSchema}`);
 }
 
 main().catch((err) => {
