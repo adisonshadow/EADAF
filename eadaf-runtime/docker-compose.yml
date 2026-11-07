@@ -118,6 +118,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-eadaf}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-eadaf-minio-secret}
+    ports:
+      - "${MINIO_HOST_PORT:-9000}:9000"
     volumes:
       - eadaf_minio_data:/data
     healthcheck:

@@ -1,5 +1,6 @@
 const { PassThrough } = require('stream');
 const appDeploymentService = require('../services/appDeployment/appDeploymentService');
+const packGuideService = require('../services/appDeployment/packGuideService');
 const packJobService = require('../services/appDeployment/packJobService');
 const { formatApiError } = require('../utils/formatApiError');
 const logger = require('../utils/logger');
@@ -21,6 +22,18 @@ class AppDeploymentController {
   static async getStatus(ctx) {
     try {
       ctx.body = { code: 200, message: '获取成功', data: appDeploymentService.getStatus() };
+    } catch (error) {
+      sendError(ctx, error);
+    }
+  }
+
+  /** GET /guide：按平台/应用和安装、升级、补丁返回使用说明正文 */
+  static async getGuide(ctx) {
+    try {
+      const target = String(ctx.query.target || '');
+      const kind = String(ctx.query.kind || '');
+      const data = packGuideService.readGuide(target, kind);
+      ctx.body = { code: 200, message: '获取成功', data };
     } catch (error) {
       sendError(ctx, error);
     }

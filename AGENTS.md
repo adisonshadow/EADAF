@@ -103,6 +103,16 @@ gh pr merge <n> --merge
 
 给定 GitHub URL 时，用 `gh` 拉取 Issue / PR / check 信息，不要只靠页面猜测。
 
+## 安装 / 升级 / 补丁说明
+
+改了目标机上的安装、升级、补丁步骤时，同一轮改动必须更新对应的 `docs/pack-guides/*.md`。这些文件会打进包根目录，文件名是 `使用说明.md`，发布页的帮助按钮也读它们。
+
+涉及：`eadaf-runtime/install.sh`、`up.sh`、`apply-upgrade.sh`、`apply-patch.sh`、应用包 `apply.sh`、对外端口、是否启用 MySQL、包里有没有数据或表结构。
+
+- 只改某一种说明的正文：改对应的 markdown，不用改对照表。
+- 新增或改名一种说明：同时改 `docs/pack-guides/catalog.json`。预览接口和 `pack-eadaf.sh` / `pack-app.sh` 都读这张表。
+- 不要把 `docs/` 挂到网页上。页面只传 `target` 和 `kind`，不能传文件路径。
+
 ## Shell 换行：只用 LF
 
 本项目部署在 Linux 上。Shell 只认 `LF`（`\n`）。Windows 的 `CRLF`（`\r\n`）会让 bash 把 `\r` 当成命令的一部分，出现 `$'\r': command not found` 或 `set: pipefail` 这类错误。

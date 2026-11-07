@@ -32,3 +32,7 @@ migrate-app-transfer-permissions.sql
 migrate-platform-transfer-permissions.sql
 eadaf-permissions-catalog-seed.sql
 superadmin.sql
+migrate-app-deployment-permissions.sql
+migrate-three-member.sql
+migrate-three-member-approval.sql
+migrate-provider-api-key-storage.sql

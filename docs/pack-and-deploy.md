@@ -7,7 +7,7 @@
 > 本节说的是 **运行时安装包 / 升级包 / 补丁包**（`deploy-artifacts/EADAF`、`deploy-artifacts/APP` 下的 `.tar.gz`）。  
 > 管理端导航「应用部署」里按实例迁配置与业务数据的 ZIP，见 [data-transfer.md](./data-transfer.md)，二者不要混用。
 >
-> **数据包补丁已暂时停用。** 升级包、补丁包只含程序（镜像 / 前端 dist），不带表结构，也不带业务数据。表结构只在 **EADAF 安装包** 的 init-db SQL 里。已运行实例之间同步配置与业务数据，用「应用部署」里的 EADAF / 应用数据包导出、导入。
+> **数据包补丁已暂时停用。** 安装包只含最小种子（超级管理员、根部门「总部」、平台权限码、应用 EADAF、EADAF 自己的 Skill/Tool）。升级包只有程序和尚未执行的表结构 SQL，不含用户、组织、权限、应用、Skill/Tool。补丁包只有程序。要更新这些数据，用「应用部署」里的 EADAF / 应用数据包导出、导入。
 
 ---
 
@@ -67,14 +67,14 @@
 
 ## 2. 导出 EADAF 包
 
-在本仓库根目录执行。交互顺序：网络 → 运行方式 → 默认发行版 → CPU 架构 → 安装 / 升级 / 补丁 →（仅安装包）前后端端口 → 版本 → 输出目录。
+在本仓库根目录执行。交互顺序：网络 → 运行方式 → 默认发行版（回车为 Ubuntu）→ CPU 架构 → 安装 / 升级 / 补丁 → 版本 → 输出目录。仅安装包还会问宿主机端口（前端、后端、Postgres、Redis、MinIO）以及是否把 MySQL 当作业务库、是否把 MySQL 打进安装包。
 
-对应管理端「应用部署 → 发布平台」（仅 DEV 模式，见第 0 节）。
+对应管理端「应用部署 → 发布平台」（仅 DEV 模式，见第 0 节）。种类旁边的「使用说明」打开的就是将打进包里的 `使用说明.md`。
 
 ```bash
 pnpm pack:eadaf
-# 非交互示例
-bash scripts/deploy/pack-eadaf.sh --network offline --runtime compose --os centos --arch amd64 --kind install --non-interactive --yes
+# 非交互示例（默认发行版 ubuntu；不打入 MySQL）
+bash scripts/deploy/pack-eadaf.sh --network offline --runtime compose --os ubuntu --arch amd64 --kind install --non-interactive --yes
 ```
 
 默认写到 `deploy-artifacts/EADAF/`。文件名：
@@ -88,8 +88,8 @@ bash scripts/deploy/pack-eadaf.sh --network offline --runtime compose --os cento
 
 | 种类 | 包里有什么 |
 |------|------------|
-| 安装 | 运行时引导 + 全部程序镜像 + 前端 dist + 初始化 SQL。端口只写入宿主机映射，容器内仍是 API `9526`、Web `9527`。表结构只在这一类包里 |
-| 升级 | 程序镜像 + 前端 dist。~~尚未执行的表结构 SQL~~ 升级包暂时只有代码，不带表结构、不带数据 |
+| 安装 | 运行时引导 + 程序镜像 + 前端 dist + 表结构 SQL + 最小种子（超级管理员、根部门「总部」、平台权限码、应用 EADAF、EADAF 自己的 Skill/Tool）+ 根目录 `使用说明.md`。不含业务应用和演示数据。宿主机端口写入 `.env`，容器内仍是 API `9526`、Web `9527`。选了使用 MySQL 时会写入默认业务连接「本地 MySQL（业务库）」；选了不打入 MySQL 时安装过程没有 MySQL。目标机执行 `./install.sh` 时先列出这些默认值，回车即沿用 |
+| 升级 | 程序镜像 + 前端 dist + 尚未执行的表结构 SQL。不含用户、组织、权限目录、应用、Skill/Tool。旧库第一次升级只把 `schema-baseline.txt` 里的表结构脚本记为已执行，不重放。数据更新用「应用部署 → EADAF数据导出/导入」或「应用数据导出/导入」 |
 | 补丁 | 只含所选程序种类（`web` / `api`）。~~数据补丁只含系统应用 `EADAF` 的 BizData 模型 upsert~~ 已暂时停用 |
 
 ~~数据补丁从开发库读取 `EADAF` 的 `bizdata_scope_codes`。没有 scope、或 scope 下没有实体时，导出失败，不会打出空包或整库。~~ 配置与业务数据改走管理端「应用部署」的 EADAF / 应用数据包，见 [data-transfer.md](./data-transfer.md)。
@@ -131,63 +131,21 @@ pnpm pack:app
 
 ## 4. 导入 EADAF 包
 
-把对应 `.tar.gz` 拷到目标机后解压。安装包解压出来的目录名是 `eadaf-runtime`。升级包和补丁包的目录名与压缩包文件名相同，不要直接盖到正在运行的目录上。
+把对应 `.tar.gz` 拷到目标机后解压。安装包解压出来的目录名是 `eadaf-runtime`。升级包和补丁包的目录名与压缩包文件名相同，不要直接盖到正在运行的目录上。每种包根目录都有 `使用说明.md`，步骤以那份为准：
 
-### 4.1 导入安装包
-
-Compose（离线或在线）：
-
-```bash
-tar -zxf eadaf-offline-compose-install-amd64-v1.2.0-20261007-1430.tar.gz
-cd eadaf-runtime
-# 编辑 .env：PUBLIC_HOST、JWT_SECRET、ENCRYPTION_KEY、数据库口令
-chmod +x start.sh up.sh status.sh ctl.sh init-db.sh
-./start.sh
-```
-
-在线 Compose 会走 `install-docker.sh`（已有 Docker 则跳过）。离线 Compose 安装包内的静态 Docker。
-
-K8s（在线或离线）在同一目录执行 `./k8s/install.sh`。集群需要已经存在。
-
-非交互示例：`./start.sh --os ubuntu --arch amd64 --action up`。
-
-`./up.sh` 会加载镜像、启动 Postgres / Redis / MySQL、初始化库、启动 API 与 Web，最后用 `./status.sh` 判断是否成功。库里已有表时不会 DROP。
-
-```bash
-./ctl.sh reinstall eadaf-web
-./ctl.sh logs eadaf-api --tail 100
-./ctl.sh down          # 停栈，保留数据卷
-```
-
-### 4.2 导入升级包或补丁包
-
-`DEPLOY_ROOT` 指向已经在跑的平台目录。升级保留 `.env` 和数据卷，不重装 Docker / 集群，也不改表结构和业务数据。补丁只换前端 dist 或 API 镜像。
-
-```bash
-tar -zxf eadaf-offline-compose-upgrade-amd64-v1.2.0-20261007-1430.tar.gz
-cd eadaf-offline-compose-upgrade-amd64-v1.2.0-20261007-1430
-DEPLOY_ROOT=/path/to/eadaf-runtime ./apply.sh
-```
-
-补丁包同样是解压后执行 `./apply.sh`。~~升级用 `eadaf.schema_migrations` 记账；旧库第一次升级只把 `schema-baseline.txt` 里已发布过的 SQL 记为已执行，不重放。~~ 升级暂时不跑表结构迁移。表结构只在 EADAF 安装包的 init-db 里。
-
-若现场还留着旧整包里的 FPCU 容器，这次升级不会删除它们。之后用应用包接管。
+- 安装：[pack-guides/eadaf-install.md](./pack-guides/eadaf-install.md)
+- 升级：[pack-guides/eadaf-upgrade.md](./pack-guides/eadaf-upgrade.md)
+- 补丁：[pack-guides/eadaf-patch.md](./pack-guides/eadaf-patch.md)
 
 ---
 
 ## 5. 导入应用包
 
-先完成第 4 节，确认 EADAF 已经启动，再导入应用包。`apply.sh` 读取平台目录里的 `.deploy-mode`：Compose 走 `docker compose`，K8s 走 `kubectl apply`。
+先完成第 4 节，确认 EADAF 已经启动，再导入应用包。应用包不负责安装 Docker 或创建集群。每种包根目录都有 `使用说明.md`：
 
-```bash
-tar -zxf fpcu2-install-amd64-v0.1.3-20261007-1430.tar.gz
-cd fpcu2-install-amd64-v0.1.3-20261007-1430
-DEPLOY_ROOT=/path/to/eadaf-runtime ./apply.sh
-```
-
-应用的升级包、补丁包用同一条命令。应用包不负责安装 Docker 或创建集群。
-
-**对外地址跟随浏览器 Host**：SSO 回调、FPCU 二次跳转、前端拼 EADAF 地址都用「当前访问的 hostname + 端口」，不把客户 IP/域名写进包。换服务器或改域名一般只需 DNS/访问方式变化，不必改 `.env`。`.env` 里主要是容器内互调（如 `EADAF_API_BASE_URL=http://eadaf-api:9526`）和端口（`FPCU2_WEB_HOST_PORT` / `FPCU2_API_HOST_PORT`）。管理端注册应用时默认勾选「自动跟随本系统域名/IP」，`redirect_uri` 形如 `:13303/auth/callback`。
+- 安装：[pack-guides/app-install.md](./pack-guides/app-install.md)
+- 升级：[pack-guides/app-upgrade.md](./pack-guides/app-upgrade.md)
+- 补丁：[pack-guides/app-patch.md](./pack-guides/app-patch.md)
 
 ### 5.1 应用包不含数据结构与数据
 

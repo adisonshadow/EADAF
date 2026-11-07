@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 按 start.sh 选定的 OS / 架构，从 docker-static/<os>-<arch>/ 安装静态 Docker。
+# 按 install.sh 选定的 OS / 架构，从 docker-static/<os>-<arch>/ 安装静态 Docker。
 # 也可：DEPLOY_OS=ubuntu DEPLOY_ARCH=amd64 ./install-docker-static.sh
 set -euo pipefail
 
@@ -71,7 +71,12 @@ EOF
 echo "5. 启动 Docker 并设置开机自启"
 systemctl daemon-reload
 systemctl enable docker
-systemctl start docker
+if ! systemctl start docker; then
+  echo "[ERR] Docker 服务没有启动。systemctl status 与 journalctl 如下："
+  systemctl status docker.service --no-pager -l || true
+  journalctl -u docker.service -n 80 --no-pager || true
+  exit 1
+fi
 
 echo ""
 echo "===== 验证结果 ====="

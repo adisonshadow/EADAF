@@ -174,6 +174,18 @@ test('MinIO 未配置是严重错误，Redis 不可达只是警告', () => {
   assert.equal(report.warningCount, 1);
 });
 
+test('安装默认 admin 仍用初始密码：警告，并指向该账号', () => {
+  const report = evaluateSystemHealth(healthyFacts({
+    defaultAdmin: { state: 'warning' },
+  }));
+  const row = itemByKey(report, 'defaultAdmin');
+  assert.equal(row.status, 'warning');
+  assert.match(row.summary, /默认密码/);
+  assert.match(row.hint, /修改该账号密码/);
+  assert.equal(row.href, '/member_org/member/10000000-0000-0000-0000-000000000001/edit');
+  assert.equal(report.status, 'warning');
+});
+
 test('没有启用中的 AI 模型：警告', () => {
   const report = evaluateSystemHealth(healthyFacts({
     aiModels: { state: 'count', count: 0 },

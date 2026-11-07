@@ -36,6 +36,12 @@ export const PATCH_OPTIONS = [
 export const PATCH_DISABLED_HINT =
   '数据补丁（bizdata）已停用：应用的配置、模型与业务数据请用「应用数据导出/导入」。';
 
+export const INSTALL_DATA_HINT =
+  '安装包只含最小种子：超级管理员、根部门「总部」、平台权限码、应用 EADAF，以及 EADAF 自己的 Skill/Tool。不含业务应用和演示数据。';
+
+export const UPGRADE_DATA_HINT =
+  '升级包只有程序和表结构，不含用户、组织、权限、应用、Skill/Tool。要更新这些数据，请用「应用部署 → EADAF数据导出/导入」或「应用数据导出/导入」。';
+
 export const DEV_MODE_HINT =
   '发布平台 / 发布应用 只在 DEV 模式（后端 NODE_ENV=development，即 pnpm dev / pm2dev 起的开发栈）下可用。';
 

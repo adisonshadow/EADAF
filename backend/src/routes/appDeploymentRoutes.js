@@ -20,6 +20,32 @@ router.get('/status', authWithBuiltinApiGuard, AppDeploymentController.getStatus
 
 /**
  * @swagger
+ * /api/v1/admin/app-deployment/guide:
+ *   get:
+ *     tags: [System]
+ *     summary: 按种类读取将打进安装包/升级包/补丁包的使用说明 [需要认证]
+ *     description: 只接受 target 与 kind。服务端按 docs/pack-guides/catalog.json 查表读正文，不接受文件路径，不能读取 docs 下的其他文件。
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: target
+ *         required: true
+ *         schema: { type: string, enum: [platform, app] }
+ *         description: platform 为发布平台，app 为发布应用
+ *       - in: query
+ *         name: kind
+ *         required: true
+ *         schema: { type: string, enum: [install, upgrade, patch] }
+ *     responses:
+ *       200:
+ *         description: data.markdown 为使用说明正文
+ *       404:
+ *         description: 对照表中没有该种类
+ */
+router.get('/guide', authWithBuiltinApiGuard, AppDeploymentController.getGuide);
+
+/**
+ * @swagger
  * /api/v1/admin/app-deployment/app/inspect:
  *   post:
  *     tags: [System]
@@ -54,12 +80,18 @@ router.post('/app/inspect', authWithBuiltinApiGuard, AppDeploymentController.ins
  *             properties:
  *               network: { type: string, enum: [offline, online], default: offline }
  *               runtime: { type: string, enum: [compose, k8s], default: compose }
- *               os: { type: string, enum: [centos, ubuntu, debian], default: centos }
+ *               os: { type: string, enum: [centos, ubuntu, debian], default: ubuntu }
  *               arch: { type: string, enum: [amd64, arm64], default: amd64 }
  *               kind: { type: string, enum: [install, upgrade, patch], default: install }
  *               patch: { type: array, items: { type: string, enum: [web, api] }, description: 'kind=patch 时必填' }
- *               webPort: { type: integer, default: 9527 }
- *               apiPort: { type: integer, default: 9526 }
+ *               webPort: { type: integer, default: 9527, description: '安装包前端宿主机端口' }
+ *               apiPort: { type: integer, default: 9526, description: '安装包后端宿主机端口' }
+ *               postgresPort: { type: integer, default: 35432, description: '安装包 Postgres 宿主机端口' }
+ *               redisPort: { type: integer, default: 36379, description: '安装包 Redis 宿主机端口' }
+ *               minioPort: { type: integer, default: 9000, description: '安装包 MinIO 宿主机端口' }
+ *               useMysql: { type: boolean, default: false, description: '安装包是否默认使用 MySQL 作为业务数据库' }
+ *               packMysql: { type: boolean, default: false, description: '是否把 MySQL 打进安装包。为 false 时安装过程没有 MySQL 选项；useMysql 为 true 时必定打入' }
+ *               mysqlPort: { type: integer, default: 13306, description: '安装包 MySQL 宿主机端口' }
  *               version: { type: string, description: '默认取仓库根 package.json version' }
  *               outDir: { type: string, description: '默认 <仓库>/deploy-artifacts/EADAF' }
  *               ignoreDiagnostics: { type: boolean, default: true, description: '是否忽略语法错误/警告。默认 true：前端跳过 tsc，只执行 vite build，类型错误不中断打包。false 时 tsc 失败则打包失败' }

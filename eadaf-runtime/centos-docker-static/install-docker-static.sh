@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 兼容旧路径：等价于选择 CentOS + amd64 后安装静态 Docker。
-# 推荐使用上级目录 ./start.sh 交互选择 OS / 架构。
+# 推荐使用上级目录 ./install.sh 交互选择 OS / 架构。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

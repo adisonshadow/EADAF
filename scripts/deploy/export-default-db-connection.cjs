@@ -133,7 +133,7 @@ async function main() {
     BIZDATA_CONN_SCHEMA: schema,
   };
   if (local) {
-    pairs.POSTGRES_HOST_PORT = String(row.port);
+    // 宿主机端口以打包参数写入的 POSTGRES_HOST_PORT 为准，不用开发库那一行的端口覆盖。
     pairs.POSTGRES_DATABASE = row.database_name;
     pairs.POSTGRES_USER = row.username;
     pairs.POSTGRES_PASSWORD = password;
@@ -146,7 +146,7 @@ async function main() {
   console.log(
     `[pack] 默认业务库「${row.name}」已写入安装包：`
     + `${row.host}:${row.port}/${row.database_name} schema=${schema}`
-    + (local ? ` → 容器内 ${bizHost}:${bizPort}，宿主机端口 ${row.port}` : '（外部地址，原样使用）'),
+    + (local ? ` → 容器内 ${bizHost}:${bizPort}，宿主机端口沿用安装包` : '（外部地址，原样使用）'),
   );
 }
 

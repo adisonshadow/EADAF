@@ -7,7 +7,7 @@ import {
 } from '@/services/EADAF/api/appDeployment';
 import { message } from '@/utils/antdAppApis';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
-import { PlayCircleOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import {
   Alert,
@@ -22,21 +22,25 @@ import {
   Select,
   Space,
   Spin,
+  Tooltip,
   Typography,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import HeaderNotice from '../components/HeaderNotice';
+import PackGuideButton from '../components/PackGuideButton';
 import PackConsole from '../components/PackConsole';
 import PackHistory from '../components/PackHistory';
 import {
   ARCH_OPTIONS,
   DEV_MODE_HINT,
+  INSTALL_DATA_HINT,
   KIND_OPTIONS,
   NETWORK_OPTIONS,
   OS_OPTIONS,
   PATCH_DISABLED_HINT,
   PATCH_OPTIONS,
   RUNTIME_OPTIONS,
+  UPGRADE_DATA_HINT,
   aliasProjectPath,
   joinProjectPath,
 } from '../components/packOptions';
@@ -61,6 +65,8 @@ const PublishPlatformPage: React.FC = () => {
   const history = usePackHistory('platform');
 
   const kind = Form.useWatch('kind', form);
+  const useMysql = Form.useWatch('useMysql', form);
+  const packMysql = Form.useWatch('packMysql', form);
   const devMode = Boolean(status?.devMode);
   const bashReady = Boolean(status?.bash?.available);
   const running = stream.job?.status === 'running';
@@ -100,12 +106,18 @@ const PublishPlatformPage: React.FC = () => {
       form.setFieldsValue({
         network: 'offline',
         runtime: 'compose',
-        os: 'centos',
+        os: 'ubuntu',
+        packMysql: false,
         arch: 'amd64',
         kind: 'install',
         patch: ['web', 'api'],
         webPort: data.platform?.defaultWebPort ?? 9527,
         apiPort: data.platform?.defaultApiPort ?? 9526,
+        postgresPort: 35432,
+        redisPort: 36379,
+        minioPort: 9000,
+        useMysql: false,
+        mysqlPort: 13306,
         version: data.platform?.version || '',
         outDir,
         ignoreDiagnostics: true,
@@ -147,6 +159,12 @@ const PublishPlatformPage: React.FC = () => {
         patch: (values.patch as string[]) || [],
         webPort: values.webPort as number,
         apiPort: values.apiPort as number,
+        postgresPort: values.postgresPort as number,
+        redisPort: values.redisPort as number,
+        minioPort: values.minioPort as number,
+        useMysql: values.useMysql === true,
+        packMysql: values.useMysql === true || values.packMysql === true,
+        mysqlPort: values.mysqlPort as number,
         version: String(values.version || ''),
         outDir: String(values.outDir || ''),
         ignoreDiagnostics: values.ignoreDiagnostics !== false,
@@ -252,7 +270,12 @@ const PublishPlatformPage: React.FC = () => {
                     <Col span={12}>
                       <Form.Item
                         name="kind"
-                        label="种类"
+                        label={
+                          <span>
+                            种类
+                            <PackGuideButton target="platform" kind={kind} />
+                          </span>
+                        }
                         rules={[{ required: true }]}
                       >
                         <Select options={KIND_OPTIONS} />
@@ -267,6 +290,28 @@ const PublishPlatformPage: React.FC = () => {
                         <Select options={ARCH_OPTIONS} />
                       </Form.Item>
                     </Col>
+                    {kind === 'install' && (
+                      <Col span={24}>
+                        <Alert
+                          type="info"
+                          showIcon
+                          style={{ marginBottom: 16 }}
+                          message="安装包数据"
+                          description={INSTALL_DATA_HINT}
+                        />
+                      </Col>
+                    )}
+                    {kind === 'upgrade' && (
+                      <Col span={24}>
+                        <Alert
+                          type="warning"
+                          showIcon
+                          style={{ marginBottom: 16 }}
+                          message="升级包不含数据"
+                          description={UPGRADE_DATA_HINT}
+                        />
+                      </Col>
+                    )}
                     {kind === 'patch' && (
                       <Col span={24}>
                         <Form.Item
@@ -292,6 +337,21 @@ const PublishPlatformPage: React.FC = () => {
                     </Col>
                     <Col span={12}>
                       <Form.Item
+                        name="version"
+                        label="版本"
+                        rules={[
+                          { required: true, message: '请填写版本' },
+                          {
+                            pattern: /^[A-Za-z0-9][A-Za-z0-9._+-]*$/,
+                            message: '只能包含字母、数字与 . _ + -',
+                          },
+                        ]}
+                      >
+                        <Input placeholder="1.2.6" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
                         name="runtime"
                         label="运行方式"
                         rules={[{ required: true }]}
@@ -309,57 +369,93 @@ const PublishPlatformPage: React.FC = () => {
                       </Form.Item>
                     </Col>
                     {kind === 'install' && (
-                      <>
-                        <Col span={6}>
-                          <Form.Item
-                            name="webPort"
-                            label="前端端口"
-                            rules={[{ required: true }]}
-                          >
-                            <InputNumber
-                              min={1}
-                              max={65535}
-                              style={{ width: '100%' }}
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col span={6}>
-                          <Form.Item
-                            name="apiPort"
-                            label="后端端口"
-                            rules={[{ required: true }]}
-                          >
-                            <InputNumber
-                              min={1}
-                              max={65535}
-                              style={{ width: '100%' }}
-                            />
-                          </Form.Item>
-                        </Col>
-                      </>
+                      <Col span={24}>
+                        <Row gutter={12}>
+                          {(
+                            [
+                              ['webPort', '前端端口'],
+                              ['apiPort', '后端端口'],
+                              ['postgresPort', 'Postgres 端口'],
+                              ['redisPort', 'Redis 端口'],
+                              ['minioPort', 'MinIO 端口'],
+                            ] as const
+                          ).map(([name, label]) => (
+                            <Col key={name} flex="1 1 0" style={{ width: '20%', maxWidth: '20%' }}>
+                              <Form.Item
+                                name={name}
+                                label={label}
+                                rules={[{ required: true }]}
+                              >
+                                <InputNumber min={1} max={65535} style={{ width: '100%' }} />
+                              </Form.Item>
+                            </Col>
+                          ))}
+                        </Row>
+                      </Col>
+                    )}
+                    {kind === 'install' && (
+                      <Col span={24}>
+                        <Row gutter={12}>
+                          <Col span={useMysql || packMysql ? 8 : 12}>
+                            <Form.Item
+                              name="useMysql"
+                              label="使用 MySQL"
+                              rules={[{ required: true }]}
+                            >
+                              <Radio.Group
+                                options={[
+                                  { label: '否', value: false },
+                                  { label: '是', value: true },
+                                ]}
+                              />
+                            </Form.Item>
+                          </Col>
+                          {!useMysql && (
+                            <Col span={packMysql ? 8 : 12}>
+                              <Form.Item
+                                name="packMysql"
+                                label={
+                                  <span>
+                                    打入安装包
+                                    <Tooltip title="不打入时，安装过程没有 MySQL。打入后，安装时仍可选择是否启用，并修改端口。">
+                                      <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+                                    </Tooltip>
+                                  </span>
+                                }
+                              >
+                                <Radio.Group
+                                  options={[
+                                    { label: '不打入', value: false },
+                                    { label: '打入', value: true },
+                                  ]}
+                                />
+                              </Form.Item>
+                            </Col>
+                          )}
+                          {(useMysql || packMysql) && (
+                            <Col span={8}>
+                              <Form.Item
+                                name="mysqlPort"
+                                label="MySQL 端口"
+                                rules={[{ required: true }]}
+                              >
+                                <InputNumber min={1} max={65535} style={{ width: '100%' }} />
+                              </Form.Item>
+                            </Col>
+                          )}
+                        </Row>
+                      </Col>
                     )}
                     <Col span={24}>
                       <Form.Item
-                        name="version"
-                        label="版本"
-                        rules={[
-                          { required: true, message: '请填写版本' },
-                          {
-                            pattern: /^[A-Za-z0-9][A-Za-z0-9._+-]*$/,
-                            message: '只能包含字母、数字与 . _ + -',
-                          },
-                        ]}
-                        extra={`默认取仓库根 package.json 的 version（${
-                          status?.platform?.version || '-'
-                        }）`}
-                      >
-                        <Input placeholder="1.2.6" />
-                      </Form.Item>
-                    </Col>
-                    <Col span={24}>
-                      <Form.Item
                         name="outDir"
-                        label="目标目录"
+                        label={
+                          kind === 'upgrade'
+                            ? '升级包输出目录'
+                            : kind === 'patch'
+                              ? '补丁包输出目录'
+                              : '安装包输出目录'
+                        }
                         rules={[{ required: true, message: '请填写目标目录' }]}
                         extra={`默认按项目地址拼出：${outDirExample}`}
                       >

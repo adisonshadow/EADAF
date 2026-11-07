@@ -10,6 +10,7 @@
 
 const BIZDATA_CONNECTIONS_HREF = '/business_data/database-connections';
 const AI_MODELS_HREF = '/ai_management/models';
+const DEFAULT_ADMIN_HREF = '/member_org/member/10000000-0000-0000-0000-000000000001/edit';
 
 const STATUS_RANK = { error: 0, warning: 1, ok: 2, skip: 3 };
 
@@ -22,6 +23,7 @@ const ITEM_ORDER = [
   'dbStructure',
   'systemBucket',
   'bizdataConnections',
+  'defaultAdmin',
   'aiModels',
 ];
 
@@ -191,6 +193,34 @@ function evaluateConnections(input) {
   });
 }
 
+function evaluateDefaultAdmin(input) {
+  const label = '默认管理员';
+  if (input == null || input.state === 'skip') {
+    return item({
+      key: 'defaultAdmin',
+      label,
+      status: 'skip',
+      summary: input?.summary || '平台数据库不可达，跳过',
+    });
+  }
+  if (input.state === 'warning') {
+    return item({
+      key: 'defaultAdmin',
+      label,
+      status: 'warning',
+      summary: '安装时的 admin 仍在使用默认密码',
+      hint: '请修改该账号密码，或删除这个默认管理员',
+      href: DEFAULT_ADMIN_HREF,
+    });
+  }
+  return item({
+    key: 'defaultAdmin',
+    label,
+    status: 'ok',
+    summary: '默认管理员已修改密码或已删除',
+  });
+}
+
 function evaluateAiModels(input) {
   const label = 'AI 模型';
   if (input == null || input.state === 'skip') {
@@ -248,6 +278,7 @@ function evaluateSystemHealth(facts = {}) {
     fromStartupCheck('dbStructure', '库结构', facts.structure),
     fromStartupCheck('systemBucket', '系统存储桶', facts.systemBucket),
     evaluateConnections(facts.connections),
+    evaluateDefaultAdmin(facts.defaultAdmin),
     evaluateAiModels(facts.aiModels),
   ];
 
@@ -273,6 +304,7 @@ function skippedDbFacts(summary) {
     structure: check,
     systemBucket: { ...check },
     connections: { state: 'skip', summary },
+    defaultAdmin: { state: 'skip', summary },
     aiModels: { state: 'skip', summary },
   };
 }
@@ -282,6 +314,7 @@ module.exports = {
   AI_MODELS_HREF,
   evaluateSystemHealth,
   evaluateConnections,
+  evaluateDefaultAdmin,
   evaluateAiModels,
   skippedDbFacts,
 };

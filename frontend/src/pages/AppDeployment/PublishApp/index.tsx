@@ -41,6 +41,7 @@ import {
 } from 'antd';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PackConsole from '../components/PackConsole';
+import PackGuideButton from '../components/PackGuideButton';
 import PackHistory from '../components/PackHistory';
 import {
   ARCH_OPTIONS,
@@ -544,7 +545,12 @@ const PublishAppPage: React.FC = () => {
                         <Col span={12}>
                           <Form.Item
                             name="kind"
-                            label="种类"
+                            label={
+                              <span>
+                                种类
+                                <PackGuideButton target="app" kind={kind} />
+                              </span>
+                            }
                             rules={[{ required: true }]}
                           >
                             <Select options={KIND_OPTIONS} />
