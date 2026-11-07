@@ -33,6 +33,7 @@ if docker inspect EADAF-nginx >/dev/null 2>&1; then
   docker rm -f EADAF-nginx >/dev/null || true
 fi
 
+load_dotenv
 apply_public_host_urls
 mkdir -p "$ROOT/data" "$ROOT/logs/api" "$ROOT/logs/nginx"
 
@@ -40,10 +41,21 @@ log_step "2/6 加载全部镜像"
 load_module_images all
 
 log_step "3/6 启动数据库依赖"
-compose up -d postgres redis mysql
+if [[ "${USE_MYSQL:-0}" == "1" ]]; then
+  compose up -d postgres redis mysql
+else
+  compose up -d postgres redis
+  if docker ps -a --format '{{.Names}}' | grep -qx 'EADAF-mysql'; then
+    log_warn "未使用 MySQL 作为业务数据库，停止已有 EADAF-mysql（数据卷保留）"
+    compose stop mysql
+    compose rm -f mysql
+  fi
+fi
 wait_container_healthy EADAF-postgres 120
 wait_container_healthy EADAF-redis 60
-wait_container_healthy EADAF-mysql 180
+if [[ "${USE_MYSQL:-0}" == "1" ]]; then
+  wait_container_healthy EADAF-mysql 180
+fi
 
 log_step "4/6 初始化 EADAF 数据库"
 bash "$ROOT/init-db.sh"

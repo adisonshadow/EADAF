@@ -674,6 +674,7 @@ if [[ "$KIND" == "patch" ]]; then
   printf '%s' "$(printf '%s' "$PATCH_SLUG" | tr '+' ',')" >"$DEST/patch-parts"
 fi
 
+copy_pack_guide app "$KIND" "$DEST"
 lf_fix "$DEST"
 mkdir -p "$OUT_DIR"
 rm -f "$OUT_DIR/$ARCHIVE"

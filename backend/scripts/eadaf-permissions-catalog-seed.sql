@@ -1,5 +1,5 @@
--- 权限目录扩展：对齐 EADAF_frontend 菜单模块 + equipment 受限角色模板
--- 可重复执行（permissions.code / roles.code UPSERT）
+-- 权限目录：对齐 EADAF 菜单与按钮。安装包只带这些权限码，不带业务域角色模板。
+-- 可重复执行（permissions.code UPSERT）
 
 INSERT INTO eadaf.permissions (permission_id, code, description, resource_type, actions, status, created_at, updated_at)
 VALUES
@@ -56,53 +56,3 @@ ON CONFLICT (code) DO UPDATE SET
   actions = EXCLUDED.actions,
   status = EXCLUDED.status,
   updated_at = CURRENT_TIMESTAMP;
-
--- equipment 域：数据模型 + API 服务 操作员角色模板
-INSERT INTO eadaf.roles (role_id, role_name, code, description, status, created_at, updated_at)
-VALUES (
-  '660e8400-e29b-41d4-a716-446655440100',
-  'equipment:数据与API操作员',
-  'equipment:data-operator',
-  '仅限 equipment 业务域的数据模型设计与 API 服务管理',
-  'ACTIVE',
-  CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP
-)
-ON CONFLICT (code) DO UPDATE SET
-  role_name = EXCLUDED.role_name,
-  description = EXCLUDED.description,
-  status = EXCLUDED.status,
-  updated_at = CURRENT_TIMESTAMP;
-
-DELETE FROM eadaf.role_permissions
-WHERE role_id = '660e8400-e29b-41d4-a716-446655440100';
-
-INSERT INTO eadaf.role_permissions (role_id, permission_id)
-SELECT '660e8400-e29b-41d4-a716-446655440100', p.permission_id
-FROM eadaf.permissions p
-WHERE p.code IN (
-  'business_data:manage',
-  'api_services:manage',
-  'bizdata:entity:create',
-  'bizdata:entity:edit',
-  'bizdata:entity:delete',
-  'apiservice:create',
-  'apiservice:edit',
-  'apiservice:publish'
-);
-
--- 数据权限规则：equipment Scope 限定（运行时 enforcement 待接入）
-DELETE FROM eadaf.data_permission_rules
-WHERE role_id = '660e8400-e29b-41d4-a716-446655440100'
-  AND resource_type = 'bizdata_scope';
-
-INSERT INTO eadaf.data_permission_rules (rule_id, role_id, resource_type, conditions, status, created_at, updated_at)
-VALUES (
-  '660e8400-e29b-41d4-a716-446655440101',
-  '660e8400-e29b-41d4-a716-446655440100',
-  'bizdata_scope',
-  '{"bizdata_scope_codes":["equipment"],"allowed_modules":["business_data","api_services"],"note":"仅限 equipment 域实体与 API 服务"}'::jsonb,
-  'ACTIVE',
-  CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP
-);

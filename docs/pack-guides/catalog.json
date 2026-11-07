@@ -1,0 +1,12 @@
+{
+  "platform": {
+    "install": "eadaf-install.md",
+    "upgrade": "eadaf-upgrade.md",
+    "patch": "eadaf-patch.md"
+  },
+  "app": {
+    "install": "app-install.md",
+    "upgrade": "app-upgrade.md",
+    "patch": "app-patch.md"
+  }
+}

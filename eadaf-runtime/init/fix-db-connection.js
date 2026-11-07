@@ -39,6 +39,39 @@ async function main() {
     [host, port, user, passwordEnc, database, targetSchema, connectionId],
   );
 
+  if (String(process.env.USE_MYSQL || '') === '1') {
+    const mysqlHost = 'mysql';
+    const mysqlPort = 3306;
+    const mysqlUser = 'root';
+    const mysqlPassword = process.env.MYSQL_ROOT_PASSWORD || 'Root@123456';
+    const mysqlDatabase = process.env.MYSQL_DATABASE || 'bizdata';
+    const mysqlId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    const mysqlPasswordEnc = encryptApiKey(mysqlPassword);
+    await client.query(
+      `INSERT INTO bizdata.database_connections (
+         id, name, db_type, host, port, username, password_enc, database_name, target_schema, is_default
+       ) VALUES ($1, $2, 'mysql', $3, $4, $5, $6, $7, $7, true)
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         host = EXCLUDED.host,
+         port = EXCLUDED.port,
+         username = EXCLUDED.username,
+         password_enc = EXCLUDED.password_enc,
+         database_name = EXCLUDED.database_name,
+         target_schema = EXCLUDED.target_schema,
+         is_default = true,
+         updated_at = CURRENT_TIMESTAMP`,
+      [mysqlId, '本地 MySQL（业务库）', mysqlHost, mysqlPort, mysqlUser, mysqlPasswordEnc, mysqlDatabase],
+    );
+    await client.query(
+      `UPDATE bizdata.database_connections
+          SET is_default = false, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1`,
+      [connectionId],
+    );
+    console.log('[init] 默认业务库已改为 MySQL', `${mysqlHost}:${mysqlPort}/${mysqlDatabase}`);
+  }
+
   await client.end();
   console.log('[init] 默认业务库连接已指向', `${host}:${port}/${database} schema=${targetSchema}`);
 }

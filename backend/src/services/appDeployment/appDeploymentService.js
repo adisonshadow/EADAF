@@ -216,18 +216,35 @@ function startPlatformPack(input = {}) {
 
   const network = pickEnum(input.network, ENUMS.network, '网络', 'offline');
   const runtime = pickEnum(input.runtime, ENUMS.runtime, '运行方式', 'compose');
-  const osName = pickEnum(input.os, ENUMS.os, '发行版', 'centos');
+  const osName = pickEnum(input.os, ENUMS.os, '发行版', 'ubuntu');
   const arch = pickEnum(input.arch, ENUMS.arch, '架构', 'amd64');
   const kind = pickEnum(input.kind, ENUMS.kind, '种类', 'install');
   const patchParts = normalizePatchParts(input.patch, kind);
   const webPort = kind === 'install' ? normalizePort(input.webPort, DEFAULT_WEB_PORT, '前端端口') : null;
   const apiPort = kind === 'install' ? normalizePort(input.apiPort, DEFAULT_API_PORT, '后端端口') : null;
+  const postgresPort = kind === 'install' ? normalizePort(input.postgresPort, 35432, 'Postgres 端口') : null;
+  const redisPort = kind === 'install' ? normalizePort(input.redisPort, 36379, 'Redis 端口') : null;
+  const minioPort = kind === 'install' ? normalizePort(input.minioPort, 9000, 'MinIO 端口') : null;
+  const useMysql = kind === 'install' && (input.useMysql === true || input.useMysql === 1 || input.useMysql === '1');
+  const packMysql = kind === 'install' && (useMysql || input.packMysql === true || input.packMysql === 1 || input.packMysql === '1');
+  const mysqlPort = kind === 'install' ? normalizePort(input.mysqlPort, 13306, 'MySQL 端口') : null;
   const version = normalizeVersion(input.version, readPackageVersion(REPO_ROOT) || '0.0.0');
   const outDir = normalizeDir(input.outDir, '输出目录', PLATFORM_DEFAULT_OUT_DIR);
 
   const scriptArgs = ['--network', network, '--runtime', runtime, '--os', osName, '--arch', arch, '--kind', kind];
   if (patchParts.length) scriptArgs.push('--patch', patchParts.join(','));
-  if (kind === 'install') scriptArgs.push('--web-port', String(webPort), '--api-port', String(apiPort));
+  if (kind === 'install') {
+    scriptArgs.push(
+      '--web-port', String(webPort),
+      '--api-port', String(apiPort),
+      '--postgres-port', String(postgresPort),
+      '--redis-port', String(redisPort),
+      '--minio-port', String(minioPort),
+      '--use-mysql', useMysql ? '1' : '0',
+      '--pack-mysql', packMysql ? '1' : '0',
+      '--mysql-port', String(mysqlPort),
+    );
+  }
   scriptArgs.push('--version', version, '--out', outDir, '--non-interactive', '--yes');
   if (readIgnoreDiagnostics(input)) scriptArgs.push('--ignore-diagnostics');
 
@@ -241,7 +258,10 @@ function startPlatformPack(input = {}) {
     outDir,
     pnpmCommand: `pnpm pack:eadaf -- ${scriptArgs.join(' ')}`,
     env: { EADAF_PACK_NONINTERACTIVE: '1' },
-    meta: { network, runtime, os: osName, arch, kind, patch: patchParts, webPort, apiPort },
+    meta: {
+      network, runtime, os: osName, arch, kind, patch: patchParts,
+      webPort, apiPort, postgresPort, redisPort, minioPort, useMysql, packMysql, mysqlPort,
+    },
   });
 }
 

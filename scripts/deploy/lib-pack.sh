@@ -287,17 +287,24 @@ build_eadaf_api() {
 
 copy_platform_sql() {
   local dest="$1"
+  local schema_only="${2:-0}"
+  local data_manifest="$SKELETON/init-sql.data.manifest"
   mkdir -p "$dest/init-sql"
+  [[ -f "$data_manifest" ]] || die "缺少 $data_manifest"
+  : >"$dest/init-sql.manifest"
   local name src
   while IFS= read -r name || [[ -n "$name" ]]; do
     name="${name%%#*}"
     name="$(printf '%s' "$name" | tr -d '[:space:]')"
     [[ -n "$name" ]] || continue
+    if [[ "$schema_only" == "1" ]] && grep -qx "$name" "$data_manifest"; then
+      continue
+    fi
     src="$REPO_ROOT/backend/scripts/$name"
     [[ -f "$src" ]] || die "缺少 SQL: $src"
     cp "$src" "$dest/init-sql/$name"
+    printf '%s\n' "$name" >>"$dest/init-sql.manifest"
   done <"$SKELETON/init-sql.manifest"
-  cp "$SKELETON/init-sql.manifest" "$dest/init-sql.manifest"
   cp "$SKELETON/schema-baseline.txt" "$dest/schema-baseline.txt"
 }
 
@@ -354,6 +361,8 @@ WRAP
 
 write_install_env() {
   local dest="$1" web_port="$2" api_port="$3"
+  local pg_port="${4:-35432}" redis_port="${5:-36379}" minio_port="${6:-9000}"
+  local use_mysql="${7:-0}" mysql_port="${8:-13306}" pack_mysql="${9:-1}"
   cp "$SKELETON/env.template" "$dest/.env"
   cp "$SKELETON/env.template" "$dest/env.template"
   if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -361,20 +370,52 @@ write_install_env() {
       -e "s|^EADAF_WEB_HOST_PORT=.*|EADAF_WEB_HOST_PORT=${web_port}|" \
       -e "s|^EADAF_API_HOST_PORT=.*|EADAF_API_HOST_PORT=${api_port}|" \
       -e "s|^EADAF_PUBLIC_URL=.*|EADAF_PUBLIC_URL=http://localhost:${web_port}|" \
+      -e "s|^POSTGRES_HOST_PORT=.*|POSTGRES_HOST_PORT=${pg_port}|" \
+      -e "s|^REDIS_HOST_PORT=.*|REDIS_HOST_PORT=${redis_port}|" \
+      -e "s|^MINIO_HOST_PORT=.*|MINIO_HOST_PORT=${minio_port}|" \
+      -e "s|^USE_MYSQL=.*|USE_MYSQL=${use_mysql}|" \
+      -e "s|^PACK_MYSQL=.*|PACK_MYSQL=${pack_mysql}|" \
+      -e "s|^MYSQL_HOST_PORT=.*|MYSQL_HOST_PORT=${mysql_port}|" \
       "$dest/.env"
   else
     sed -i \
       -e "s|^EADAF_WEB_HOST_PORT=.*|EADAF_WEB_HOST_PORT=${web_port}|" \
       -e "s|^EADAF_API_HOST_PORT=.*|EADAF_API_HOST_PORT=${api_port}|" \
       -e "s|^EADAF_PUBLIC_URL=.*|EADAF_PUBLIC_URL=http://localhost:${web_port}|" \
+      -e "s|^POSTGRES_HOST_PORT=.*|POSTGRES_HOST_PORT=${pg_port}|" \
+      -e "s|^REDIS_HOST_PORT=.*|REDIS_HOST_PORT=${redis_port}|" \
+      -e "s|^MINIO_HOST_PORT=.*|MINIO_HOST_PORT=${minio_port}|" \
+      -e "s|^USE_MYSQL=.*|USE_MYSQL=${use_mysql}|" \
+      -e "s|^PACK_MYSQL=.*|PACK_MYSQL=${pack_mysql}|" \
+      -e "s|^MYSQL_HOST_PORT=.*|MYSQL_HOST_PORT=${mysql_port}|" \
       "$dest/.env"
   fi
+}
+
+# 按 catalog.json 把当前种类的操作说明复制为包根目录的「使用说明.md」。
+copy_pack_guide() {
+  local target="$1" kind="$2" dest="$3"
+  local catalog native name src
+  catalog="$REPO_ROOT/docs/pack-guides/catalog.json"
+  [[ -f "$catalog" ]] || die "缺少 $catalog"
+  native="$(to_native_path "$catalog")"
+  name="$(node -e '
+    const fs = require("fs");
+    const cat = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const group = cat[process.argv[2]];
+    const file = group && group[process.argv[3]];
+    if (typeof file !== "string" || !/^[A-Za-z0-9._-]+\.md$/.test(file)) process.exit(2);
+    process.stdout.write(file);
+  ' "$native" "$target" "$kind")" || die "catalog.json 没有 ${target}/${kind} 的使用说明"
+  src="$REPO_ROOT/docs/pack-guides/$name"
+  [[ -f "$src" ]] || die "缺少使用说明: $src"
+  cp "$src" "$dest/使用说明.md"
 }
 
 copy_runtime_skeleton() {
   local dest="$1"
   local f
-  for f in docker-compose.yml lib.sh up.sh ctl.sh status.sh init-db.sh start.sh \
+  for f in docker-compose.yml lib.sh up.sh ctl.sh status.sh init-db.sh install.sh \
     apply-schema.sh apply-upgrade.sh apply-patch.sh install-docker.sh \
     env.template init-sql.manifest schema-baseline.txt; do
     cp "$SKELETON/$f" "$dest/$f"

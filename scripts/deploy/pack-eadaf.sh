@@ -17,6 +17,12 @@ KIND=""
 PATCH_PARTS=""
 WEB_PORT=""
 API_PORT=""
+POSTGRES_PORT=""
+REDIS_PORT=""
+MINIO_PORT=""
+USE_MYSQL=""
+PACK_MYSQL=""
+MYSQL_PORT=""
 VERSION=""
 OUT_DIR=""
 NONINT=0
@@ -55,6 +61,12 @@ while [[ $# -gt 0 ]]; do
     --patch) PATCH_PARTS="${2:-}"; shift 2 ;;
     --web-port) WEB_PORT="${2:-}"; shift 2 ;;
     --api-port) API_PORT="${2:-}"; shift 2 ;;
+    --postgres-port) POSTGRES_PORT="${2:-}"; shift 2 ;;
+    --redis-port) REDIS_PORT="${2:-}"; shift 2 ;;
+    --minio-port) MINIO_PORT="${2:-}"; shift 2 ;;
+    --use-mysql) USE_MYSQL="${2:-}"; shift 2 ;;
+    --pack-mysql) PACK_MYSQL="${2:-}"; shift 2 ;;
+    --mysql-port) MYSQL_PORT="${2:-}"; shift 2 ;;
     --version) VERSION="${2:-}"; shift 2 ;;
     --out) OUT_DIR="${2:-}"; shift 2 ;;
     --non-interactive) NONINT=1; shift ;;
@@ -119,8 +131,8 @@ if [[ "$NONINT" != "1" && -t 0 ]]; then
   if [[ -z "$OS_NAME" ]]; then
     echo "默认发行版（包内仍带齐 CentOS / Ubuntu / Debian 的安装脚本）:"
     echo "  1) centos  2) ubuntu  3) debian"
-    read -r -p "选择 [1-3，回车=centos]: " c
-    case "${c:-1}" in
+    read -r -p "选择 [1-3，回车=ubuntu]: " c
+    case "${c:-2}" in
       1) OS_NAME=centos ;;
       2) OS_NAME=ubuntu ;;
       3) OS_NAME=debian ;;
@@ -170,15 +182,34 @@ if [[ "$NONINT" != "1" && -t 0 ]]; then
   if [[ "$KIND" == "install" ]]; then
     WEB_PORT="$(ask "前端宿主机端口" "${WEB_PORT:-9527}")"
     API_PORT="$(ask "后端宿主机端口" "${API_PORT:-9526}")"
+    POSTGRES_PORT="$(ask "Postgres 宿主机端口" "${POSTGRES_PORT:-35432}")"
+    REDIS_PORT="$(ask "Redis 宿主机端口" "${REDIS_PORT:-36379}")"
+    MINIO_PORT="$(ask "MinIO 宿主机端口" "${MINIO_PORT:-9000}")"
+    USE_MYSQL="$(ask "是否使用 MySQL 作为业务数据库（0 否 / 1 是）" "${USE_MYSQL:-0}")"
+    if [[ "$USE_MYSQL" == "1" ]]; then
+      PACK_MYSQL=1
+    else
+      PACK_MYSQL="$(ask "是否将 MySQL 打入安装包（0 不打入 / 1 打入，不打入则安装时没有 MySQL）" "${PACK_MYSQL:-0}")"
+    fi
+    MYSQL_PORT="$(ask "MySQL 宿主机端口" "${MYSQL_PORT:-13306}")"
   fi
   VERSION="$(ask "版本" "${VERSION:-$PLATFORM_DEFAULT_VERSION}")"
   OUT_DIR="$(ask "输出目录" "${OUT_DIR:-$REPO_ROOT/deploy-artifacts/EADAF}")"
 else
   [[ -n "$NETWORK" && -n "$RUNTIME" && -n "$KIND" && -n "$ARCH" ]] || die "非交互模式需要 --network、--runtime、--kind、--arch"
   [[ "$KIND" != "patch" || -n "$PATCH_PARTS" ]] || die "补丁需要 --patch web,api"
-  OS_NAME="${OS_NAME:-centos}"
+  OS_NAME="${OS_NAME:-ubuntu}"
   WEB_PORT="${WEB_PORT:-9527}"
   API_PORT="${API_PORT:-9526}"
+  POSTGRES_PORT="${POSTGRES_PORT:-35432}"
+  REDIS_PORT="${REDIS_PORT:-36379}"
+  MINIO_PORT="${MINIO_PORT:-9000}"
+  USE_MYSQL="${USE_MYSQL:-0}"
+  if [[ "$USE_MYSQL" == "1" ]]; then
+    PACK_MYSQL=1
+  fi
+  PACK_MYSQL="${PACK_MYSQL:-1}"
+  MYSQL_PORT="${MYSQL_PORT:-13306}"
   VERSION="${VERSION:-$PLATFORM_DEFAULT_VERSION}"
   OUT_DIR="${OUT_DIR:-$REPO_ROOT/deploy-artifacts/EADAF}"
   ASSUME_YES=1
@@ -217,7 +248,7 @@ case "$KIND" in
   *) die "不支持的种类: $KIND" ;;
 esac
 ARCH="$(normalize_arch "$ARCH")" || die "不支持的架构: $ARCH"
-OS_NAME="$(normalize_os "${OS_NAME:-centos}")" || die "不支持的发行版: $OS_NAME"
+OS_NAME="$(normalize_os "${OS_NAME:-ubuntu}")" || die "不支持的发行版: $OS_NAME"
 PLATFORM="$(platform_of_arch "$ARCH")"
 
 PATCH_SLUG=""
@@ -229,9 +260,8 @@ NEED_SQL=0
 if [[ "$KIND" == "install" ]]; then
   NEED_WEB=1; NEED_API=1; NEED_BASE=1; NEED_SQL=1
 elif [[ "$KIND" == "upgrade" ]]; then
-  # 升级包暂时只有程序，不带表结构、不带数据。表结构只进 EADAF 安装包。
-  NEED_WEB=1; NEED_API=1
-  # NEED_SQL=1
+  # 升级带尚未执行的表结构 SQL（apply-schema 按 schema_migrations 跳过已执行的）。不带业务数据。
+  NEED_WEB=1; NEED_API=1; NEED_SQL=1
 else
   IFS=',' read -r -a parts <<<"$PATCH_PARTS"
   for p in "${parts[@]}"; do
@@ -267,7 +297,20 @@ echo "  发行版默认: $OS_NAME"
 echo "  架构: $ARCH"
 echo "  种类: $KIND ${PATCH_SLUG:+($PATCH_SLUG)}"
 if [[ "$KIND" == "install" ]]; then
-  echo "  端口: web=${WEB_PORT} api=${API_PORT}（只改宿主机映射）"
+  if [[ "$PACK_MYSQL" == "1" ]]; then
+    if [[ "$USE_MYSQL" == "1" ]]; then
+      mysql_text="打入并默认启用:${MYSQL_PORT}"
+    else
+      mysql_text="打入，安装时默认不启用"
+    fi
+  else
+    mysql_text="不打入"
+  fi
+  echo "  端口: 前端=${WEB_PORT} 后端=${API_PORT} Postgres=${POSTGRES_PORT} Redis=${REDIS_PORT} MinIO=${MINIO_PORT} MySQL=${mysql_text}"
+  echo "  数据: 只含最小种子（超级管理员、根部门「总部」、平台权限码、应用 EADAF、EADAF 自己的 Skill/Tool）。不含业务应用和演示数据。"
+elif [[ "$KIND" == "upgrade" ]]; then
+  echo "  数据: 升级包只有程序和表结构，不含用户、组织、权限、应用、Skill/Tool。"
+  echo "        要更新这些数据，请用管理端「应用部署 → EADAF数据导出/导入」或「应用数据导出/导入」。"
 fi
 echo "  版本: $VERSION（来源: ${VERSION_SOURCE:-未识别}）"
 if [[ "$IGNORE_DIAGNOSTICS" == "1" ]]; then
@@ -302,7 +345,7 @@ mkdir -p "$DEST"
 if [[ "$KIND" == "install" || "$KIND" == "upgrade" ]]; then
   copy_runtime_skeleton "$DEST"
   if [[ "$KIND" == "install" ]]; then
-    write_install_env "$DEST" "$WEB_PORT" "$API_PORT"
+    write_install_env "$DEST" "$WEB_PORT" "$API_PORT" "$POSTGRES_PORT" "$REDIS_PORT" "$MINIO_PORT" "$USE_MYSQL" "$MYSQL_PORT" "$PACK_MYSQL"
     need_cmd node
     node "$REPO_ROOT/scripts/deploy/export-default-db-connection.cjs" --env "$DEST/.env"
     cat >"$DEST/.deploy-mode" <<EOF
@@ -321,7 +364,12 @@ MINIO_UPSTREAM="pgsty/minio:RELEASE.2026-08-04T00-00-00Z"
 if [[ "$NEED_BASE" == "1" ]]; then
   log "拉取基础镜像"
   pull_platform_image "node:22-bookworm" "$PLATFORM" "$ARCH"
-  for img in nginx:1.25-alpine postgres:16-alpine mysql:8.0 redis:7-alpine "$MINIO_UPSTREAM"; do
+  base_imgs=(nginx:1.25-alpine postgres:16-alpine redis:7-alpine)
+  if [[ "${PACK_MYSQL:-1}" == "1" ]]; then
+    base_imgs+=(mysql:8.0)
+  fi
+  base_imgs+=("$MINIO_UPSTREAM")
+  for img in "${base_imgs[@]}"; do
     pull_platform_image "$img" "$PLATFORM" "$ARCH"
   done
   docker tag "$MINIO_UPSTREAM" eadaf-minio:v1
@@ -340,7 +388,11 @@ if [[ "$NEED_API" == "1" ]]; then
   save_image "eadaf-api:v1" "$DEST/docker-images" "$ARCH"
 fi
 if [[ "$NEED_BASE" == "1" ]]; then
-  for img in nginx:1.25-alpine postgres:16-alpine mysql:8.0 redis:7-alpine eadaf-minio:v1; do
+  save_imgs=(nginx:1.25-alpine postgres:16-alpine redis:7-alpine eadaf-minio:v1)
+  if [[ "${PACK_MYSQL:-1}" == "1" ]]; then
+    save_imgs+=(mysql:8.0)
+  fi
+  for img in "${save_imgs[@]}"; do
     save_image "$img" "$DEST/docker-images" "$ARCH"
   done
 fi
@@ -352,7 +404,11 @@ if [[ "$NEED_WEB" == "1" ]]; then
   build_eadaf_web "$DEST"
 fi
 if [[ "$NEED_SQL" == "1" ]]; then
-  copy_platform_sql "$DEST"
+  if [[ "$KIND" == "upgrade" ]]; then
+    copy_platform_sql "$DEST" 1
+  else
+    copy_platform_sql "$DEST"
+  fi
 fi
 # 数据补丁暂时停用。配置与业务数据改走管理端「系统设置」。
 # if [[ "$NEED_BIZ" == "1" ]]; then
@@ -372,9 +428,7 @@ elif [[ "$KIND" == "install" && "$RUNTIME" == "k8s" ]]; then
   rm -f "$DEST/install-docker.sh"
   rm -rf "$DEST/docker-static" "$DEST/centos-docker-static"
 elif [[ "$KIND" == "upgrade" ]]; then
-  # 升级包暂时只有程序，不带 init-db 表结构。
-  rm -f "$DEST/apply-schema.sh" "$DEST/init-sql.manifest" "$DEST/schema-baseline.txt"
-  rm -rf "$DEST/init-sql"
+  # 升级包带表结构 SQL，不含 init-sql.data.manifest 里的种子。
   if [[ "$RUNTIME" != "k8s" ]]; then
     rm -rf "$DEST/k8s"
   fi
@@ -409,6 +463,7 @@ api_host_port=${API_PORT}
 git=${SHA}
 EOF
 
+copy_pack_guide platform "$KIND" "$DEST"
 lf_fix "$DEST"
 mkdir -p "$OUT_DIR"
 rm -f "$OUT_DIR/$ARCHIVE"

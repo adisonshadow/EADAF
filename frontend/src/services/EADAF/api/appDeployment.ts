@@ -119,6 +119,12 @@ export interface PlatformPackInput {
   patch?: string[];
   webPort?: number;
   apiPort?: number;
+  postgresPort?: number;
+  redisPort?: number;
+  minioPort?: number;
+  useMysql?: boolean;
+  packMysql?: boolean;
+  mysqlPort?: number;
   version?: string;
   outDir?: string;
   /** 是否忽略语法错误/警告。默认 true：前端跳过 tsc */
@@ -139,6 +145,23 @@ export interface AppPackInput {
 }
 
 const TIMEOUT = 60 * 1000;
+
+export interface PackGuide {
+  target: 'platform' | 'app';
+  kind: 'install' | 'upgrade' | 'patch';
+  markdown: string;
+}
+
+/** 当前种类将打进包里的使用说明 */
+export async function getPackGuide(target: 'platform' | 'app', kind: string) {
+  return request<{ code: number; message: string; data: PackGuide }>(
+    `${BASE}/guide`,
+    {
+      method: 'GET',
+      params: { target, kind },
+    },
+  );
+}
 
 /** 应用部署状态：DEV 模式、默认版本、bash/pnpm、脚本与输出目录 */
 export async function getAppDeploymentStatus() {

@@ -5,12 +5,16 @@
  * 结果缓存约 15 秒，避免头像轮询把探端口和查表打满。
  */
 const config = require('../../config');
-const { AiModel, BizdataDatabaseConnection, StorageBucket } = require('../../models');
+const { Op } = require('sequelize');
+const { AiModel, BizdataDatabaseConnection, StorageBucket, User } = require('../../models');
 const { probeDependencies } = require('../../utils/dependencyDiagnostics');
 const { checkRuntime, checkEnvConfig, checkDbStructure } = require('../../utils/startupSelfCheck');
 const { evaluateSystemHealth, skippedDbFacts } = require('./systemHealthEvaluate');
 
 const CACHE_MS = 15_000;
+const DEFAULT_ADMIN_ID = '10000000-0000-0000-0000-000000000001';
+/** 安装种子 superadmin.sql 里 admin / 123456 的 bcrypt。改密或删账号后不再命中。 */
+const DEFAULT_ADMIN_PASSWORD_HASH = '$2a$10$8c90r1pL61cViUzyWnGb.OesyqAoTSuWf6pfWVhSBVvaNFnuJko9.';
 const POSTGRES_DOWN_SUMMARY = '平台数据库不可达，跳过';
 const STRUCTURE_DOWN_SUMMARY = '库结构未就绪，跳过';
 
@@ -68,6 +72,26 @@ async function readConnections() {
   }
 }
 
+async function readDefaultAdmin() {
+  try {
+    const row = await User.findOne({
+      where: {
+        [Op.or]: [
+          { user_id: DEFAULT_ADMIN_ID },
+          { username: 'admin' },
+        ],
+      },
+      attributes: ['user_id', 'username', 'password_hash'],
+    });
+    if (row && row.password_hash === DEFAULT_ADMIN_PASSWORD_HASH) {
+      return { state: 'warning' };
+    }
+    return { state: 'ok' };
+  } catch (error) {
+    return { state: 'skip', summary: `无法核对默认管理员：${firstLine(error.message)}` };
+  }
+}
+
 async function readActiveAiModels() {
   try {
     const count = await AiModel.count({ where: { is_active: true } });
@@ -93,12 +117,13 @@ async function collectSystemHealth() {
         structure,
       };
     } else {
-      const [systemBucket, connections, aiModels] = await Promise.all([
+      const [systemBucket, connections, aiModels, defaultAdmin] = await Promise.all([
         readSystemBucket(),
         readConnections(),
         readActiveAiModels(),
+        readDefaultAdmin(),
       ]);
-      dbFacts = { structure, systemBucket, connections, aiModels };
+      dbFacts = { structure, systemBucket, connections, aiModels, defaultAdmin };
     }
   }
 

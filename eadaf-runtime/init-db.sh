@@ -182,7 +182,7 @@ fix_bizdata_db_connection() {
       echo "EADAF-api 未运行，无法把默认业务库连接改成安装包里的配置"
       exit 1
     fi
-    echo "EADAF-api 未运行，跳过物化连接修正（启动 API 后可执行: docker exec -w /app/backend EADAF-api node /data/fix-db-connection.js）"
+    echo "EADAF-api 未运行，跳过物化连接修正（启动 API 后可执行: docker exec -w /app/backend EADAF-api node fix-db-connection.js）"
     return 0
   fi
   local script="$ROOT/init/fix-db-connection.js"
@@ -194,8 +194,9 @@ fix_bizdata_db_connection() {
     return 0
   fi
   echo "修正默认业务库连接 → ${BIZDATA_CONN_HOST:-${POSTGRES_HOST:-postgres}}:${BIZDATA_CONN_PORT:-${POSTGRES_PORT:-5432}}/${BIZDATA_CONN_DATABASE:-${POSTGRES_DATABASE:-eadaf_db}} schema=${BIZDATA_CONN_SCHEMA:-bizdata_mat} ..."
-  docker cp "$script" EADAF-api:/tmp/fix-db-connection.js
-  docker exec -w /app/backend EADAF-api node /tmp/fix-db-connection.js
+  # 必须放在 /app/backend 下执行。放在 /tmp 时 Node 找不到容器里的 pg。
+  docker cp "$script" EADAF-api:/app/backend/fix-db-connection.js
+  docker exec -w /app/backend EADAF-api node fix-db-connection.js
 }
 
 if [[ "${1:-}" == "--fix-connection-only" ]]; then

@@ -1,8 +1,8 @@
-# 引入 schema_migrations 时已经随安装包发过的 SQL。
+# 引入 schema_migrations 时已经随安装包发过的表结构 SQL。
 # 旧现场第一次升级只把这些文件名记为已执行，不重放。
 # 以后新增的迁移文件写进 init-sql.manifest，不要追加到本文件。
+# 种子（用户、组织、权限目录、应用、Skill/Tool）在 init-sql.data.manifest，不记在这里。
 schemas.sql
-seed-eadaf-application.sql
 aibase-schema.sql
 aibase-skill-tool-schema.sql
 bizdata-schema.sql
@@ -29,9 +29,6 @@ migrate-api-request-log-tool-audit.sql
 migrate-hook-center.sql
 migrate-application-outbound-webhook-scope.sql
 migrate-system-storage-bucket.sql
-migrate-eadaf-ai-skills.sql
 20260710_add_model_rate_limit.sql
 migrate-app-transfer-permissions.sql
 migrate-platform-transfer-permissions.sql
-eadaf-permissions-catalog-seed.sql
-superadmin.sql

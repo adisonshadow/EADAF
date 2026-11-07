@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 把本升级包应用到已安装的 eadaf-runtime。保留 .env 与数据卷，不重装 Docker / 集群。
-# 升级包暂时只有程序，不覆盖、不执行 init-db 表结构。
+# 表结构只跑 apply-schema：按 schema_migrations 补尚未执行的 SQL，不 DROP、不重放基线。
 set -euo pipefail
 
 PATCH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,10 +31,10 @@ copy_tree() {
 }
 
 # 更新底座脚本与编排，不覆盖现场 .env
-for f in docker-compose.yml lib.sh up.sh ctl.sh status.sh init-db.sh start.sh \
+for f in docker-compose.yml lib.sh up.sh ctl.sh status.sh init-db.sh install.sh \
   install-docker.sh env.template \
+  apply-schema.sh init-sql.manifest schema-baseline.txt \
   nginx/conf/default.conf init/fix-db-connection.js; do
-  # 表结构只留在安装包，升级不覆盖：apply-schema.sh init-sql.manifest schema-baseline.txt
   [[ -e "$PATCH_ROOT/$f" ]] || continue
   mkdir -p "$DEPLOY_ROOT/$(dirname "$f")"
   cp -a "$PATCH_ROOT/$f" "$DEPLOY_ROOT/$f"
@@ -43,11 +43,10 @@ if [[ -d "$PATCH_ROOT/k8s" ]]; then
   mkdir -p "$DEPLOY_ROOT/k8s"
   cp -a "$PATCH_ROOT/k8s/." "$DEPLOY_ROOT/k8s/"
 fi
-# 升级包暂时不带表结构 SQL。
-# if [[ -d "$PATCH_ROOT/init-sql" ]]; then
-#   mkdir -p "$DEPLOY_ROOT/init-sql"
-#   cp -a "$PATCH_ROOT/init-sql/." "$DEPLOY_ROOT/init-sql/"
-# fi
+if [[ -d "$PATCH_ROOT/init-sql" ]]; then
+  mkdir -p "$DEPLOY_ROOT/init-sql"
+  cp -a "$PATCH_ROOT/init-sql/." "$DEPLOY_ROOT/init-sql/"
+fi
 if [[ -d "$PATCH_ROOT/frontend/dist" ]]; then
   mkdir -p "$DEPLOY_ROOT/frontend"
   rm -rf "$DEPLOY_ROOT/frontend/dist"
@@ -78,8 +77,7 @@ load_deploy_choice "$DEPLOY_ROOT"
 
 if [[ "$DEPLOY_RUNTIME" == "k8s" ]]; then
   bash "$DEPLOY_ROOT/k8s/load-images.sh"
-  # 升级暂时不跑表结构迁移。init-db 只在 EADAF 安装包。
-  # bash "$DEPLOY_ROOT/apply-schema.sh"
+  bash "$DEPLOY_ROOT/apply-schema.sh"
   bash "$DEPLOY_ROOT/k8s/install.sh" --upgrade
 else
   # shellcheck disable=SC1091
@@ -90,8 +88,9 @@ else
   if [[ -d "$PATCH_ROOT/docker-images" ]]; then
     load_module_images eadaf-api eadaf-web minio
   fi
-  # 升级暂时不跑表结构迁移。init-db 只在 EADAF 安装包。
-  # bash "$DEPLOY_ROOT/apply-schema.sh"
+  compose up -d postgres
+  wait_container_healthy EADAF-postgres 120
+  bash "$DEPLOY_ROOT/apply-schema.sh"
   apply_public_host_urls
   compose up -d minio
   wait_container_healthy EADAF-minio 120

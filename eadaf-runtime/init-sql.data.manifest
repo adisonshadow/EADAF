@@ -1,0 +1,6 @@
+# 只进安装包的种子。升级包不复制这些文件，也不写入升级用的 init-sql.manifest。
+# 更新用户、组织、权限目录、应用、Skill/Tool 请用管理端数据包，不要打进升级包。
+seed-eadaf-application.sql
+migrate-eadaf-ai-skills.sql
+eadaf-permissions-catalog-seed.sql
+superadmin.sql
