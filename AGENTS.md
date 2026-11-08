@@ -113,10 +113,10 @@ gh pr merge <n> --merge
 - 新增或改名一种说明：同时改 `docs/pack-guides/catalog.json`。预览接口和 `pack-eadaf.sh` / `pack-app.sh` 都读这张表。
 - 不要把 `docs/` 挂到网页上。页面只传 `target` 和 `kind`，不能传文件路径。
 
-## Shell 换行：只用 LF
+## 换行按文件格式
 
-本项目部署在 Linux 上。Shell 只认 `LF`（`\n`）。Windows 的 `CRLF`（`\r\n`）会让 bash 把 `\r` 当成命令的一部分，出现 `$'\r': command not found` 或 `set: pipefail` 这类错误。
+以 [`.gitattributes`](.gitattributes) 为准，不要按操作系统一刀切。
 
-- 所有 `*.sh`、`*.bash` 以及容器入口脚本必须保存为 **LF**，不要出现 **CRLF**。
-- 仓库已在 [`.gitattributes`](.gitattributes) 里写了 `*.sh text eol=lf`。编辑、生成或改写这些文件时保持 LF，不要按 Windows 默认换行另存。
-- 改完 shell 后确认文件里没有 `CR`（字节 `0x0D`）。有则改回 LF 再提交。
+- **LF**：`*.sh`、`*.bash`、`*.bats`、容器入口脚本、`Dockerfile`、`*.cjs`、`*.sql`、`*.template`、`*.conf`、`*.service`。这些会在 Linux 的 sh 里执行，不能带 CR。
+- **CRLF**：`*.bat`、`*.cmd`、`*.ps1`、`*.psm1`。这是 Windows 脚本。
+- 改完后按后缀核对，不要把 bat/cmd 存成 LF，也不要把 sh 存成 CRLF。

@@ -1,15 +1,15 @@
 # EADAF 外部应用接入指南
 
-> **以「故检修理管理系统 FMMS」为例**，讲解外部系统如何接入 EADAF 平台，配置鉴权并调用 API。
+> **以仓库里的示例应用 [`app_example`](../app_example/README.md) 为例**（雨伞品牌独立站，应用 code 为 `YS`），讲解外部系统如何接入 EADAF 平台，配置鉴权并调用 API。
 >
-> 本指南面向 **FMMS 后端开发者**。EADAF 侧的数据模型创建、API 服务发布、指标配置等管理操作由 EADAF 管理员完成，本指南不展开。
+> 本指南面向接入 EADAF 的业务应用开发者。EADAF 侧的数据模型创建、API 服务发布、指标配置等管理操作由 EADAF 管理员完成，本指南不展开。
 
 ---
 
 ## 目录
 
 1. [整体架构与对接全景](#1-整体架构与对接全景)
-2. [EADAF 管理员侧准备（FMMS 需了解）](#2-eadaf-管理员侧准备fmms-需了解)
+2. [EADAF 管理员侧准备（以 app_example 为例）](#2-eadaf-管理员侧准备以-app_example-为例)
 3. [第一步：获取应用凭证](#第一步获取应用凭证)
 4. [第二步：换取访问令牌](#第二步换取访问令牌)
 5. [第三步：调用内置 API](#第三步调用内置-api)
@@ -27,16 +27,16 @@
 
 ```
 ┌─────────────────────────┐         ┌──────────────────────────────────┐
-│   FMMS（故检修理管理系统）  │         │            EADAF 平台              │
+│ app_example（雨伞独立站） │         │            EADAF 平台              │
 │                         │         │                                  │
-│  FMMS 后端服务           │         │  ┌────────────────────────────┐  │
+│  BFF（server/index.mjs） │         │  ┌────────────────────────────┐  │
 │  （Java / Python / …）   │         │  │  内置 API（用户/组织/权限）   │  │
 │                         │  HTTPS  │  │  GET /api/v1/users          │  │
 │   1. 换取 Token          │ ──────► │  │  GET /api/v1/departments    │  │
 │   2. 调用 API            │ ◄────── │  └────────────────────────────┘  │
 │   3. 提交采集数据         │         │  ┌────────────────────────────┐  │
 │   4. 上传/下载文件        │         │  │  业务数据 API（已发布服务）   │  │
-│                         │         │  │  GET /api/v1/data/fmms/...  │  │
+│                         │         │  │  GET /api/v1/data/YS/...    │  │
 └─────────────────────────┘         │  └────────────────────────────┘  │
                                     │  ┌────────────────────────────┐  │
                                     │  │  采集管道（数据接入）         │  │
@@ -49,32 +49,32 @@
 
 | 概念 | 说明 |
 |------|------|
-| **应用（Application）** | EADAF 中注册的 FMMS 实体，拥有独立的 `application_id` + `app_secret` |
-| **app_secret** | 应用统一密钥，用于换取访问令牌（**仅在 FMMS 服务端保存，绝不暴露到前端**） |
+| **应用（Application）** | EADAF 中注册的业务应用。示例是 `app_example`，code 为 `YS`，拥有独立的 `application_id` + `app_secret` |
+| **app_secret** | 应用统一密钥，用于换取访问令牌（**只在 BFF 或其它服务端保存，绝不暴露到前端**） |
 | **访问令牌（JWT）** | 用 `app_secret` 换取的 Bearer Token，默认有效期 24 小时 |
 | **内置 API** | EADAF 平台自带的用户/组织/角色/权限等管理 API |
-| **业务数据 API** | EADAF 管理员为 FMMS 数据模型创建并发布的 REST API |
-| **采集管道** | FMMS 向 EADAF 提交原始数据（如设备传感器读数）的入口 |
+| **业务数据 API** | EADAF 为该应用数据模型创建并发布的 REST API。示例是订单、会员、伞品，路径形如 `/api/v1/data/YS/order/Order` |
+| **采集管道** | 业务应用向 EADAF 提交原始数据的入口。`app_example` 本身不靠采集管道取数，接法与下面第五节相同 |
 | **用户 SSO JWT** | 终端用户经 EADAF 登录后回调下发的用户令牌（与下方应用 Token **不是同一种**） |
 
-> 若 FMMS 需要「用户登录 EADAF 后进入业务前端」，见 [用户 SSO 接入指南](./sso-integration-guide.md)。本章后续步骤讲的是 **服务端应用 Token** 调 API。
+> `app_example` 的页面登录走用户 SSO（BFF 换票），见 [用户 SSO 接入指南](./sso-integration-guide.md)。本章后续步骤讲的是 **服务端应用 Token** 调 API。
 
 ---
 
-## 2. EADAF 管理员侧准备（FMMS 需了解）
+## 2. EADAF 管理员侧准备（以 app_example 为例）
 
-在 FMMS 开始对接前，EADAF 管理员需要完成以下准备工作（这些由管理员在 EADAF 控制台操作）：
+在 `app_example` 开始对接前，EADAF 管理员需要完成以下准备工作（这些由管理员在 EADAF 控制台操作，也可以直接导入示例应用的数据包）：
 
 | 步骤 | 操作 | 产出 |
 |------|------|------|
-| ① | 在「应用管理」创建应用，名称填「FMMS 故检修理管理系统」，code 填 `FMMS` | 获得 `application_id`（UUID） |
+| ① | 在导航「应用」里创建应用，名称填「雨伞品牌独立站销售管理系统」，code 填 `YS` | 获得 `application_id`（示例为 `1e71c653-630f-4006-b6df-081172b15752`） |
 | ② | 点击「密钥管理」→「生成密钥」 | 获得 `app_secret`（64 位十六进制字符串） |
 | ③ | 点击「API 配置」→ 开启「启用 API」 | 应用 API 功能激活 |
-| ④ | 在「可访问 API 域」勾选 FMMS 需要的业务数据域 | 授权数据 API 访问范围 |
-| ⑤ | 在「可访问内置 API」勾选 FMMS 需要的内置 API（如用户列表、部门列表等） | 授权内置 API 访问范围 |
-| ⑥ | （如需采集）创建采集管道并发布，将 FMMS 应用加入允许列表 | 获得 ingest 路由路径 |
+| ④ | 在「可访问 API 域」勾选 `YS` | 授权数据 API 访问范围 |
+| ⑤ | 在「可访问内置 API」勾选该应用需要的内置 API（如用户列表、部门列表等） | 授权内置 API 访问范围 |
+| ⑥ | （如需采集）创建采集管道并发布，将 `YS` 应用加入允许列表 | 获得 ingest 路由路径 |
 
-**FMMS 开发者需要向 EADAF 管理员索要：**
+**开发者需要向 EADAF 管理员索要：**
 
 - `application_id`（如 `550e8400-e29b-41d4-a716-446655440000`）
 - `app_secret`（如 `a1b2c3d4...` 共 64 位）
@@ -94,7 +94,7 @@ base_url       = https://eadaf.your-company.com
 ```
 
 > ⚠️ **安全要求**
-> - `app_secret` **只在 FMMS 服务端保存**（环境变量 / 密钥管理服务），绝不写入前端代码、Git 仓库、日志或 URL 参数
+> - `app_secret` **只在 `app_example` 的 BFF 或其它服务端保存**（环境变量 / 密钥管理服务），绝不写入前端代码、Git 仓库、日志或 URL 参数
 > - 生产环境务必使用 HTTPS
 > - 开发/测试/生产环境使用不同的应用和密钥
 
@@ -102,7 +102,7 @@ base_url       = https://eadaf.your-company.com
 
 ## 第二步：换取访问令牌
 
-FMMS 后端使用 `application_id` + `app_secret` 向 EADAF 换取 JWT 访问令牌。
+`app_example` 的服务端使用 `application_id` + `app_secret` 向 EADAF 换取 JWT 访问令牌。页面登录不走这个接口。
 
 ### 请求
 
@@ -132,15 +132,17 @@ Content-Type: application/json
 
 | HTTP 状态码 | message | 原因 |
 |------------|---------|------|
-| 400 | application_id 和 app_secret 不能为空 | 参数缺失 |
-| 401 | 无效的 app_secret | 密钥错误 |
+| 400 | application_id和app_secret不能为空 | 参数缺失 |
+| 400 | 无效的application_id | `application_id` 不是 UUID |
+| 401 | 无效的app_secret | 密钥错误 |
 | 404 | 应用不存在 | application_id 错误 |
 
 ### 令牌有效期
 
-- 默认 **24 小时**（EADAF 服务端可配置 `JWT_EXPIRES_IN`）
+- 默认 **24 小时**，由服务端 `JWT_EXPIRES_IN` 决定
+- 管理端「登录有效期」只影响用户登录令牌，不改变这个应用令牌
 - 令牌过期后需重新调用本接口换取新令牌
-- 建议 FMMS 在令牌到期前主动刷新（如提前 5 分钟）
+- 建议在到期前主动再换一次（如提前 5 分钟）
 
 ### 说明
 
@@ -150,7 +152,7 @@ Content-Type: application/json
 
 ## 第三步：调用内置 API
 
-获取令牌后，FMMS 可以调用 EADAF 的内置 API（用户、组织、角色、权限等）。
+获取令牌后，业务应用可以调用 EADAF 的内置 API（用户、组织、角色、权限等）。
 
 ### 认证方式
 
@@ -241,7 +243,7 @@ Authorization: Bearer {token}
 
 ## 第四步：调用业务数据 API
 
-EADAF 管理员为 FMMS 的数据模型（如故障工单、设备台账、维修记录）创建并发布 API 服务后，FMMS 可通过数据 API 查询和操作业务数据。
+EADAF 为 `app_example` 的数据模型（订单、会员、伞品、售后工单）创建并发布 API 服务后，业务应用可通过数据 API 查询和操作这些数据。
 
 ### 调用方式
 
@@ -250,7 +252,7 @@ GET {base_url}/api/v1/data/{routePath}
 Authorization: Bearer {token}
 ```
 
-`routePath` 是 API 服务的路由路径（由 EADAF 管理员在创建 API 服务时定义，如 `fmms/faultOrderFind`）。
+`routePath` 是 API 服务的路由路径（由 EADAF 管理员在创建 API 服务时定义）。`app_example` 的订单列表是 `YS/order/Order`。
 
 写操作（删除 / 更新）按 OpenAPI 使用 REST 方法与 path id，例如：
 
@@ -264,10 +266,10 @@ Content-Type: application/json
 
 亦兼容 `POST` 到无后缀的 `routePath`，在 JSON body 中传 `id`。错误响应（含 405）均为 `{ "code", "message", "data" }` JSON 信封。
 
-### 示例：查询故障工单列表
+### 示例：查询订单列表
 
 ```http
-GET {base_url}/api/v1/data/fmms/faultOrderFind?operation=find&limit=10&skip=0&filter={"status":"open"}
+GET {base_url}/api/v1/data/YS/order/Order?operation=find&limit=10&skip=0
 Authorization: Bearer {token}
 ```
 
@@ -282,10 +284,8 @@ Authorization: Bearer {token}
   "data": {
     "items": [
       {
-        "order_no": "GD-2026-0001",
-        "equipment_code": "EQ-001",
-        "fault_desc": "主轴轴承异响",
-        "status": "open",
+        "order_no": "YS-2026-0001",
+        "status": "paid",
         "created_at": "2026-07-10T08:30:00Z"
       }
     ],
@@ -326,7 +326,7 @@ Authorization: Bearer {token}
 对于大数据量查询，支持 SSE 流式返回：
 
 ```http
-GET {base_url}/api/v1/stream/data/fmms/faultOrderFind?status=open
+GET {base_url}/api/v1/stream/data/YS/order/Order?status=paid
 Authorization: Bearer {token}
 Accept: text/event-stream
 ```
@@ -335,13 +335,13 @@ Accept: text/event-stream
 
 ```
 event: meta
-data: {"serviceId":"...","code":"fmms:faultOrderFind","operation":"find"}
+data: {"serviceId":"...","code":"YS:order:Order","operation":"find"}
 
 event: item
-data: {"index":0,"item":{"order_no":"GD-2026-0001",...}}
+data: {"index":0,"item":{"order_no":"YS-2026-0001",...}}
 
 event: item
-data: {"index":1,"item":{"order_no":"GD-2026-0002",...}}
+data: {"index":1,"item":{"order_no":"YS-2026-0002",...}}
 
 event: done
 data: {"total":42,"count":2}
@@ -357,7 +357,7 @@ data: {"total":42,"count":2}
 
 ## 第五步：提交采集数据（采集管道）
 
-FMMS 可通过采集管道向 EADAF 提交原始数据（如设备传感器读数、实时状态），由 EADAF 侧的管道脚本解析、转换并存储。
+业务应用可通过采集管道向 EADAF 提交原始数据，由 EADAF 侧的管道脚本解析、转换并存储。`app_example` 的页面数据不走采集管道，下面只说明接法。
 
 ### 请求格式
 
@@ -373,13 +373,15 @@ Content-Type: application/octet-stream
 - **Content-Type**：根据管道协议类型选择（`application/octet-stream` / `text/plain` 等）
 - **请求体**：原始数据（非 JSON），最大 **1MB**
 
-### 示例：提交设备传感器数据
+### 示例：提交原始数据
+
+路径由管理员在采集管道上配置。下面用 `YS/orderIngest` 示意，不是 `app_example` 自带的管道。
 
 ```bash
-curl -X POST "{base_url}/api/v1/ingest/fmms/sensorIngest" \
+curl -X POST "{base_url}/api/v1/ingest/YS/orderIngest" \
   -H "Authorization: Bearer {token}" \
   -H "Content-Type: application/octet-stream" \
-  --data-binary "@/tmp/sensor_data.bin"
+  --data-binary "@/tmp/payload.bin"
 ```
 
 **响应：**
@@ -390,7 +392,7 @@ curl -X POST "{base_url}/api/v1/ingest/fmms/sensorIngest" \
   "message": "数据采集成功",
   "data": {
     "processed": 1,
-    "pipeline": "fmms:sensorIngest"
+    "pipeline": "YS:orderIngest"
   }
 }
 ```
@@ -405,7 +407,7 @@ curl -X POST "{base_url}/api/v1/ingest/fmms/sensorIngest" \
 
 ## 第六步：文件存储
 
-FMMS 可使用 EADAF 的文件存储能力上传/下载附件（如维修照片、检测报告）。
+业务应用可使用 EADAF 的文件存储能力上传/下载附件（如售后图片）。
 
 ### 上传文件
 
@@ -437,7 +439,7 @@ Authorization: Bearer {token}
 
 ## API 发现：公开目录
 
-FMMS 开发者可通过公开目录接口**无需登录**地查看 FMMS 应用被授权的全部 API 清单（含参数结构、响应结构）。
+开发者可通过公开目录接口**无需登录**地查看 `YS` 应用被授权的全部 API 清单（含参数结构、响应结构）。
 
 ### 请求
 
@@ -445,7 +447,7 @@ FMMS 开发者可通过公开目录接口**无需登录**地查看 FMMS 应用�
 GET {base_url}/api/v1/applications-public/{key}/api-catalog
 ```
 
-`key` 可以是应用 code（`FMMS`）或 `application_id`。
+`key` 可以是应用 code（`YS`）或 `application_id`。
 
 ### 返回内容
 
@@ -455,23 +457,23 @@ GET {base_url}/api/v1/applications-public/{key}/api-catalog
   "data": {
     "application": {
       "application_id": "550e8400-...",
-      "name": "FMMS 故检修理管理系统",
-      "code": "FMMS"
+      "name": "雨伞品牌独立站销售管理系统",
+      "code": "YS"
     },
     "tree": [
       {
-        "code": "fmms",
-        "name": "fmms",
+        "code": "YS",
+        "name": "YS",
         "isDomainNode": true,
         "children": [...]
       }
     ],
     "services": [
       {
-        "code": "fmms:faultOrderFind",
-        "name": "故障工单查询",
-        "routePath": "fmms/faultOrderFind",
-        "basePath": "/api/v1/data/fmms/faultOrderFind",
+        "code": "YS:order:Order",
+        "name": "订单",
+        "routePath": "YS/order/Order",
+        "basePath": "/api/v1/data/YS/order/Order",
         "operations": [
           {
             "operation": "find",
@@ -499,7 +501,7 @@ GET {base_url}/api/v1/applications-public/{key}/api-catalog
 ```
 
 > 💡 **提示**：公开目录还提供了 Swagger 风格的在线文档页面，访问地址为：
-> `{前端地址}/public/applications/FMMS/api-docs`
+> `{前端地址}/public/applications/YS/api-docs`
 > 可直接在浏览器中打开查阅，无需登录。
 
 ---
@@ -566,19 +568,19 @@ class EADAFClient:
 
     # ===== 业务数据 API =====
 
-    def query_fault_orders(self, status=None, limit=10, skip=0):
-        """查询故障工单（业务数据 find：limit/skip）"""
+    def query_orders(self, status=None, limit=10, skip=0):
+        """查询订单（业务数据 find：limit/skip）"""
         params = {"operation": "find", "limit": limit, "skip": skip}
         if status:
             params["filter"] = json.dumps({"status": status})
-        return self._request("GET", "/api/v1/data/fmms/faultOrderFind", params=params)
+        return self._request("GET", "/api/v1/data/YS/order/Order", params=params)
 
     # ===== 采集管道 =====
 
-    def ingest_sensor_data(self, raw_bytes):
-        """提交传感器原始数据"""
+    def ingest_payload(self, raw_bytes):
+        """向采集管道提交原始数据"""
         resp = requests.post(
-            f"{self.base_url}/api/v1/ingest/fmms/sensorIngest",
+            f"{self.base_url}/api/v1/ingest/YS/orderIngest",
             data=raw_bytes,
             headers={
                 "Authorization": f"Bearer {self.token}",
@@ -608,12 +610,12 @@ if __name__ == "__main__":
     print(f"部门: {len(dept_tree['data'])} 个根部门")
 
     # 3. 查询业务数据
-    orders = client.query_fault_orders(status="open")
-    print(f"未处理工单: {orders['data']['pagination']['total']} 条")
+    orders = client.query_orders(status="paid")
+    print(f"订单: {orders['data']['pagination']['total']} 条")
 
     # 4. 提交采集数据
-    sensor_data = b"\x01\x02\x03\x04"  # 实际的传感器原始字节
-    result = client.ingest_sensor_data(sensor_data)
+    payload = b"\x01\x02\x03\x04"  # 实际的原始字节
+    result = client.ingest_payload(payload)
     print(f"采集结果: {result}")
 ```
 
@@ -651,8 +653,8 @@ public class EadafClient {
     }
 
     // 调用业务数据 API
-    public String queryFaultOrders(String status) throws Exception {
-        return apiGet("/api/v1/data/fmms/faultOrderFind?status=" + status);
+    public String queryOrders(String status) throws Exception {
+        return apiGet("/api/v1/data/YS/order/Order?status=" + status);
     }
 
     private String apiGet(String path) throws Exception {
@@ -701,7 +703,7 @@ public class EadafClient {
 | `403 无权访问该内置 API：未授权` | 该内置 API 未在应用的「可访问内置 API」中授权 | 联系 EADAF 管理员在应用 API 配置中勾选对应 API |
 | `403 无权访问该 API 服务` | 业务数据 API 配置了角色/组织限制，应用令牌无法通过 | 联系 EADAF 管理员将 API 访问策略改为「无限制」 |
 | `401 无效的应用令牌` | 应用未启用 API 或状态非 ACTIVE | 联系管理员检查应用状态和 `api_enabled` |
-| `403 当前业务系统无权向该采集管道提交数据` | 采集管道开启了来源限制且未包含 FMMS | 联系管理员将 FMMS 加入管道应用白名单 |
+| `403 当前业务系统无权向该采集管道提交数据` | 采集管道开启了来源限制且未包含该应用 | 联系管理员将 `YS` 加入管道应用白名单 |
 
 ### 请求格式
 
@@ -713,7 +715,7 @@ public class EadafClient {
 
 ### 最佳实践
 
-1. **Token 管理**：在 FMMS 服务端缓存 Token，设置定时刷新（提前于过期时间），避免每次请求都换 Token
+1. **Token 管理**：在服务端缓存 Token，设置定时刷新（提前于过期时间），避免每次请求都换 Token
 2. **错误重试**：对 401 错误实现自动刷新 Token 后重试的机制
 3. **分页查询**：业务数据列表使用 `limit` + `skip`，响应读取 `data.items` 与 `data.pagination`；平台内置列表仍可用 `page` + `size`。大数据量也可使用 SSE 流式接口
 4. **环境隔离**：开发/测试/生产环境使用不同的 EADAF 应用和密钥
@@ -746,7 +748,5 @@ public class EadafClient {
 
 ---
 
-> **文档版本**：2026-08-09  
-> **适用 EADAF 版本**：当前开发版  
+> **文档版本**：2026-11-08   
 > **SSO 权威文档**：[sso-integration-guide.md](./sso-integration-guide.md)  
-> **如有疑问**：联系 EADAF 平台管理员
