@@ -642,17 +642,26 @@ export const GeneralSettingsTab: React.FC = () => {
             <div>
               <Typography.Text strong>允许的图片格式</Typography.Text>
               <div style={{ color: token.colorTextDescription, fontSize: token.fontSizeSM, marginTop: token.marginXXS }}>
-                服务端按文件真实内容判断，不只看扩展名；SVG 可携带脚本，不需要就别勾
+                保存后以这里的名单为准。可输入自定义后缀，如 tiff。已识别的格式会核对文件头
               </div>
             </div>
             <Select
-              mode="multiple"
+              mode="tags"
               allowClear
-              style={{ minWidth: 260 }}
+              tokenSeparators={[',', '，', ' ']}
+              style={{ minWidth: 280 }}
               options={IMAGE_FORMAT_OPTIONS}
               value={fileStorageImageFormats}
-              onChange={(value) => setFileStorageImageFormats(value)}
-              placeholder="至少保留一种"
+              onChange={(value) => {
+                const next: string[] = [];
+                for (const item of value) {
+                  const raw = String(item).trim().toLowerCase().replace(/^\.+/, '');
+                  const format = raw === 'jpeg' ? 'jpg' : raw === 'dib' ? 'bmp' : raw;
+                  if (format && !next.includes(format)) next.push(format);
+                }
+                setFileStorageImageFormats(next);
+              }}
+              placeholder="输入后缀后回车"
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: token.margin }}>

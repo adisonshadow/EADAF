@@ -36,15 +36,15 @@ test('默认值：图片 5MB / 文档 50MB / 视频 500MB', () => {
   assert.equal(effectiveSettings().imageMaxMb, DEFAULT_SETTINGS.imageMaxMb);
 });
 
-test('合法值归一化，jpeg 归到 jpg，格式去重排序', () => {
+test('合法值归一化，jpeg 归到 jpg，格式去重并保留自定义项', () => {
   const settings = normalizeSettings({
     imageMaxMb: 2,
     documentMaxMb: 20,
     videoMaxMb: 200,
-    imageFormats: ['png', 'jpg', 'jpeg', 'png'],
+    imageFormats: ['png', 'jpg', 'jpeg', 'png', 'tiff'],
     imageCompress: false,
   });
-  assert.deepEqual(settings.imageFormats, ['jpg', 'png']);
+  assert.deepEqual(settings.imageFormats, ['png', 'jpg', 'tiff']);
   assert.equal(settings.imageCompress, false);
 });
 
@@ -54,7 +54,8 @@ test('越界/非整数/空格式会被拒绝', () => {
   assert.throws(() => normalizeSettings({ documentMaxMb: 1.5 }), /文档上限/);
   assert.throws(() => normalizeSettings({ videoMaxMb: max + 1 }), /视频上限/);
   assert.throws(() => normalizeSettings({ imageFormats: [] }), /至少保留一种/);
-  assert.throws(() => normalizeSettings({ imageFormats: ['tiff'] }), /不支持的图片格式/);
+  assert.throws(() => normalizeSettings({ imageFormats: ['../jpg'] }), /图片格式无效/);
+  assert.throws(() => normalizeSettings({ imageFormats: ['zip'] }), /图片格式无效/);
 });
 
 test('坏存档按没配过处理', () => {
@@ -130,6 +131,35 @@ test('bmp 在默认白名单内，Windows 的 image/x-ms-bmp 也认', () => {
     size: 1024,
   }));
   assert.equal(classifyFile({ mimeType: 'image/x-ms-bmp', filename: 'finger.bmp' }), 'image');
+});
+
+test('自定义格式以数据库名单为准，未识别文件头时按后缀放行', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'eadaf-fs-custom-'));
+  const file = path.join(dir, 'scan.tiff');
+  await fs.writeFile(file, 'not-a-known-header');
+  const stored = { imageFormats: ['jpg', 'tiff'] };
+  try {
+    const allowed = await assertStoredFile({
+      filePath: file,
+      size: 18,
+      mimeType: 'image/tiff',
+      filename: 'scan.tiff',
+      stored,
+    });
+    assert.equal(allowed.format, 'tiff');
+    await assert.rejects(
+      () => assertStoredFile({
+        filePath: file,
+        size: 18,
+        mimeType: 'image/tiff',
+        filename: 'scan.tiff',
+        stored: { imageFormats: ['jpg'] },
+      }),
+      /图片格式不支持/,
+    );
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('写 MinIO 前按真实文件头校验，伪装成 png 的文本会被拒', async () => {

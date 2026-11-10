@@ -126,12 +126,12 @@ const StorageImageUpload: React.FC<StorageImageUploadProps> = ({
   };
 
   const beforeUpload: UploadProps['beforeUpload'] = (file) => {
-    const isImage = file.type.startsWith('image/') || isSvgFile(file);
+    const format = imageFormatOfFile(file);
+    const isImage = file.type.startsWith('image/') || isSvgFile(file) || Boolean(format && storageLimits.imageFormats.includes(format));
     if (!isImage) {
       message.error('只能上传图片文件');
       return Upload.LIST_IGNORE;
     }
-    const format = imageFormatOfFile(file);
     if (format && !storageLimits.imageFormats.includes(format)) {
       message.error(`图片格式不支持，仅允许 ${formatImageFormatList(storageLimits)}`);
       return Upload.LIST_IGNORE;

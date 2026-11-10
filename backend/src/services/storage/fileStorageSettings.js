@@ -20,7 +20,10 @@ const logger = require('../../utils/logger');
 
 const MB = 1024 * 1024;
 
-/** 图片格式白名单的取值顺序也是设置页展示顺序 */
+/**
+ * 从未保存过文件存储设置时的初始名单，也是设置页的建议项。
+ * 保存之后以数据库里的 imageFormats 为准，不再用这份名单把自定义格式挡掉。
+ */
 const IMAGE_FORMATS = ['jpg', 'png', 'gif', 'webp', 'svg', 'bmp'];
 const IMAGE_FORMAT_LABELS = {
   jpg: 'JPG',
@@ -88,8 +91,14 @@ function hardMaxMb() {
 }
 
 function normalizeImageFormat(value) {
-  const raw = String(value || '').trim().toLowerCase();
-  return raw === 'jpeg' ? 'jpg' : raw;
+  const raw = String(value || '').trim().toLowerCase().replace(/^\.+/, '');
+  if (raw === 'jpeg') return 'jpg';
+  if (raw === 'dib') return 'bmp';
+  return raw;
+}
+
+function isFormatToken(value) {
+  return /^[a-z0-9]{2,16}$/.test(value);
 }
 
 function normalizeMb(value, label) {
@@ -106,13 +115,13 @@ function normalizeImageFormats(value) {
   const formats = [];
   for (const item of list) {
     const format = normalizeImageFormat(item);
-    if (!IMAGE_FORMATS.includes(format)) {
-      throw httpError(400, `不支持的图片格式：${item}`);
+    if (!isFormatToken(format) || DOCUMENT_EXTS.has(format) || VIDEO_EXTS.has(format)) {
+      throw httpError(400, `图片格式无效：${item}`);
     }
     if (!formats.includes(format)) formats.push(format);
   }
   if (!formats.length) throw httpError(400, '至少保留一种图片格式');
-  return formats.sort((a, b) => IMAGE_FORMATS.indexOf(a) - IMAGE_FORMATS.indexOf(b));
+  return formats;
 }
 
 /** 补齐缺省字段并校验；设置页保存、读取存档都走这里 */
@@ -170,8 +179,7 @@ function extOf(filename) {
 
 function imageFormatOf({ mimeType, filename } = {}) {
   const ext = normalizeImageFormat(extOf(filename));
-  if (ext === 'dib') return 'bmp';
-  if (IMAGE_FORMATS.includes(ext)) return ext;
+  if (isFormatToken(ext) && !DOCUMENT_EXTS.has(ext) && !VIDEO_EXTS.has(ext)) return ext;
   return IMAGE_MIME_FORMATS[String(mimeType || '').toLowerCase()] || '';
 }
 
@@ -189,6 +197,12 @@ function classifyFile({ mimeType, filename } = {}) {
     return 'video';
   }
   return 'video';
+}
+
+function categoryOf(file, settings) {
+  const declared = imageFormatOf(file);
+  if (declared && settings.imageFormats.includes(declared)) return 'image';
+  return classifyFile(file);
 }
 
 function categoryLimitMb(settings, category) {
@@ -213,7 +227,7 @@ function formatList(settings) {
  */
 function assertUploadAllowed({ mimeType, filename, size, stored } = {}) {
   const settings = publicSettings(resolveStored(stored));
-  const category = classifyFile({ mimeType, filename });
+  const category = categoryOf({ mimeType, filename }, settings);
 
   if (category === 'image') {
     const format = imageFormatOf({ mimeType, filename });
@@ -280,12 +294,14 @@ async function detectImageFormat(filePath) {
  */
 async function assertStoredFile({ filePath, size, mimeType, filename, stored } = {}) {
   const settings = publicSettings(resolveStored(stored));
-  const category = classifyFile({ mimeType, filename });
+  const category = categoryOf({ mimeType, filename }, settings);
 
   let format = '';
   if (category === 'image') {
-    // 只认文件头；扩展名/MIME 都可以伪造，不能作为放行依据
-    format = await detectImageFormat(filePath);
+    const declared = imageFormatOf({ mimeType, filename });
+    const sniffed = await detectImageFormat(filePath);
+    // 能识别文件头的格式必须对得上头；名单里的自定义格式还没有识别规则，按后缀放行
+    format = sniffed || (declared && !IMAGE_FORMATS.includes(declared) ? declared : '');
     if (!format || !settings.imageFormats.includes(format)) {
       throw httpError(415, `图片格式不支持，仅允许 ${formatList(settings)}`);
     }

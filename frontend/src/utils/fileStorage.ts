@@ -15,7 +15,7 @@ export type FileStorageSettings = {
   documentMaxMb: number;
   /** 视频 / 大文件上限（MB） */
   videoMaxMb: number;
-  /** 允许的图片格式（jpg/png/gif/webp/svg/bmp） */
+  /** 允许的图片格式。保存后以服务端这份名单为准，可含自定义后缀 */
   imageFormats: string[];
   /** 是否把 JPEG/PNG 转 WebP 存储 */
   imageCompress: boolean;
@@ -84,17 +84,32 @@ function extOf(name?: string) {
   return index > -1 ? value.slice(index + 1) : '';
 }
 
+function normalizeFormatToken(value: string) {
+  const raw = value.trim().toLowerCase().replace(/^\.+/, '');
+  if (raw === 'jpeg') return 'jpg';
+  if (raw === 'dib') return 'bmp';
+  return raw;
+}
+
+function isFormatToken(value: string) {
+  return /^[a-z0-9]{2,16}$/.test(value) && !DOCUMENT_EXTS.has(value) && !VIDEO_EXTS.has(value);
+}
+
 export function imageFormatOfFile(file: { type?: string; name?: string }): string {
-  const ext = extOf(file?.name);
-  const normalized = ext === 'jpeg' ? 'jpg' : ext === 'dib' ? 'bmp' : ext;
-  if (IMAGE_EXTS.has(normalized) || normalized === 'bmp') return normalized;
+  const normalized = normalizeFormatToken(extOf(file?.name));
+  if (isFormatToken(normalized)) return normalized;
   return IMAGE_MIME_FORMATS[String(file?.type || '').toLowerCase()] || '';
 }
 
 /** 与服务端 classifyFile 保持一致：未知类型归到“视频/大文件”档 */
-export function classifyFileCategory(file: { type?: string; name?: string }): FileStorageCategory {
+export function classifyFileCategory(
+  file: { type?: string; name?: string },
+  settings?: FileStorageSettings,
+): FileStorageCategory {
   const mime = String(file?.type || '').toLowerCase();
   const ext = extOf(file?.name);
+  const format = imageFormatOfFile(file);
+  if (settings && format && settings.imageFormats.includes(format)) return 'image';
   if (mime.startsWith('image/') || IMAGE_EXTS.has(ext)) return 'image';
   if (mime.startsWith('text/') || DOCUMENT_EXTS.has(ext)) return 'document';
   if (mime.startsWith('video/') || mime.startsWith('audio/') || VIDEO_EXTS.has(ext)) return 'video';
@@ -130,11 +145,13 @@ export function resolveFileStorageSettings(
     return Number.isFinite(num) && num >= 1 ? Math.round(num) : fallback;
   };
   const formats = Array.isArray(raw?.imageFormats)
-    ? raw?.imageFormats.filter((item): item is string => typeof item === 'string')
+    ? raw.imageFormats.filter((item): item is string => typeof item === 'string')
     : [];
-  const validFormats = formats.filter((item) =>
-    IMAGE_FORMAT_OPTIONS.some((option) => option.value === item),
-  );
+  const validFormats: string[] = [];
+  for (const item of formats) {
+    const format = normalizeFormatToken(item);
+    if (isFormatToken(format) && !validFormats.includes(format)) validFormats.push(format);
+  }
   return {
     imageMaxMb: pickMb(raw?.imageMaxMb, DEFAULT_FILE_STORAGE_SETTINGS.imageMaxMb),
     documentMaxMb: pickMb(raw?.documentMaxMb, DEFAULT_FILE_STORAGE_SETTINGS.documentMaxMb),
@@ -154,7 +171,7 @@ export function validateFileUpload(
   file: { type?: string; name?: string; size?: number },
   settings: FileStorageSettings,
 ): string | null {
-  const category = classifyFileCategory(file);
+  const category = classifyFileCategory(file, settings);
   if (category === 'image') {
     const format = imageFormatOfFile(file);
     if (!format || !settings.imageFormats.includes(format)) {
