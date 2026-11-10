@@ -777,7 +777,7 @@ const schemas = {
           videoMaxMb: int('视频/大文件上限（MB）', 500),
           imageFormats: {
             type: 'array',
-            items: { type: 'string', enum: ['jpg', 'png', 'gif', 'webp', 'svg'] },
+            items: { type: 'string', enum: ['jpg', 'png', 'gif', 'webp', 'svg', 'bmp'] },
             description: '允许的图片格式',
           },
           imageCompress: bool('是否把 JPEG/PNG 转成 WebP 存储'),

@@ -31,7 +31,7 @@ test('默认值：图片 5MB / 文档 50MB / 视频 500MB', () => {
   assert.equal(settings.imageMaxMb, 5);
   assert.equal(settings.documentMaxMb, 50);
   assert.equal(settings.videoMaxMb, 500);
-  assert.deepEqual(settings.imageFormats, ['jpg', 'png', 'gif', 'webp', 'svg']);
+  assert.deepEqual(settings.imageFormats, ['jpg', 'png', 'gif', 'webp', 'svg', 'bmp']);
   assert.equal(settings.imageCompress, true);
   assert.equal(effectiveSettings().imageMaxMb, DEFAULT_SETTINGS.imageMaxMb);
 });
@@ -114,7 +114,22 @@ test('文件头嗅探：不信任客户端上报的类型', () => {
   assert.equal(sniffImageFormat(Buffer.from('GIF89a....')), 'gif');
   assert.equal(sniffImageFormat(Buffer.from('RIFF0000WEBPVP8 ')), 'webp');
   assert.equal(sniffImageFormat(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg">')), 'svg');
+  assert.equal(sniffImageFormat(Buffer.from([0x42, 0x4d, 0, 0])), 'bmp');
   assert.equal(sniffImageFormat(Buffer.from('not an image')), '');
+});
+
+test('bmp 在默认白名单内，Windows 的 image/x-ms-bmp 也认', () => {
+  assert.doesNotThrow(() => assertUploadAllowed({
+    mimeType: 'image/bmp',
+    filename: 'finger.bmp',
+    size: 1024,
+  }));
+  assert.doesNotThrow(() => assertUploadAllowed({
+    mimeType: 'image/x-ms-bmp',
+    filename: 'finger.bmp',
+    size: 1024,
+  }));
+  assert.equal(classifyFile({ mimeType: 'image/x-ms-bmp', filename: 'finger.bmp' }), 'image');
 });
 
 test('写 MinIO 前按真实文件头校验，伪装成 png 的文本会被拒', async () => {

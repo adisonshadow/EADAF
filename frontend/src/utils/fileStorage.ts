@@ -15,7 +15,7 @@ export type FileStorageSettings = {
   documentMaxMb: number;
   /** 视频 / 大文件上限（MB） */
   videoMaxMb: number;
-  /** 允许的图片格式（jpg/png/gif/webp/svg） */
+  /** 允许的图片格式（jpg/png/gif/webp/svg/bmp） */
   imageFormats: string[];
   /** 是否把 JPEG/PNG 转 WebP 存储 */
   imageCompress: boolean;
@@ -25,7 +25,7 @@ export const DEFAULT_FILE_STORAGE_SETTINGS: FileStorageSettings = {
   imageMaxMb: 5,
   documentMaxMb: 50,
   videoMaxMb: 500,
-  imageFormats: ['jpg', 'png', 'gif', 'webp', 'svg'],
+  imageFormats: ['jpg', 'png', 'gif', 'webp', 'svg', 'bmp'],
   imageCompress: true,
 };
 
@@ -35,6 +35,7 @@ export const IMAGE_FORMAT_OPTIONS = [
   { value: 'gif', label: 'GIF' },
   { value: 'webp', label: 'WebP' },
   { value: 'svg', label: 'SVG' },
+  { value: 'bmp', label: 'BMP' },
 ];
 
 export const FILE_CATEGORY_LABELS: Record<FileStorageCategory, string> = {
@@ -45,7 +46,7 @@ export const FILE_CATEGORY_LABELS: Record<FileStorageCategory, string> = {
 
 const MB = 1024 * 1024;
 
-const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']);
+const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'dib']);
 const DOCUMENT_EXTS = new Set([
   'pdf',
   'doc', 'docx',
@@ -72,6 +73,9 @@ const IMAGE_MIME_FORMATS: Record<string, string> = {
   'image/gif': 'gif',
   'image/webp': 'webp',
   'image/svg+xml': 'svg',
+  'image/bmp': 'bmp',
+  'image/x-ms-bmp': 'bmp',
+  'image/x-bmp': 'bmp',
 };
 
 function extOf(name?: string) {
@@ -82,8 +86,8 @@ function extOf(name?: string) {
 
 export function imageFormatOfFile(file: { type?: string; name?: string }): string {
   const ext = extOf(file?.name);
-  const normalized = ext === 'jpeg' ? 'jpg' : ext;
-  if (IMAGE_EXTS.has(normalized)) return normalized;
+  const normalized = ext === 'jpeg' ? 'jpg' : ext === 'dib' ? 'bmp' : ext;
+  if (IMAGE_EXTS.has(normalized) || normalized === 'bmp') return normalized;
   return IMAGE_MIME_FORMATS[String(file?.type || '').toLowerCase()] || '';
 }
 

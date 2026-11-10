@@ -21,13 +21,14 @@ const logger = require('../../utils/logger');
 const MB = 1024 * 1024;
 
 /** 图片格式白名单的取值顺序也是设置页展示顺序 */
-const IMAGE_FORMATS = ['jpg', 'png', 'gif', 'webp', 'svg'];
+const IMAGE_FORMATS = ['jpg', 'png', 'gif', 'webp', 'svg', 'bmp'];
 const IMAGE_FORMAT_LABELS = {
   jpg: 'JPG',
   png: 'PNG',
   gif: 'GIF',
   webp: 'WebP',
   svg: 'SVG',
+  bmp: 'BMP',
 };
 
 const DEFAULT_SETTINGS = Object.freeze({
@@ -44,7 +45,7 @@ const CATEGORY_LABELS = {
   video: '视频/大文件',
 };
 
-const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']);
+const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'dib']);
 const DOCUMENT_EXTS = new Set([
   'pdf',
   'doc', 'docx',
@@ -71,6 +72,9 @@ const IMAGE_MIME_FORMATS = {
   'image/gif': 'gif',
   'image/webp': 'webp',
   'image/svg+xml': 'svg',
+  'image/bmp': 'bmp',
+  'image/x-ms-bmp': 'bmp',
+  'image/x-bmp': 'bmp',
 };
 
 function httpError(status, message) {
@@ -166,6 +170,7 @@ function extOf(filename) {
 
 function imageFormatOf({ mimeType, filename } = {}) {
   const ext = normalizeImageFormat(extOf(filename));
+  if (ext === 'dib') return 'bmp';
   if (IMAGE_FORMATS.includes(ext)) return ext;
   return IMAGE_MIME_FORMATS[String(mimeType || '').toLowerCase()] || '';
 }
@@ -243,6 +248,7 @@ async function readHead(filePath, length = 1024) {
 
 function sniffImageFormat(buffer) {
   if (!buffer || !buffer.length) return '';
+  if (buffer.length >= 2 && buffer[0] === 0x42 && buffer[1] === 0x4d) return 'bmp';
   if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
     return 'jpg';
   }
