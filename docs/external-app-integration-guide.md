@@ -680,6 +680,14 @@ public class EadafClient {
 
 完整流程、BFF 接口清单、联调与排障：**[用户 SSO 接入指南](./sso-integration-guide.md)**。
 
+应用和 EADAF 可以不在同一个域名或 IP。登录态不靠两边共用 Cookie，靠浏览器跳转：
+
+- 业务页发现未登录或令牌失效，先回到**本应用**的登录页，不要带着失效令牌继续停在业务页。
+- 本应用登录页在地址**没有** `logged_out=1` 时，转到 EADAF `/auth/login?app={application_id}`。管理台会话还在时，EADAF 显示「您已登录，正在打开……」并回到应用。这个登录页**不得**清掉 EADAF 的登录状态。
+- 退出不能只删本站 `localStorage`。必须打开 EADAF `/auth/logout?app={application_id}&post_logout_redirect_uri={与 SSO 回调同源的地址}`。登录页往往和 BFF 回调不在同一个端口，所以回跳先落到 BFF（例如 `/auth/logged-out`），再由 BFF 转到前端登录页并附上 `logged_out=1`。中转页会撤销会话并清掉本浏览器里的平台令牌和应用令牌。
+- 登录页收到 `logged_out=1` 时停在本页，等用户再点登录。不要马上自动跳回 EADAF，否则会被还没清掉的会话重新登进去。
+- `post_logout_redirect_uri` 必须和该应用已登记的 `redirect_uri`、DEV 重定向或 `frontend_url` 同源。
+
 ---
 
 ## 常见问题与注意事项

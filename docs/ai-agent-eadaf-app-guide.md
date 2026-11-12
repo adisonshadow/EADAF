@@ -59,6 +59,7 @@ NCDP 的服务端接口是 `/api/ncdp/auth/*`、`/api/ncdp/projects`、`/api/ncd
 - **远程生图地址不要长期留在 JSON 里。** 保存时把 data URL 和 http 图片转存进文件桶，JSON 里改成 `eadaf:{objectId}`，返回给浏览器时改成同源地址。相同内容用哈希避免自动保存反复上传。
 - **没有 preset 的应用，`eadaf.app.yaml` 必须写 `services`。** 否则 `pack:app` 的通用打包会因为服务列表为空失败。页面和 API 在同一端口时，写一个 `role: web` 的服务即可。
 - **容器里不要用 `localhost` 访问 EADAF。** 平台注入 `EADAF_API_BASE_URL`（Compose 里一般是 `http://eadaf-api:9526`）。服务端要先读这个变量，再回退到本机开发用的 `EADAF_API`。镜像里的 `.env.production` 不能覆盖进程已经传入的变量，否则注册会在换 Token 时得到 `fetch failed`，而宿主机上的 `9526` 从外面看仍然是通的。
+- **走平台 SSO 的应用不要自己发明登录登出。** 业务页失效先回本应用登录页；这个登录页在没有 `logged_out=1` 时转到 EADAF，并且不得清掉 EADAF 的登录态。退出必须打开 EADAF `/auth/logout` 中转页，不能只删本站 `localStorage`。约定见 [外部应用集成指南的用户 SSO 小节](./external-app-integration-guide.md#用户-sso-单点登录)。NCDP 这种自建用户表不走这条。
 
 ## 明确不要做
 

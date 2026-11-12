@@ -1,7 +1,7 @@
 import { history } from '@/utils/navigation';
 import { message } from '@/utils/antdAppApis';
 import { getAuthCheck } from '@/services/EADAF/api/auth';
-import { saveSsoAuth } from './ssoTokenStore';
+import { clearSsoAuth, getSsoAuth, saveSsoAuth } from './ssoTokenStore';
 
 import { getApiData } from './apiResponse';
 import { normalizeUploadFileId } from './image';
@@ -80,10 +80,14 @@ export const isAuthPage = (pathname: string) => authPages.includes(pathname);
 // 获取当前页面是否需要 app 参数
 export const hasAppParam = () => new URLSearchParams(window.location.search).has('app');
 
-// 获取重定向 URL
+// 获取重定向 URL。redirect 与 app 必须是两个独立参数，不能在已有 ? 后再拼一个 ?app=
 export const getRedirectUrl = (currentPath: string) => {
-  const appParam = hasAppParam() ? `?app=${new URLSearchParams(window.location.search).get('app')}` : '';
-  return loginPath + (currentPath !== '/' ? `?redirect=${encodeURIComponent(currentPath)}` : '') + appParam;
+  const params = new URLSearchParams();
+  if (currentPath && currentPath !== '/') params.set('redirect', currentPath);
+  const app = new URLSearchParams(window.location.search).get('app');
+  if (app) params.set('app', app);
+  const qs = params.toString();
+  return qs ? `${loginPath}?${qs}` : loginPath;
 };
 
 // 检查 token 是否有效
@@ -246,17 +250,94 @@ export const getAuth = () => {
   return { token, refreshToken };
 };
 
+function applyCurrentUser(
+  setInitialState: ((callback: (state: any) => any) => void) | undefined,
+  currentUser: CurrentUser | undefined,
+) {
+  if (!setInitialState) return;
+  setInitialState((s) => ({
+    ...s,
+    currentUser,
+  }));
+}
+
+/**
+ * 嵌入页（地址带 app）只认该应用的 sso_token。
+ * 验签失败只清这一个应用的令牌，不能 clearAuth() 把管理台会话一起抹掉。
+ */
+async function checkEmbedAuth(
+  appId: string,
+  currentPath: string,
+  setInitialState?: (callback: (state: any) => any) => void,
+) {
+  const token = getSsoAuth(appId).token;
+  if (!token) {
+    history.push(getRedirectUrl(currentPath));
+    return false;
+  }
+  try {
+    const currentUser = parseAuthUser(
+      await getAuthCheck({ app: appId }, { skipErrorHandler: true }),
+    );
+    if (!currentUser) throw new Error('Token 无效');
+    applyCurrentUser(setInitialState, currentUser);
+    return true;
+  } catch (error) {
+    console.error('应用令牌验证失败:', error);
+    clearSsoAuth(appId);
+    applyCurrentUser(setInitialState, undefined);
+    history.push(getRedirectUrl(currentPath));
+    return false;
+  }
+}
+
+const SSO_TOKEN_PREFIX = 'sso_token:';
+
+/** 管理台没有平台令牌时，用已经登录的应用会话补签一份。失败就当没有。 */
+export async function restorePlatformSessionFromSso(): Promise<boolean> {
+  const appIds: string[] = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(SSO_TOKEN_PREFIX)) appIds.push(key.slice(SSO_TOKEN_PREFIX.length));
+  }
+  for (const appId of appIds) {
+    const token = getSsoAuth(appId).token;
+    if (!appId || !token) continue;
+    try {
+      const res = await fetch(
+        `/api/v1/auth/platform/exchange?app=${encodeURIComponent(appId)}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!res.ok) continue;
+      const json = (await res.json()) as {
+        data?: { token?: string; refresh_token?: string; sid?: string };
+      };
+      const data = json.data;
+      if (!data?.token) continue;
+      saveAuth(data.token, data.refresh_token);
+      if (data.sid) saveSsoSid(data.sid);
+      return true;
+    } catch {
+      /* 这个应用的令牌补不上，试下一个 */
+    }
+  }
+  return false;
+}
+
 // 路由守卫
 export const checkAuth = async (setInitialState?: (callback: (state: any) => any) => void) => {
   if (typeof localStorage !== 'undefined' && localStorage.getItem('DEBUG_AUTH') === '1') {
     console.log('开始路由守卫检查...');
   }
   consumeEmbedAuthFromUrl();
-  const { token } = getAuth();
+  let { token } = getAuth();
   const currentPath = location.pathname + location.search;
   const isCurrentAuthPage = isAuthPage(location.pathname);
-  const hasCurrentAppParam = hasAppParam();
   const appId = new URLSearchParams(location.search).get('app');
+  const hasCurrentAppParam = Boolean(appId);
 
   if (typeof localStorage !== 'undefined' && localStorage.getItem('DEBUG_AUTH') === '1') {
     console.log('当前页面状态:', {
@@ -273,6 +354,18 @@ export const checkAuth = async (setInitialState?: (callback: (state: any) => any
     return true;
   }
 
+  // 业务应用嵌入（个人中心等）：用应用令牌，不用管理台 token 去按应用密钥验签
+  if (appId && !isCurrentAuthPage) {
+    return checkEmbedAuth(appId, currentPath, setInitialState);
+  }
+
+  // 从应用登录过、但管理台会话位还是空的：用应用令牌补一份平台令牌
+  if (!token && !isCurrentAuthPage) {
+    if (await restorePlatformSessionFromSso()) {
+      token = getAuth().token;
+    }
+  }
+
   // 如果没有 token 且不是认证页面，跳转到登录页
   if (!token && !isCurrentAuthPage) {
     const redirectUrl = getRedirectUrl(currentPath);
@@ -283,19 +376,12 @@ export const checkAuth = async (setInitialState?: (callback: (state: any) => any
   // 如果有 token，验证其有效性
   if (token && !isCurrentAuthPage) {
     try {
-      const response = await getAuthCheck(
-        appId ? { app: appId } : {},
-        { skipErrorHandler: true },
+      const currentUser = parseAuthUser(
+        await getAuthCheck({}, { skipErrorHandler: true }),
       );
-      const currentUser = parseAuthUser(response);
 
       if (currentUser) {
-        if (setInitialState) {
-          setInitialState((s) => ({
-            ...s,
-            currentUser,
-          }));
-        }
+        applyCurrentUser(setInitialState, currentUser);
         return true;
       }
       throw new Error('Token 无效');
@@ -303,12 +389,7 @@ export const checkAuth = async (setInitialState?: (callback: (state: any) => any
       console.error('Token 验证失败:', error);
       // token 无效，清除并跳转
       clearAuth();
-      if (setInitialState) {
-        setInitialState((s) => ({
-          ...s,
-          currentUser: undefined,
-        }));
-      }
+      applyCurrentUser(setInitialState, undefined);
       const redirectUrl = getRedirectUrl(currentPath);
       history.push(redirectUrl);
       return false;
@@ -327,17 +408,20 @@ export const checkAuth = async (setInitialState?: (callback: (state: any) => any
 // 处理 401 未授权
 export const handleUnauthorized = (setInitialState?: (callback: (state: any) => any) => void) => {
   console.log('处理 401 未授权...');
-  clearAuth();
-  if (setInitialState) {
-    console.log('清除用户状态');
-    setInitialState((s) => ({
-      ...s,
-      currentUser: undefined,
-    }));
+  const appId = new URLSearchParams(location.search).get('app');
+  const isCurrentAuthPage = isAuthPage(location.pathname);
+  const hasCurrentAppParam = Boolean(appId);
+
+  // 嵌入页的 401 只属于这个应用的令牌
+  if (appId && !isCurrentAuthPage) {
+    clearSsoAuth(appId);
+    applyCurrentUser(setInitialState, undefined);
+    history.push(getRedirectUrl(location.pathname + location.search));
+    return;
   }
 
-  const isCurrentAuthPage = isAuthPage(location.pathname);
-  const hasCurrentAppParam = hasAppParam();
+  clearAuth();
+  applyCurrentUser(setInitialState, undefined);
 
   console.log('401 处理状态:', {
     isAuthPage: isCurrentAuthPage,

@@ -283,6 +283,23 @@ class AuthController {
         jwtSecret,
         { expiresIn: authTokenSettings.resolveLoginAccessExpiresIn() }
       );
+
+      // 从业务应用登录时，token 是应用密钥签发的，不能写入管理台会话位。
+      // 同一 sid 再签一份平台令牌，打开管理台才是已登录。
+      let platformToken = null;
+      let platformRefreshToken = null;
+      if (tokenAppId) {
+        platformToken = jwt.sign(
+          {
+            user_id: user.user_id,
+            username: user.username,
+            ...(sid ? { sid } : {}),
+          },
+          config.api.security.jwtSecret,
+          { expiresIn: authTokenSettings.resolveLoginAccessExpiresIn() }
+        );
+        platformRefreshToken = ssoSession.newRefreshToken();
+      }
       
       // 生成刷新令牌（不透明随机串：JWT 同秒会签出同一串，且带声明会超 255 列宽；
       // sid/应用的映射放 Redis，见 utils/ssoSession）
@@ -302,6 +319,19 @@ class AuthController {
         userId: user.user_id,
         applicationId: tokenAppId,
       });
+      if (platformRefreshToken) {
+        await RefreshToken.create({
+          user_id: user.user_id,
+          token: platformRefreshToken,
+          expires_at: new Date(Date.now() + authTokenSettings.durationToMs(authTokenSettings.resolveRefreshExpiresIn(), 7 * 24 * 60 * 60 * 1000)),
+          status: 'ACTIVE'
+        });
+        await ssoSession.bindRefreshToken(platformRefreshToken, {
+          sid,
+          userId: user.user_id,
+          applicationId: null,
+        });
+      }
 
       // 准备返回数据
       const fullUser = await User.findByPk(user.user_id, {
@@ -317,6 +347,10 @@ class AuthController {
         must_change_password: !!fullUser?.must_change_password,
         // 会话 ID：调用方（管理台前端）保存下来，下次登录/登出带上，实现"同设备共用一个会话"
         ...(sid ? { sid } : {}),
+        ...(platformToken ? {
+          platform_token: platformToken,
+          platform_refresh_token: platformRefreshToken,
+        } : {}),
       };
 
       // 如果找到了应用，添加SSO配置到响应中
@@ -1014,6 +1048,76 @@ class AuthController {
         message: error.message,
         stack: error.stack,
         user: ctx.state.user,
+      });
+      ctx.status = 500;
+      ctx.body = { code: 500, message: '服务器内部错误', data: null };
+    }
+  }
+
+  /**
+   * 已有业务应用的用户会话时，补一份平台令牌。
+   * 从应用登录后打开管理台走这里：应用 JWT 不能写入管理台会话位。
+   * POST /api/v1/auth/platform/exchange
+   */
+  static async exchangePlatform(ctx) {
+    try {
+      const sessionUser = ctx.state.user;
+      if (ctx.state.isApplicationToken || !sessionUser?.user_id) {
+        ctx.status = 401;
+        ctx.body = { code: 401, message: '需要用户登录会话', data: null };
+        return;
+      }
+      const user = await User.findByPk(sessionUser.user_id, {
+        attributes: ['user_id', 'username', 'status'],
+      });
+      if (!user || user.status !== 'ACTIVE') {
+        ctx.status = 401;
+        ctx.body = { code: 401, message: '用户不存在或已被禁用', data: null };
+        return;
+      }
+      const sid = await ssoSession.reuseOrCreateSession({
+        requestedSid: sessionUser.sid,
+        userId: user.user_id,
+        applicationId: null,
+        platform: true,
+        req: ctx,
+      });
+      const token = jwt.sign(
+        {
+          user_id: user.user_id,
+          username: user.username,
+          ...(sid ? { sid } : {}),
+        },
+        config.api.security.jwtSecret,
+        { expiresIn: authTokenSettings.resolveLoginAccessExpiresIn() },
+      );
+      const refreshToken = ssoSession.newRefreshToken();
+      await RefreshToken.create({
+        user_id: user.user_id,
+        token: refreshToken,
+        expires_at: new Date(Date.now() + authTokenSettings.durationToMs(authTokenSettings.resolveRefreshExpiresIn(), 7 * 24 * 60 * 60 * 1000)),
+        status: 'ACTIVE',
+      });
+      await ssoSession.bindRefreshToken(refreshToken, {
+        sid,
+        userId: user.user_id,
+        applicationId: null,
+      });
+      ctx.status = 200;
+      ctx.body = {
+        code: 200,
+        message: 'success',
+        data: {
+          token,
+          refresh_token: refreshToken,
+          ...(sid ? { sid } : {}),
+        },
+      };
+    } catch (error) {
+      logger.error('Error exchanging platform token', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
       });
       ctx.status = 500;
       ctx.body = { code: 500, message: '服务器内部错误', data: null };

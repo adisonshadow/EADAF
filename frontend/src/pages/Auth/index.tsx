@@ -78,6 +78,8 @@ interface LoginResponse {
   data?: {
     token?: string;
     refresh_token?: string;
+    platform_token?: string;
+    platform_refresh_token?: string;
     expires_in?: string;
     user_id?: string;
     need_captcha?: boolean;
@@ -507,16 +509,23 @@ const LoginPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [isLoggedIn, isCheckingAuth, isApplicationInfoLoaded, applicationInfo, ssoError]);
 
-  const handleLoginSuccess = async (userInfo: UserInfo, token: string, refreshToken?: string) => {
+  const handleLoginSuccess = async (
+    userInfo: UserInfo,
+    token: string,
+    refreshToken?: string,
+    platformToken?: string,
+    platformRefreshToken?: string,
+  ) => {
     const urlParams = new URL(window.location.href).searchParams;
     const appId = urlParams.get('app');
     try {
       // SSO 登录时 JWT 是按【应用密钥】签发的，只对「带 app 参数」的请求有效；
       // EADAF 管理台的全局会话校验不带 app（用平台密钥验签），把它写进同一个
       // localStorage.token 会把管理台会话覆盖成无效 token，随后 401 → 清会话 →
-      // 回登录页。所以应用 token 存到独立键，绝不占用平台会话位。
+      // 回登录页。所以应用 token 存到独立键。平台令牌另外一份，打开管理台才是已登录。
       if (appId) {
         saveSsoAuth(appId, token, refreshToken);
+        if (platformToken) saveAuth(platformToken, platformRefreshToken);
       } else {
         saveAuth(token, refreshToken);
       }
@@ -649,7 +658,13 @@ const LoginPage: React.FC = () => {
           status: 'ACTIVE',
           department_id: null,
         };
-        await handleLoginSuccess(userInfo, msg.data.token, msg.data.refresh_token);
+        await handleLoginSuccess(
+          userInfo,
+          msg.data.token,
+          msg.data.refresh_token,
+          msg.data.platform_token,
+          msg.data.platform_refresh_token,
+        );
         return true;
       } else if (msg.data?.need_captcha) {
         // 该应用配置了「不需要人类验证」时，服务端不会再返回 need_captcha；

@@ -848,6 +848,24 @@ router.get('/captcha', authController.getCaptcha);
  */
 router.post('/sso/exchange', auth, authController.exchangeSso);
 
+/**
+ * @swagger
+ * /api/v1/auth/platform/exchange:
+ *   post:
+ *     tags: [Auth]
+ *     summary: 用已有的应用用户会话补签平台令牌 [需要认证]
+ *     description: |
+ *       从业务应用登录后打开管理台时使用。请求带该应用的用户 JWT，以及 query app（或令牌里的 application_id）。
+ *       返回的 token 用平台密钥签发，写入管理台会话位，不要和 sso_token 混用。
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: 签发成功，data 含 token / refresh_token / sid
+ *       401:
+ *         description: 没有用户登录会话
+ */
+router.post('/platform/exchange', auth, authController.exchangePlatform);
+
 router.get('/check', auth, authController.checkAuth);
 
 module.exports = router; 

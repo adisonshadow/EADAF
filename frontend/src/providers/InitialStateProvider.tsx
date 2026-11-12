@@ -4,7 +4,16 @@ import { getDepartments } from '@/services/EADAF/api/departments';
 import { getAuthCheck } from '@/services/EADAF/api/auth';
 import { getSystemFeatures } from '@/services/EADAF/api/system';
 import { getPermissions } from '@/services/EADAF/api/permissions';
-import { clearAuth, consumeEmbedAuthFromUrl, getAuth, parseAuthUser, type CurrentUser } from '@/utils/auth';
+import {
+  clearAuth,
+  clearSsoAuth,
+  consumeEmbedAuthFromUrl,
+  getAuth,
+  getSsoAuth,
+  parseAuthUser,
+  restorePlatformSessionFromSso,
+  type CurrentUser,
+} from '@/utils/auth';
 import { getApiData, isApiSuccess } from '@/utils/apiResponse';
 import {
   applyDocumentBranding,
@@ -25,24 +34,32 @@ export type {
   MenuPermissionItem,
 } from './initialStateContext';
 
+function pageAppId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get('app');
+}
+
 async function fetchUserInfo() {
+  const appId = pageAppId();
   try {
-    const { token } = getAuth();
+    // 嵌入页用应用令牌；没有 app 时才读管理台会话。管理台会话空着时，用已登录的应用补一份。
+    let token = appId ? getSsoAuth(appId).token : getAuth().token;
+    if (!token && !appId && (await restorePlatformSessionFromSso())) {
+      token = getAuth().token;
+    }
     if (!token) return undefined;
 
-    // 全局会话一律按平台密钥校验；URL 上的 app 留给 Auth 页显式传给 getAuthCheck / login
-    const response = await getAuthCheck({}, { skipErrorHandler: true });
+    const response = await getAuthCheck(appId ? { app: appId } : {}, { skipErrorHandler: true });
     const user = parseAuthUser(response);
     if (user) return user;
     throw new Error('获取用户信息失败');
   } catch (error: unknown) {
     const err = error as { response?: { status?: number } };
     if (err?.response?.status === 401) {
-      // 全局会话用的是平台 token，验不过就是真的失效（或旧版本把应用 token 写进了
-      // 这个位置），必须清掉，否则会一直 401 停在"回到登录页"的状态。
-      // 但不要顺手 clearAllSsoAuth()：那是「所有应用」的 sso_token:<app_id>，
-      // 管理台一次 401 不该把别的应用登录态一起抹掉（现象：操作管理台 → 业务应用掉登录）。
-      clearAuth();
+      // 嵌入页 401 只清这个应用的令牌。管理台会话验不过才清平台 token。
+      // 不要 clearAllSsoAuth()：管理台一次 401 不该把别的应用登录态一起抹掉。
+      if (appId) clearSsoAuth(appId);
+      else clearAuth();
     }
     return undefined;
   }
@@ -111,7 +128,8 @@ async function loadInitialState(): Promise<InitialState> {
   ]);
   let departmentsResult;
   let menuPermissions: MenuPermissionItem[] | undefined;
-  if (currentUser) {
+  // 嵌入页只需要当前用户。部门/菜单是管理台数据，用应用令牌去拉会 401，不能因此把个人中心打回登录页。
+  if (currentUser && !pageAppId()) {
     departmentsResult = await fetchDepartments();
     menuPermissions = await fetchMenuPermissions();
   }
