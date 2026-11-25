@@ -35,7 +35,7 @@ fi
 
 load_dotenv
 apply_public_host_urls
-mkdir -p "$ROOT/data" "$ROOT/logs/api" "$ROOT/logs/nginx"
+mkdir -p "$ROOT/data" "$ROOT/backup" "$ROOT/logs/api" "$ROOT/logs/nginx"
 
 log_step "2/6 加载全部镜像"
 load_module_images all

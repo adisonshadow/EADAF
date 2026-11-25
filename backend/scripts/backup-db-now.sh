@@ -126,6 +126,8 @@ find_local_pg_dump() {
   for candidate in \
     "${PG_DUMP:-}" \
     "$(command -v pg_dump 2>/dev/null || true)" \
+    "/usr/lib/postgresql/16/bin/pg_dump" \
+    "/usr/pgsql-16/bin/pg_dump" \
     "/opt/homebrew/opt/postgresql@16/bin/pg_dump" \
     "/usr/local/opt/postgresql@16/bin/pg_dump"; do
     [ -n "$candidate" ] && [ -x "$candidate" ] && echo "$candidate" && return 0
@@ -156,7 +158,7 @@ run_pg_dump() {
 
   local pg_dump_bin
   pg_dump_bin="$(find_local_pg_dump)" || {
-    echo "错误：未找到 pg_dump。可安装 postgresql@16，或启动 Docker 后重试（DB_BACKUP_USE_DOCKER=auto）"
+    echo "错误：未找到 pg_dump。打包部署请使用内置 PostgreSQL 16 客户端的镜像；源码开发可安装 postgresql-client-16，或启动 Docker 数据库容器（DB_BACKUP_USE_DOCKER=auto）"
     exit 1
   }
 
@@ -180,7 +182,7 @@ run_pg_dump() {
         rm -f "$output_file.err"
         return
       fi
-      echo "提示：本地 pg_dump 版本低于 PostgreSQL 服务器，请 brew install postgresql@16 或启动 Docker 数据库容器"
+      echo "提示：本地 pg_dump 版本低于 PostgreSQL 服务器，请安装 postgresql-client-16，或启动 Docker 数据库容器"
     fi
     cat "$output_file.err" >&2
     rm -f "$output_file" "$output_file.err"

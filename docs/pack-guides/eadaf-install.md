@@ -30,6 +30,8 @@ K8s（在线或离线）在同一目录执行 `./k8s/install.sh`。集群需要�
 
 装好后打开「系统健康」。`admin` 仍使用初始密码时会有警告，请修改密码或删除该账号。若安装时选择使用 MySQL 作为业务数据库，「业务数据 → 数据库连接」里会有「本地 MySQL（业务库）」，并作为默认连接；PostgreSQL 连接仍保留。
 
+数据库备份与恢复都在 API 容器内执行：镜像已内置 PostgreSQL 16 客户端（`pg_dump` / `pg_restore` / `psql`），备份文件写到宿主机 `<安装目录>/backup`，容器重建或升级都不会清掉。「系统设置 → 数据备份」里显示的 `/data/db-backup` 是容器内路径，已挂载到上面那个宿主机目录；不要改成宿主机路径，那样会写进容器内部，重建容器后就没了。
+
 ```bash
 ./ctl.sh reinstall eadaf-web
 ./ctl.sh logs eadaf-api --tail 100
