@@ -421,13 +421,14 @@ copy_runtime_skeleton() {
     cp "$SKELETON/$f" "$dest/$f"
   done
   mkdir -p "$dest/nginx/conf" "$dest/init" "$dest/logs/api" "$dest/logs/nginx" \
-    "$dest/data" "$dest/frontend" "$dest/docker-images" "$dest/k8s"
+    "$dest/data" "$dest/backup" "$dest/frontend" "$dest/docker-images" "$dest/k8s"
   cp "$SKELETON/nginx/conf/default.conf" "$dest/nginx/conf/default.conf"
   cp "$SKELETON/init/fix-db-connection.js" "$dest/init/fix-db-connection.js"
   cp "$SKELETON/k8s/"*.yaml "$SKELETON/k8s/"*.sh "$dest/k8s/"
   : >"$dest/logs/api/.gitkeep"
   : >"$dest/logs/nginx/.gitkeep"
   : >"$dest/data/.gitkeep"
+  : >"$dest/backup/.gitkeep"
   : >"$dest/frontend/.gitkeep"
   : >"$dest/docker-images/.gitkeep"
   chmod +x "$dest/"*.sh "$dest/k8s/"*.sh 2>/dev/null || true

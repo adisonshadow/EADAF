@@ -1114,8 +1114,11 @@ export const BackupSettingsTab: React.FC = () => {
               {'mkdir -p /data/eadaf-backups && chown <运行用户>:<运行组> /data/eadaf-backups'}
             </Typography.Text>
             <div>
-              容器部署时还需把该目录挂载进容器（如 <Typography.Text code style={{ fontSize: 12 }}>-v /data/eadaf-backups:/data/db-backup</Typography.Text>），
-              并在容器 env 里把 DB_BACKUP_DIR 指向挂载路径。
+              容器部署时这里填的是<strong>容器内路径</strong>：安装包默认
+              <Typography.Text code style={{ fontSize: 12 }}>/data/db-backup</Typography.Text>
+              ，已挂载到宿主机
+              <Typography.Text code style={{ fontSize: 12 }}>{'<安装目录>/backup'}</Typography.Text>
+              。填宿主机路径（如 /opt/eadaf/backup）不会写到宿主机，容器重建或升级后还会丢失。
             </div>
           </div>
           <div style={{ color: '#888', fontSize: 12, lineHeight: 1.8 }}>

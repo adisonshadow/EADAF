@@ -27,6 +27,9 @@ WEB_PORT="${EADAF_WEB_HOST_PORT:-9527}"
 API_PORT="${EADAF_API_HOST_PORT:-9526}"
 NS="${K8S_NAMESPACE:-eadaf}"
 
+# apps.yaml 用 hostPath 把备份目录挂进 API Pod，目录必须先存在
+mkdir -p "$ROOT/backup"
+
 RENDER="$(mktemp -d)"
 trap 'rm -rf "$RENDER"' EXIT
 

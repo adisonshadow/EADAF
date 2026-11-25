@@ -37,6 +37,8 @@ services:
       API_PORT: "9526"
       LOG_FILE: /data/logs/app.log
       DB_BACKUP_DIR: /data/db-backup
+      # 容器里没有 docker CLI / socket，备份与恢复直接用镜像内置的 pg_dump / pg_restore
+      DB_BACKUP_USE_DOCKER: "false"
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-eadaf}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-eadaf-minio-secret}
@@ -44,7 +46,8 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
     volumes:
       - ./logs/api:/data/logs
-      - eadaf_db_backup:/data/db-backup
+      # 备份落宿主机 <安装目录>/backup，容器重建/升级不丢
+      - ./backup:/data/db-backup
       - ./.env:/app/backend/.env.production:ro
     depends_on:
       postgres:
@@ -136,4 +139,3 @@ volumes:
   EADAF_redis_data:
   EADAF_mysql_data:
   eadaf_minio_data:
-  eadaf_db_backup:

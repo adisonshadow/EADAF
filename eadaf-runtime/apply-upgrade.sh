@@ -71,6 +71,9 @@ EOF
 fi
 
 chmod +x "$DEPLOY_ROOT/lib.sh" "$DEPLOY_ROOT/ctl.sh" 2>/dev/null || true
+# 新版编排把备份目录挂到宿主机 <安装目录>/backup；老部署没有这个目录，
+# 先建好，避免 Docker 以 root 自动创建或 k8s hostPath 校验失败。
+mkdir -p "$DEPLOY_ROOT/backup"
 # shellcheck disable=SC1091
 source "$DEPLOY_ROOT/lib.sh"
 load_deploy_choice "$DEPLOY_ROOT"

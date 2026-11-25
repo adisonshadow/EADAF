@@ -108,9 +108,20 @@ spec:
               value: 0.0.0.0
             - name: API_PORT
               value: "9526"
+            # Pod 内没有 docker CLI / socket，备份与恢复直接用镜像内置的 pg_dump / pg_restore
+            - name: DB_BACKUP_USE_DOCKER
+              value: "false"
           envFrom:
             - configMapRef:
                 name: eadaf-env
+          volumeMounts:
+            - name: backup
+              mountPath: /data/db-backup
+      volumes:
+        - name: backup
+          hostPath:
+            path: __DEPLOY_ROOT__/backup
+            type: Directory
 ---
 apiVersion: v1
 kind: Service
